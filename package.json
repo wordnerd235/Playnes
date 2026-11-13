@@ -1,0 +1,32 @@
+{
+  "name": "playnes",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A kid-friendly real-world flying game for iPad and PC.",
+  "scripts": {
+    "copy-cesium": "node scripts/copy-cesium.mjs",
+    "predev": "node scripts/copy-cesium.mjs",
+    "dev": "vite --host",
+    "prebuild": "node scripts/copy-cesium.mjs",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "test": "vitest run",
+    "models": "node scripts/build-models.mjs",
+    "voice:lines": "node scripts/voice/collect-lines.mjs"
+  },
+  "dependencies": {
+    "cesium": "1.146.0"
+  },
+  "devDependencies": {
+    "three": "0.186.1",
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "vitest": "4.1.12"
+  },
+  "overrides": {
+    "@cesium/engine": "26.4.0",
+    "@cesium/widgets": "16.3.0",
+    "@cesium/core": "0.1.0"
+  }
+}

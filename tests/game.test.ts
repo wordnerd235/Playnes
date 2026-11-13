@@ -1,0 +1,103 @@
+import { describe, expect, it, beforeAll } from "vitest";
+import { readFileSync, existsSync } from "node:fs";
+import { AIRCRAFT } from "../src/data/aircraft.ts";
+import { AIRPORTS, airportByCode } from "../src/data/airports.ts";
+import { allLines, lineKey, speakable, LINES } from "../src/data/lines.ts";
+import { buy, canBuy, charterRewards, exportCode, importCode, newProgress } from "../src/game/progress.ts";
+import { makeRunway, pickEnd, runwayCoords, runwayPoint } from "../src/game/runway.ts";
+import { bearing, distance, NM } from "../src/sim/geo.ts";
+
+beforeAll(() => {
+  // progress.ts uses btoa/atob, available in Node 18+.
+  expect(typeof btoa).toBe("function");
+});
+
+describe("data", () => {
+  it("TRI to CLT is about 104 nm", () => {
+    expect(distance(airportByCode("TRI"), airportByCode("CLT")) / NM).toBeCloseTo(104, 0);
+  });
+
+  it("every aircraft has a unique id and a model file", () => {
+    const ids = new Set(AIRCRAFT.map((a) => a.id));
+    expect(ids.size).toBe(AIRCRAFT.length);
+    for (const a of AIRCRAFT) expect(existsSync(`public/models/${a.id}.glb`), a.id).toBe(true);
+  });
+
+  it("unlock prices rise with the hangar order", () => {
+    const prices = AIRCRAFT.flatMap((a) => (a.unlock.type === "wings" ? [a.unlock.price] : []));
+    expect([...prices].sort((x, y) => x - y)).toEqual(prices);
+  });
+
+  it("runway ends are about the published length apart", () => {
+    for (const ap of AIRPORTS) {
+      const [a, b] = ap.runway.ends;
+      const ft = distance(a, b) / 0.3048;
+      expect(Math.abs(ft - ap.runway.lengthFt) / ap.runway.lengthFt, ap.code).toBeLessThan(0.05);
+    }
+  });
+});
+
+describe("runways", () => {
+  it("picks the runway direction closest to the course", () => {
+    const tri = airportByCode("TRI");
+    expect(pickEnd(tri, 225).end.id).toBe("23");
+    expect(pickEnd(tri, 40).end.id).toBe("5");
+  });
+
+  it("round-trips runway coordinates", () => {
+    const tri = airportByCode("TRI");
+    const { end, other } = pickEnd(tri, 225);
+    const r = makeRunway(tri, end, other, 450, 460);
+    const p = runwayPoint(r, 1000, 20);
+    const c = runwayCoords(r, p);
+    expect(c.s).toBeCloseTo(1000, -1);
+    expect(c.x).toBeCloseTo(20, 0);
+    expect(r.heading).toBeCloseTo(bearing(end, other), 5);
+  });
+});
+
+describe("progress", () => {
+  it("backup codes round-trip and reject tampering", () => {
+    const p = newProgress();
+    p.wings = 321;
+    p.lessonsDone = ["l1", "l2"];
+    const code = exportCode(p);
+    expect(importCode(code)?.wings).toBe(321);
+    expect(importCode(code.replace(/.$/, code.endsWith("A") ? "B" : "A"))).toBeNull();
+    expect(importCode("hello")).toBeNull();
+  });
+
+  it("buying spends Wings once", () => {
+    const p = newProgress();
+    const pc12 = AIRCRAFT.find((a) => a.id === "pc12")!;
+    expect(canBuy(p, pc12)).toBe(false);
+    p.wings = 100;
+    expect(buy(p, pc12)).toBe(true);
+    expect(p.wings).toBe(25);
+    expect(buy(p, pc12)).toBe(false);
+  });
+
+  it("charter rewards follow the plan", () => {
+    const r = charterRewards(104, 3, true);
+    expect(r.reduce((a, b) => a + b.wings, 0)).toBe(12 + 15 + 15);
+    expect(charterRewards(5000, 0, false)[0].wings).toBe(40);
+  });
+});
+
+describe("voice lines", () => {
+  it("keys are stable and unique", () => {
+    expect(lineKey(LINES.welcome)).toBe(lineKey({ ...LINES.welcome }));
+    const lines = allLines();
+    expect(new Set(lines.map(lineKey)).size).toBe(lines.length);
+  });
+
+  it("every line has a generated audio file", () => {
+    const manifest = JSON.parse(readFileSync("public/audio/voice/manifest.json", "utf8")) as Record<string, string>;
+    const missing = allLines().filter((l) => !manifest[lineKey(l)]);
+    expect(missing.map((l) => l.text)).toEqual([]);
+  });
+
+  it("makes the callsign pronounceable", () => {
+    expect(speakable("Playnes one two three")).toBe("Planes one two three");
+  });
+});

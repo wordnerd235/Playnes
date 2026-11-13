@@ -2,13 +2,53 @@
 
 *Working title. A real-world flying game for a 5-year-old airplane fan. Main platform is iPad, with Windows PC as the second.*
 
-Status: **Draft for review** · Last updated 2026-11-13
+Status: **First playable build done (Phase 0/1)** · Last updated 2026-11-13
 
 ---
 
 ## 0. The pitch (one paragraph)
 
-Your nephew is the captain of his own little charter company. It's based at **Tri-Cities (TRI)** with a second base at **Charlotte (CLT)**. He flies passengers in real business jets across a real North America: mountains, beaches, big cities. A friendly co-pilot talks him through everything, because he probably can't read yet. Each flight takes about 5–8 minutes. He earns **Wings** (gold pilot-wing pins, the game's currency) for good charter flights and for learning new flying skills. He spends them on new planes: a Cessna trainer first, then Embraer, Pilatus, HondaJet, Cessna Citation, Bombardier, Dassault and Gulfstream jets. The planes, airports and procedures are real. The physics is forgiving. He can't crash, he can't lose progress, and nothing in the game costs real money.
+The player is the captain of their own little charter company. It's based at **Tri-Cities (TRI)** with a second base at **Charlotte (CLT)**. They fly passengers in real business jets across a real North America: mountains, beaches, big cities. A friendly co-pilot talks them through everything, because a 5-year-old probably can't read yet. Each flight takes about 5–8 minutes. The player earns **Wings** (gold pilot-wing pins, the game's currency) for good charter flights and for learning new flying skills. Wings buy new planes: a Cessna trainer first, then Embraer, Pilatus, HondaJet, Cessna Citation, Bombardier, Dassault and Gulfstream jets. The planes, airports and procedures are real. The physics is forgiving. You can't crash, you can't lose progress, and nothing in the game costs real money.
+
+---
+
+## Decisions (Nov 13, 2026)
+
+| Topic | Decision |
+|-------|----------|
+| Target device | A **standard iPad, recent generation**. Photoreal 3D is the default, with automatic quality fallback |
+| Audience & distribution | **Private family game for now.** Not published, no money involved |
+| World data | **Google Photorealistic 3D Tiles**, behind a swappable `WorldProvider`, so Cesium ion can replace it later with a config change. A key-free "basic globe" mode exists for development and offline testing |
+| Personal details | **Kept out for now.** Generic callsign, no names, no family voices; easy to add later |
+| Voices | **Free neural TTS (Kokoro, Apache-2.0)** generates the co-pilot and tower lines. Device speech is the fallback. Family recordings can replace lines later |
+
+---
+
+## Build status (Nov 13, 2026)
+
+The first playable version is in this repository. See `docs/SETUP.md` to run it.
+
+**Working now**
+- Swappable world: Google Photorealistic 3D Tiles, Cesium ion, or a key-free simple globe (the default until a key is entered)
+- Flight model and co-pilot assist levels 1–2, Ground Buddy, envelope protection; unit-tested for all 13 planes
+- Controls: touch yoke + throttle lever, tilt-to-fly, keyboard, game controller
+- Full charter loop: radio call → takeoff → climb hoops → cruise above a cloud deck with landmark look-downs → approach hoops with live PAPI lights → landing score → Wings and passport stamps
+- Flight School lessons 1–5 with graduation (unlocks the Phenom 100)
+- Hangar with all 13 real planes as procedural "toy-real" 3D models, Wings prices and spoken facts
+- 167 voice lines generated with free Kokoro TTS (co-pilot + radio-filtered tower); device speech covers any new line
+- Destinations: TRI, CLT, AVL, MYR
+- Grown-up corner (hold + math gate), backup codes, break reminder, installable PWA, GitHub Pages workflow
+- Headless smoke tests: a full TRI → CLT charter lands "BUTTER!" with 3 stars; lessons 2–5 complete with co-pilot help
+
+**Needs the real iPad**
+- Google 3D tile performance and memory at each quality setting (the Phase 0 go/no-go)
+- Tilt direction (the setting can flip it) and touch-yoke feel with the actual player
+- Voice volume balance against engine sound
+
+**Next (Phase 2)**
+- More destinations (TEB, MCO, PBI, YYZ…), charter variety, juice-cup comfort meter, paint shop
+- Taxi and walkaround mini-games, tower-cam replay
+- Verify CLT runway names on the FAA diagram
 
 ---
 
@@ -24,7 +64,7 @@ A 5-year-old player brings specific needs. Every feature below follows from thes
 | 4 | **Short loops** | One flight takes 5–8 minutes. A session (2–3 flights) takes about 20 minutes. The game always has a natural stopping point. |
 | 5 | **Big, forgiving touch targets** | At least 64pt buttons (Apple's minimum is 44pt, and small fingers need more), spaced well apart. Nothing important sits near screen edges, where palms rest. |
 | 6 | **Fair, visible progress** | Unlocks are fixed: "collect 150 Wings → HondaJet". No random loot, no timers, no streaks, no ads, no purchases. |
-| 7 | **Delight the expert, too** | Dad flies for a living. Correct bizjet airports (TEB, not JFK), correct phraseology and correct callouts make it feel authentic to him. That makes it a game they can play together. |
+| 7 | **Delight the expert, too** | Grown-ups who fly for a living should nod along. Correct bizjet airports (TEB, not JFK), correct phraseology and correct callouts make it a game parent and child can play together. |
 
 ---
 
@@ -116,7 +156,7 @@ He can always drop back a level with no penalty. Level 1 is the default for ever
 
 Big on-screen buttons: **Gear**, **Flaps**, **Lights**, **Radio**, **Camera** (chase / cockpit / tower / wing), **Autopilot** (from level 5), **Pause**.
 
-> **Recommendation:** build touch yoke and tilt together in Phase 1. Then hand both to your nephew for 5 minutes each and let him pick. Kids this age split roughly evenly, and it is cheap to support both.
+> **Recommendation:** build touch yoke and tilt together in Phase 1. Then hand both to the player for 5 minutes each and let them pick. Kids this age split roughly evenly, and it is cheap to support both.
 
 ### 4.4 Instruments (kid-readable)
 
@@ -237,7 +277,7 @@ These are curated, not the whole continent. About 4 ship in the first playable v
   - Scientists going to Alaska to see the Northern Lights
   - A doctor carrying medicine
 - **Special cargo missions:** "Deliver the birthday cake — don't let it wobble!" The comfort cup becomes a cake. "Rush delivery" missions give bonus Wings for a smooth flight, never a timer penalty.
-- **Dad missions** (optional): missions written around real trips your brother's department flies, maybe with his voice as ATC or the co-pilot.
+- **Personal missions** (later, optional): missions written around real trips the family knows, with personal names and voices added when the family is ready.
 
 ---
 
@@ -260,7 +300,7 @@ All planes are real models. Plane cards show real-world stats, read aloud: *"The
 | 11 | Gulfstream G650ER | Ultra-long-range | 19 | ~488 kt | ~7,500 nm | 550 | Giant oval windows |
 | 12 | Gulfstream G700 | Ultra-long-range | 19 | ~488 kt | ~7,750 nm | 650 | Biggest cabin; it can even have a bedroom! |
 | 13 | Bombardier Global 8000 | Ultra-long-range | 19 | ~490 kt (max Mach 0.94) | ~8,000 nm | 750 | Fastest business jet |
-| ★ | **"Dad's Plane"** | Whatever your brother's department flies | — | — | — | Captain graduation (assist level 5) | "This is the plane Dad flies!" |
+| ★ | **Special plane** | A personal pick, to be chosen later | — | — | — | Captain graduation (assist level 5) | (personalized later) |
 
 *Stats are approximate public figures. Verify against each manufacturer's current spec sheet before writing the voice lines.*
 
@@ -322,7 +362,7 @@ All values live in `data/economy.json` so they can be tuned without code changes
 | Tilt controls | `DeviceOrientationEvent.requestPermission()` must be called from a tap. Ask once in a cute "Ready to fly?" screen |
 | Sound | Audio unlocks on the first tap (same screen) |
 | Memory | Safari kills tabs that use too much memory. Cap the map tile cache, lower resolution adaptively, no shadows. Target under ~1 GB |
-| **Save data** | Safari can delete website storage after a period of disuse, and installed home-screen apps are treated better. Mitigations: install as PWA, call `navigator.storage.persist()`, use a versioned IndexedDB save, and offer **backup/restore codes** in the parent corner. Losing every plane means tears, so this matters |
+| **Save data** | Safari can delete website storage after a period of disuse, and installed home-screen apps are treated better. Mitigations: install as PWA, call `navigator.storage.persist()`, use a versioned save in browser storage, and offer **backup/restore codes** in the parent corner. Losing every plane means tears, so this matters |
 | Performance target | 60 fps in menus, steady 30+ fps in flight. Gracefully lower quality on older iPads |
 | Testing | **Must be tested on the actual iPad.** Desktop WebKit is not the same thing |
 
@@ -338,9 +378,9 @@ All values live in `data/economy.json` so they can be tuned without code changes
 - **TypeScript + Vite**: fast builds, static output.
 - **CesiumJS** (Apache-2.0): globe, WGS84 math, camera, sky, atmosphere and sun lighting. It loads Google Photorealistic 3D Tiles directly, and Cesium ion works the same way. It also loads glTF plane models and samples ground height for collision.
   - *Fallback if Cesium is too heavy on the iPad:* three.js + NASA-AMMOS `3DTilesRendererJS`. That is lighter and gives more art control, but means more custom code.
-- **UI:** HTML/CSS overlays rendered with Preact (tiny). Instruments drawn in SVG/Canvas2D so they stay sharp and readable.
-- **Audio:** Web Audio API. Voice lines are pre-recorded audio files (generated with high-quality TTS, or recorded by family). Engine sound is synthesized and changes pitch with throttle.
-- **Save:** IndexedDB with a versioned schema, plus export/import codes.
+- **UI:** plain HTML/CSS overlays (no framework). Instruments drawn in SVG so they stay sharp and readable.
+- **Audio:** Web Audio API. Voice lines are pre-generated audio files made with **Kokoro**, a free open-source (Apache-2.0) neural text-to-speech model, so they can be swapped for family recordings later. Any line without a file falls back to the device's built-in speech voice. Engine sound is synthesized and changes pitch with throttle.
+- **Save:** versioned JSON in browser storage, plus export/import backup codes.
 - **Data:** airport and runway geometry from the **FAA's official airport data** (public domain), cross-checked with OurAirports. *Not* traced from Google imagery, which Google's terms forbid.
 - **Hosting:** static HTTPS (GitHub Pages or Cloudflare Pages). A service worker caches the app shell, plane models and audio. It does **not** cache Google map tiles, which the terms forbid.
 
@@ -380,7 +420,7 @@ Everything that is *content* is data, not code: planes, airports, lessons, missi
   - Model budget: about 10–30k triangles per plane, compressed glTF.
   - Sourcing options: commission low-poly models, buy licensed models (check each license for branded/editorial restrictions), or build in Blender. **Plan for this to be the biggest content cost.**
 - **The world is real** (photoreal or satellite). Menus and UI are bright, rounded and icon-led. Real-looking world plus toy-like controls is the look.
-- **Co-pilot character:** a warm, encouraging voice with a name and a face in the corner. **Strong suggestion:** have your brother record the co-pilot or tower lines. His son flying with Dad's voice in his ear is the best feature this game could have.
+- **Co-pilot character:** a warm, encouraging voice with a face in the corner. For now the voices are generated with free TTS (Kokoro): one voice for the co-pilot, a different one for the tower. **Later:** a family member can re-record any line. Each line is a separate file, so recordings can replace them one at a time.
 - Voice-line budget: about 300–500 lines. Dynamic parts (destination names, his callsign) are stitched together from recorded pieces.
 - Sound: engine spool-up, gear thunk, flap whir, seatbelt ding, tire chirp on touchdown, cabin cheers.
 
@@ -393,7 +433,7 @@ Each phase ends with something he can play.
 ### Phase 0: Spike & decisions (go/no-go)
 - Load the Google 3D Tiles provider *and* the Cesium ion provider around TRI on **the actual iPad**. Fly a placeholder plane at 250 kt / 3,000 ft and at cruise.
 - Measure frame rate, memory, tile pop-in and per-session cost. Check how detailed TRI and CLT look.
-- Prototype touch yoke vs. tilt and hand both to the nephew.
+- Prototype touch yoke vs. tilt and hand both to the player.
 - Confirm the PWA install, motion permission and audio unlock flow.
 - **Exit:** a decision on the world provider (see §15 #1), the input default and the quality settings.
 
@@ -403,7 +443,7 @@ Each phase ends with something he can play.
 - Routes: TRI ⇄ CLT, TRI → AVL, TRI → MYR
 - Full flight loop, landing scoring, Wings, graduation ceremony, save/backup
 - Touch, tilt and keyboard controls; assist levels 1–2
-- **Exit:** the nephew completes TRI → CLT on assist level 1 **without adult help**, and wants to go again.
+- **Exit:** the player completes TRI → CLT on assist level 1 **without adult help**, and wants to go again.
 
 ### Phase 2: "Hangar & Charters"
 - 6 planes, about 12 destinations, charter board, comfort cup
@@ -414,7 +454,7 @@ Each phase ends with something he can play.
 ### Phase 3: "Advanced Pilot"
 - Lessons 6–14, assist levels 3–5, autopilot, ATC radio interactions
 - Weather (clouds/rain, light crosswind), sunset/night
-- Mountain approaches, remaining planes, "Dad's Plane"
+- Mountain approaches, remaining planes, the special plane
 
 ### Phase 4: "Extras" (optional)
 - Offline "Cartoon World" mode for car trips and real flights, built from open data
@@ -473,18 +513,18 @@ Usage should stay within the free tier, but a leaked key could be abused. Use do
 Curating 20–25 great destinations beats "fly anywhere". Free flight is still allowed, but the content (landmarks, missions) is focused.
 
 ### 10. 🟢 Airport data accuracy
-OurAirports is crowd-sourced. Its current CLT runway entries looked inconsistent (unusual runway names and a runway marked closed). Use the FAA's official data and check each game airport against the current FAA airport diagram. Ask your brother to sanity-check TRI and CLT too.
+OurAirports is crowd-sourced. Its current CLT runway entries looked inconsistent (unusual runway names and a runway marked closed). Use the FAA's official data and check each game airport against the current FAA airport diagram. Have a working pilot sanity-check TRI and CLT too.
 
 ---
 
-## 16. Open questions for you
+## 16. Open questions
 
-1. **Which iPad** (model/year) will he play on? That decides whether photoreal 3D is realistic.
-2. **Private family game only, or might it be published someday?** That decides the Google question (§15 #1) and trademark handling.
-3. **Google or Cesium ion for the world**, given §15 #1? (Or build Cesium first, with Google as a private option.)
-4. **What does your brother's flight department fly?** That's the "Dad's Plane". And would he **record voice lines** as co-pilot or tower?
-5. **Nephew's name/initials** for his callsign and tail number? Does he know letters and numbers yet?
-6. **Hosting:** is a private GitHub Pages / Cloudflare Pages URL fine? Should it be password-protected?
+Answered on Nov 13 (see **Decisions** at the top): device, distribution, world data, personal details and voices.
+
+Still open, none blocking:
+1. **Google API key:** a parent needs to create one (steps in `docs/SETUP.md`) before photoreal mode works. Until then the game runs on the basic globe.
+2. **Special plane and personal touches:** pick later.
+3. **Hosting:** GitHub Pages from this repo (workflow included), or another static host.
 
 ---
 

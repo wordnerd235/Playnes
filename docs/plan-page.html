@@ -1,0 +1,370 @@
+<title>Playnes Game Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: a single reading column with a sticky "flight plan" index on wide screens; airport-sign labels mark each section. */
+:root {
+  --bg: #f3f6f9;
+  --surface: #ffffff;
+  --ink: #12202e;
+  --muted: #536375;
+  --line: #d5dde6;
+  --sky: #1d5d9b;
+  --sky-soft: #e3edf7;
+  --sign-yellow: #f2c200;
+  --sign-black: #141414;
+  --magenta: #c4167a;
+  --ok: #1f7a4d;
+  --warn: #b26a00;
+  --crit: #b3261e;
+  --chip-bg: #eef2f6;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --step--1: 0.85rem;
+  --step-0: 1rem;
+  --step-1: 1.2rem;
+  --step-2: 1.6rem;
+  --step-3: 2.3rem;
+  --step-4: 3.4rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d151e; --surface: #142130; --ink: #e6edf4; --muted: #9db0c3; --line: #263a4f;
+    --sky: #7fb6ec; --sky-soft: #1a2d42; --magenta: #f05fae; --ok: #5fcf95; --warn: #f0b04a; --crit: #ff8a80;
+    --chip-bg: #1c2c3d; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d151e; --surface: #142130; --ink: #e6edf4; --muted: #9db0c3; --line: #263a4f;
+  --sky: #7fb6ec; --sky-soft: #1a2d42; --magenta: #f05fae; --ok: #5fcf95; --warn: #f0b04a; --crit: #ff8a80;
+  --chip-bg: #1c2c3d; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: var(--step-0); line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+}
+a { color: var(--sky); }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--magenta); outline-offset: 2px; }
+.wrap { max-width: 1140px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; }
+@media (min-width: 980px) { .wrap { grid-template-columns: 220px minmax(0, 1fr); } }
+
+/* Index */
+nav.index { display: none; }
+@media (min-width: 980px) {
+  nav.index { display: block; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; padding-top: 40px; }
+}
+nav.index h2 { font-family: var(--font-display); font-size: var(--step-0); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+nav.index ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.index a { display: flex; gap: 10px; align-items: baseline; padding: 5px 8px; border-radius: 6px; color: var(--ink); text-decoration: none; font-size: var(--step--1); }
+nav.index a:hover { background: var(--sky-soft); }
+nav.index a span { font-family: var(--font-mono); font-size: .72rem; color: var(--muted); min-width: 24px; }
+
+main { min-width: 0; }
+
+/* Hero */
+header.hero { padding-block: 40px 28px; display: grid; gap: 18px; }
+.eyebrow { font-family: var(--font-mono); font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: var(--step-4); line-height: 1; margin: 0; letter-spacing: .01em; text-wrap: balance; }
+.lede { font-size: var(--step-1); color: var(--muted); max-width: 62ch; margin: 0; text-wrap: pretty; }
+.status { display: inline-flex; align-items: center; gap: 8px; font-size: var(--step--1); font-weight: 600; color: var(--ok); background: var(--chip-bg); border-radius: 999px; padding: 4px 12px; width: fit-content; }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+
+/* Flight strip */
+.strip { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); overflow: hidden; }
+.strip > div { padding: 14px 16px; border-right: 1px dashed var(--line); min-width: 0; }
+.strip > div:last-child { border-right: 0; }
+.strip .k { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.strip .v { font-family: var(--font-display); font-size: var(--step-2); font-weight: 600; line-height: 1.15; }
+.route { display: flex; align-items: center; gap: 10px; }
+.route .line { flex: 1; height: 3px; background: var(--magenta); border-radius: 2px; position: relative; min-width: 30px; }
+.route .line::after { content: ""; position: absolute; right: -2px; top: -5px; border-left: 9px solid var(--magenta); border-top: 6.5px solid transparent; border-bottom: 6.5px solid transparent; }
+
+/* Sections */
+section { padding-block: 36px 8px; border-top: 1px solid var(--line); }
+.sign { display: inline-flex; align-items: stretch; font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; letter-spacing: .04em; text-transform: uppercase; border-radius: 3px; overflow: hidden; margin-bottom: 12px; }
+.sign b { background: var(--sign-black); color: var(--sign-yellow); padding: 2px 9px; border: 2px solid var(--sign-yellow); border-right: 0; border-radius: 3px 0 0 3px; }
+.sign i { font-style: normal; background: var(--sign-yellow); color: var(--sign-black); padding: 2px 10px 2px 9px; border: 2px solid var(--sign-yellow); }
+h2 { font-family: var(--font-display); font-size: var(--step-3); font-weight: 600; line-height: 1.05; margin: 0 0 12px; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-size: var(--step-1); font-weight: 600; letter-spacing: .02em; margin: 24px 0 8px; }
+p { max-width: 68ch; }
+.muted { color: var(--muted); }
+
+/* Tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin-block: 12px 20px; }
+table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--chip-bg); white-space: nowrap; }
+td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+th.num { text-align: right; }
+.code { font-family: var(--font-mono); font-weight: 700; font-size: .85rem; color: var(--sky); white-space: nowrap; }
+
+/* Timeline of a flight */
+ol.flight { list-style: none; margin: 16px 0 8px; padding: 0; display: grid; gap: 0; counter-reset: step; }
+ol.flight li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 14px; position: relative; padding-bottom: 16px; }
+ol.flight li::before { counter-increment: step; content: counter(step); width: 28px; height: 28px; border-radius: 50%; background: var(--sky); color: var(--surface); font-family: var(--font-mono); font-size: .75rem; font-weight: 700; display: grid; place-items: center; z-index: 1; }
+ol.flight li::after { content: ""; position: absolute; left: 13px; top: 28px; bottom: 0; width: 2px; background: var(--line); }
+ol.flight li:last-child::after { display: none; }
+ol.flight strong { font-family: var(--font-display); font-size: 1.1rem; letter-spacing: .02em; }
+ol.flight .t { font-family: var(--font-mono); font-size: .72rem; color: var(--muted); margin-left: 6px; }
+ol.flight q { color: var(--magenta); quotes: "“" "”"; }
+
+/* Cards and pills */
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-block: 12px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; min-width: 0; }
+.panel h3 { margin-top: 0; }
+.panel ul { margin: 0; padding-left: 18px; }
+.pill { display: inline-block; font-size: .72rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--chip-bg); white-space: nowrap; }
+.pill.crit { color: var(--crit); } .pill.warn { color: var(--warn); } .pill.ok { color: var(--ok); } .pill.info { color: var(--sky); }
+.callout { border-left: 4px solid var(--magenta); background: var(--surface); border-radius: 0 10px 10px 0; padding: 14px 18px; margin-block: 16px; max-width: 72ch; }
+.callout p { margin: 0; }
+.nope { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; padding: 0; list-style: none; }
+.nope li { font-size: .85rem; padding: 4px 10px; border-radius: 6px; background: var(--chip-bg); text-decoration: line-through; text-decoration-color: var(--crit); text-decoration-thickness: 2px; color: var(--muted); }
+
+/* Roadmap */
+.phases { display: grid; gap: 12px; margin-top: 12px; }
+.phase { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; }
+.phase .tag { font-family: var(--font-mono); font-size: .75rem; font-weight: 700; color: var(--muted); }
+.phase h3 { margin: 0 0 4px; }
+.phase p { margin: 0; font-size: .93rem; }
+.phase.now { border-color: var(--sky); box-shadow: 0 0 0 1px var(--sky); }
+@media (max-width: 520px) { .phase { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+
+/* Risks */
+ol.risks { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 10px; }
+ol.risks li { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; display: grid; gap: 4px; }
+ol.risks .head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-weight: 600; }
+ol.risks p { margin: 0; font-size: .93rem; color: var(--muted); }
+blockquote { margin: 8px 0; padding: 8px 14px; border-left: 3px solid var(--line); font-size: .93rem; }
+
+footer { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 20px; font-size: var(--step--1); color: var(--muted); }
+footer ul { padding-left: 18px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="wrap">
+  <nav class="index" aria-label="Sections">
+    <h2>Flight plan</h2>
+    <ol>
+      <li><a href="#decisions"><span>01</span>Decisions</a></li>
+      <li><a href="#principles"><span>02</span>Principles</a></li>
+      <li><a href="#flight"><span>03</span>A flight</a></li>
+      <li><a href="#flying"><span>04</span>Flying &amp; controls</a></li>
+      <li><a href="#school"><span>05</span>Flight School</a></li>
+      <li><a href="#world"><span>06</span>The world</a></li>
+      <li><a href="#planes"><span>07</span>Planes &amp; Wings</a></li>
+      <li><a href="#safety"><span>08</span>Safety &amp; devices</a></li>
+      <li><a href="#roadmap"><span>09</span>Roadmap</a></li>
+      <li><a href="#risks"><span>10</span>Risks</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div class="eyebrow">Game plan · updated Nov 13, 2026</div>
+      <h1>Playnes</h1>
+      <p class="lede">A real-world flying game for a 5-year-old airplane fan. The player runs a little charter company from Tri-Cities and Charlotte and flies real business jets across North America. A friendly co-pilot teaches the basics, and good flights earn Wings that unlock new planes.</p>
+      <div class="status">Approved · Phase 0/1 build started</div>
+      <div class="strip" role="group" aria-label="First route">
+        <div>
+          <div class="k">First route</div>
+          <div class="v route"><span>TRI</span><span class="line" aria-hidden="true"></span><span>CLT</span></div>
+        </div>
+        <div><div class="k">Distance</div><div class="v">104 nm</div></div>
+        <div><div class="k">Flight time in game</div><div class="v">~5 min</div></div>
+        <div><div class="k">Main device</div><div class="v">iPad</div></div>
+      </div>
+    </header>
+
+    <section id="decisions">
+      <div class="sign"><b>01</b><i>Decisions</i></div>
+      <h2>What's settled</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Topic</th><th>Decision</th></tr></thead>
+        <tbody>
+          <tr><td>Device</td><td>A standard, recent-generation iPad is the main target. A Windows PC with Edge or Chrome also works. Photoreal 3D is the default, and quality drops automatically if the iPad struggles.</td></tr>
+          <tr><td>Who plays</td><td>A private family game for now. Not published, no money involved.</td></tr>
+          <tr><td>Map data</td><td>Google Photorealistic 3D Tiles. The game is built so the map source can be swapped to Cesium ion later with a single setting. A key-free basic globe also works for testing.</td></tr>
+          <tr><td>Personal details</td><td>Kept out for now: a generic callsign, no names. Easy to add later.</td></tr>
+          <tr><td>Voices</td><td>Generated with free, open-source text-to-speech (Kokoro). Any line can later be swapped for a family recording.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="principles">
+      <div class="sign"><b>02</b><i>Principles</i></div>
+      <h2>Built for a 5-year-old</h2>
+      <div class="grid2">
+        <div class="panel"><h3>Pre-reader first</h3><p class="muted">The co-pilot speaks every instruction, and every button is a big icon. Text is only there for grown-ups.</p></div>
+        <div class="panel"><h3>Real things, kid-sized</h3><p class="muted">Real airports, planes and words like "rotate", "gear up" and "butter landing". The physics is simplified and protects the player.</p></div>
+        <div class="panel"><h3>Never stuck, never punished</h3><p class="muted">No crashes, no game over, and Wings are never lost. After two misses the co-pilot helps more, and after three the co-pilot shows how.</p></div>
+        <div class="panel"><h3>Short and fair</h3><p class="muted">Flights take 5–8 minutes. Every unlock has a clear price. No timers, streaks, ads or random rewards.</p></div>
+      </div>
+    </section>
+
+    <section id="flight">
+      <div class="sign"><b>03</b><i>A flight</i></div>
+      <h2>Tri-Cities to Charlotte, step by step</h2>
+      <p class="muted">Charter card: “The Lopez family is going to a soccer game in Charlotte. 4 passengers.”</p>
+      <ol class="flight">
+        <li><div><strong>Walkaround</strong><span class="t">30 s</span><br>Tap the glowing tires, the fuel cap and the red REMOVE BEFORE FLIGHT flag.</div></li>
+        <li><div><strong>Taxi to Runway 23</strong><span class="t">45 s</span><br>The co-pilot makes the radio call, the tower answers, and the player follows the yellow line.</div></li>
+        <li><div><strong>Takeoff</strong><span class="t">30 s</span><br><q>Eighty knots… ROTATE!</q> Pull back gently. <q>Positive rate, gear up!</q></div></li>
+        <li><div><strong>Climb &amp; turn</strong><span class="t">45 s</span><br>Fly through big hoops and bank toward the magenta course line.</div></li>
+        <li><div><strong>Cruise above the clouds</strong><span class="t">90–240 s</span><br>The cruise is sped up. The clouds open over a real landmark, Lake Norman on this trip. Keep the passenger's juice cup from spilling.</div></li>
+        <li><div><strong>Approach</strong><span class="t">60 s</span><br>Flaps, gear down, then follow the glide-path hoops. <q>Two red, two white, you're just right!</q></div></li>
+        <li><div><strong>Touchdown &amp; debrief</strong><span class="t">60 s</span><br>A landing under 150 feet per minute scores <q>BUTTER!</q> and three stars. Then Wings, a passport stamp and a tower-camera replay.</div></li>
+      </ol>
+    </section>
+
+    <section id="flying">
+      <div class="sign"><b>04</b><i>Flying</i></div>
+      <h2>Co-pilot help that shrinks as skills grow</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Level</th><th>Player controls</th><th>Co-pilot handles</th><th class="num">Reward</th></tr></thead>
+        <tbody>
+          <tr><td>1 · You steer</td><td>Left/right, plus buttons when asked</td><td>Pitch, power, flare, taxi</td><td class="num">start</td></tr>
+          <tr><td>2 · Up &amp; down</td><td>+ nose up/down</td><td>Power, flare</td><td class="num">100 Wings</td></tr>
+          <tr><td>3 · Power</td><td>+ throttle, with a color-banded speed tape</td><td>Flare, brakes</td><td class="num">100 Wings</td></tr>
+          <tr><td>4 · Landing Pro</td><td>+ flare &amp; brakes, guided by runway lights</td><td>Crash protection only</td><td class="num">100 Wings</td></tr>
+          <tr><td>5 · Captain</td><td>Everything, plus autopilot</td><td>Crash protection only</td><td class="num">150 + special plane</td></tr>
+        </tbody>
+      </table></div>
+      <div class="grid2">
+        <div class="panel"><h3>iPad</h3><ul><li>Big touch yoke on the left and a notched throttle lever on the right</li><li>Optional tilt-to-fly, holding the iPad like a steering wheel</li><li>Bluetooth game controllers work too</li></ul></div>
+        <div class="panel"><h3>Windows PC</h3><ul><li>Arrow keys or WASD steer, Page Up/Down sets the throttle, G for gear, F for flaps</li><li>Xbox controller</li><li>Touchscreen laptops get the iPad layout</li></ul></div>
+      </div>
+      <p>The physics is honest where it counts: turn rate comes from bank angle and speed, so big jets turn wide. It also protects the player. Stalls are prevented, bank is limited, and a "Ground Buddy" warning (<q>Terrain! Pull up!</q>) gently pulls the plane up before it reaches the ground.</p>
+    </section>
+
+    <section id="school">
+      <div class="sign"><b>05</b><i>School</i></div>
+      <h2>Flight School</h2>
+      <p>The first five lessons end in a graduation ceremony, a gold Wings pin and the first jet, an Embraer Phenom 100.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>#</th><th>Lesson</th><th>The co-pilot says</th><th class="num">Wings</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Meet your plane</td><td>“Wings lift us up like a bird!”</td><td class="num">25</td></tr>
+          <tr><td>2</td><td>Go fast, go slow</td><td>“Push to go, pull back to slow.”</td><td class="num">25</td></tr>
+          <tr><td>3</td><td>Takeoff</td><td>“When I say ROTATE, pull back gently!”</td><td class="num">25</td></tr>
+          <tr><td>4</td><td>Turning</td><td>“Tilt the wings to turn, like leaning on a bike.”</td><td class="num">25</td></tr>
+          <tr><td>5</td><td>Landing</td><td>“Two red, two white, you're just right!”</td><td class="num">50</td></tr>
+        </tbody>
+      </table></div>
+      <p class="muted">Later lessons: flaps &amp; gear, talking to the tower, following the magenta line, autopilot, crosswinds, clouds, mountain airports and night flying.</p>
+    </section>
+
+    <section id="world">
+      <div class="sign"><b>06</b><i>World</i></div>
+      <h2>A real North America, in about six minutes a trip</h2>
+      <p>Takeoffs and landings happen at real speed and real scale. Cruise is sped up and happens above a cloud layer, which also keeps the iPad from loading too much map data at once. The clouds part over real landmarks along the route.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Airport</th><th>Landmark moment</th><th class="num">From TRI</th><th>When</th></tr></thead>
+        <tbody>
+          <tr><td><span class="code">TRI</span> Tri-Cities</td><td>Home base: Appalachians, Boone Lake</td><td class="num">—</td><td><span class="pill ok">First build</span></td></tr>
+          <tr><td><span class="code">AVL</span> Asheville</td><td>Blue Ridge Mountains</td><td class="num">63 nm</td><td><span class="pill ok">First build</span></td></tr>
+          <tr><td><span class="code">CLT</span> Charlotte</td><td>Uptown skyline, Lake Norman</td><td class="num">104 nm</td><td><span class="pill ok">First build</span></td></tr>
+          <tr><td><span class="code">MYR</span> Myrtle Beach</td><td>First ocean!</td><td class="num">240 nm</td><td><span class="pill ok">First build</span></td></tr>
+          <tr><td><span class="code">YYZ</span> Toronto</td><td>CN Tower, first international trip</td><td class="num">451 nm</td><td><span class="pill info">Phase 2</span></td></tr>
+          <tr><td><span class="code">TEB</span> Teterboro</td><td>NYC skyline, the business-jet airport</td><td class="num">471 nm</td><td><span class="pill info">Phase 2</span></td></tr>
+          <tr><td><span class="code">MCO</span> Orlando</td><td>Theme-park country</td><td class="num">486 nm</td><td><span class="pill info">Phase 2</span></td></tr>
+          <tr><td><span class="code">PBI</span> Palm Beach</td><td>Palm trees and ocean</td><td class="num">600 nm</td><td><span class="pill info">Phase 2</span></td></tr>
+          <tr><td><span class="code">CUN</span> Cancún</td><td>Turquoise sea</td><td class="num">956 nm</td><td><span class="pill info">Phase 2</span></td></tr>
+          <tr><td><span class="code">ASE</span> Aspen</td><td>Ski mountains, a tricky approach</td><td class="num">1,168 nm</td><td><span class="pill info">Phase 3</span></td></tr>
+          <tr><td><span class="code">VNY</span> Van Nuys</td><td>Hollywood hills, the Pacific</td><td class="num">1,762 nm</td><td><span class="pill info">Phase 3</span></td></tr>
+          <tr><td><span class="code">ANC</span> Anchorage</td><td>Glaciers and Denali, the epic long trip</td><td class="num">2,884 nm</td><td><span class="pill info">Phase 3</span></td></tr>
+        </tbody>
+      </table></div>
+      <p class="muted">The full plan has 20–25 airports. Where business jets really go, the game uses business-jet airports: Teterboro instead of JFK, Van Nuys instead of LAX.</p>
+    </section>
+
+    <section id="planes">
+      <div class="sign"><b>07</b><i>Hangar</i></div>
+      <h2>Planes &amp; Wings</h2>
+      <p>Every plane is a real model, and plane cards read out real stats. Real range limits which destinations each plane can reach, so the map teaches that bigger jets fly farther.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Plane</th><th>Type</th><th class="num">Range</th><th class="num">Unlock</th><th>Wow fact</th></tr></thead>
+        <tbody>
+          <tr><td>Cessna 172 Skyhawk</td><td>Trainer</td><td class="num">~640 nm</td><td class="num">Start</td><td>Almost every pilot learns in one</td></tr>
+          <tr><td>Embraer Phenom 100EX</td><td>Light jet</td><td class="num">~1,180 nm</td><td class="num">Graduation</td><td>Your first jet!</td></tr>
+          <tr><td>Pilatus PC-12 NGX</td><td>Turboprop</td><td class="num">~1,800 nm</td><td class="num">75</td><td>One big propeller</td></tr>
+          <tr><td>HondaJet Elite II</td><td>Very light jet</td><td class="num">~1,550 nm</td><td class="num">125</td><td>Engines on top of the wings</td></tr>
+          <tr><td>Embraer Phenom 300E</td><td>Light jet</td><td class="num">~2,000 nm</td><td class="num">175</td><td>World's best-selling light jet</td></tr>
+          <tr><td>Pilatus PC-24</td><td>Light jet</td><td class="num">~2,000 nm</td><td class="num">225</td><td>Lands on grass and dirt</td></tr>
+          <tr><td>Cessna Citation Latitude</td><td>Midsize</td><td class="num">~2,700 nm</td><td class="num">275</td><td>Grown-ups can stand up inside</td></tr>
+          <tr><td>Embraer Praetor 600</td><td>Super-midsize</td><td class="num">~4,000 nm</td><td class="num">325</td><td>Smooths out bumpy air</td></tr>
+          <tr><td>Bombardier Challenger 3500</td><td>Super-midsize</td><td class="num">~3,400 nm</td><td class="num">375</td><td>Wide cabin</td></tr>
+          <tr><td>Dassault Falcon 8X</td><td>Large cabin</td><td class="num">~6,450 nm</td><td class="num">450</td><td>Three engines!</td></tr>
+          <tr><td>Gulfstream G650ER</td><td>Ultra-long range</td><td class="num">~7,500 nm</td><td class="num">550</td><td>Giant oval windows</td></tr>
+          <tr><td>Gulfstream G700</td><td>Ultra-long range</td><td class="num">~7,750 nm</td><td class="num">650</td><td>Can even have a bedroom</td></tr>
+          <tr><td>Bombardier Global 8000</td><td>Ultra-long range</td><td class="num">~8,000 nm</td><td class="num">750</td><td>Fastest business jet</td></tr>
+        </tbody>
+      </table></div>
+      <div class="grid2">
+        <div class="panel"><h3>Earning Wings</h3><ul><li>Charter flight: 10, plus 1 per 50 nm (up to 30 more)</li><li>Landing stars: +5 each</li><li>No spilled juice: +5</li><li>New airport stamp: +15</li><li>Lessons: +25 or +50</li></ul></div>
+        <div class="panel"><h3>Pacing</h3><ul><li>First jet in the first session</li><li>A new plane every 2–4 sessions after that</li><li>About 35–40 sessions to fill the hangar</li><li>Wings also buy paint, stickers and hangar toys</li></ul></div>
+      </div>
+      <p>Left out on purpose:</p>
+      <ul class="nope"><li>Real-money purchases</li><li>Ads</li><li>Loot boxes</li><li>Daily streaks</li><li>Energy timers</li><li>Limited-time offers</li><li>Guilt messages</li></ul>
+    </section>
+
+    <section id="safety">
+      <div class="sign"><b>08</b><i>Devices</i></div>
+      <h2>Safety, iPad and PC</h2>
+      <div class="grid2">
+        <div class="panel"><h3>Child safety</h3><ul><li>No accounts, chat, links, ads or tracking</li><li>Settings sit behind a parent gate</li><li>Optional "time to land" session timer</li><li>Tip: iPad Guided Access locks the iPad to the game</li></ul></div>
+        <div class="panel"><h3>iPad specifics</h3><ul><li>Installs to the Home Screen as an app, with no browser bar to tap away</li><li>Saves are protected, plus parent backup codes</li><li>Large touch targets, landscape layout</li><li>Quality adjusts to keep the frame rate smooth</li></ul></div>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <div class="sign"><b>09</b><i>Roadmap</i></div>
+      <h2>Build in playable steps</h2>
+      <div class="phases">
+        <div class="phase now"><div class="tag">PHASE 0 · NOW</div><div><h3>Spike &amp; foundations</h3><p>Google 3D map test on the iPad, swappable map source, flight physics, touch and tilt controls, generated voices.</p></div></div>
+        <div class="phase now"><div class="tag">PHASE 1 · NOW</div><div><h3>First Flight</h3><p>Cessna 172 and Phenom 100, Flight School basics, TRI ⇄ CLT plus AVL and MYR, landing scores, Wings and saving. Done when a 5-year-old can fly TRI → CLT alone and asks to go again.</p></div></div>
+        <div class="phase"><div class="tag">PHASE 2</div><div><h3>Hangar &amp; Charters</h3><p>Six planes, about 12 destinations, charter board, juice-cup comfort meter, paint shop, logbook and passport.</p></div></div>
+        <div class="phase"><div class="tag">PHASE 3</div><div><h3>Advanced Pilot</h3><p>Help levels 3–5, autopilot, radio calls, weather, night, mountain airports, all planes.</p></div></div>
+        <div class="phase"><div class="tag">PHASE 4</div><div><h3>Extras</h3><p>Offline cartoon world for car trips, landing photo album, holiday missions, multiple pilot profiles.</p></div></div>
+      </div>
+    </section>
+
+    <section id="risks">
+      <div class="sign"><b>10</b><i>Risks</i></div>
+      <h2>Design review</h2>
+      <ol class="risks">
+        <li>
+          <div class="head"><span class="pill crit">High</span>Google's terms and children's apps</div>
+          <blockquote>Google Maps Platform Terms §3.2.1(c)(vi): no use “in a Customer Application that would be deemed to be a ‘Website or online service directed to children’ under … COPPA.”</blockquote>
+          <p>COPPA's definition is generally understood to cover commercial services, so a private, non-commercial family game is arguably outside it. This is not legal advice, and Google has the final say. The game stays private, and the map source can be swapped to Cesium ion with one setting.</p>
+        </li>
+        <li><div class="head"><span class="pill warn">Medium</span>iPad performance</div><p>Photoreal 3D is heavy. Mitigations: the above-the-clouds cruise, fog, a capped tile cache, adaptive resolution, and a basic-globe fallback.</p></li>
+        <li><div class="head"><span class="pill warn">Medium</span>No offline flying</div><p>Google forbids offline use of its map data. Without Wi-Fi, the game shows a friendly "need Wi-Fi to fly" screen, and the hangar still works. An offline cartoon world is planned for Phase 4.</p></li>
+        <li><div class="head"><span class="pill info">Low</span>Saved progress on iPad</div><p>Safari can clear website data. Installing to the Home Screen, persistent storage and backup codes keep the hangar safe.</p></li>
+        <li><div class="head"><span class="pill info">Low</span>Plane names and models</div><p>Real names are fine for a private game. The 3D planes are built from scratch in a simple toy style, so no model licensing is needed.</p></li>
+        <li><div class="head"><span class="pill info">Low</span>Airport data accuracy</div><p>The crowd-sourced runway data had errors at CLT. Each game airport should be checked against the official FAA diagram.</p></li>
+      </ol>
+    </section>
+
+    <footer>
+      <p>Sources</p>
+      <ul>
+        <li><a href="https://cloud.google.com/maps-platform/terms" target="_blank" rel="noopener">Google Maps Platform Terms of Service</a></li>
+        <li><a href="https://developers.google.com/maps/documentation/tile/policies" target="_blank" rel="noopener">Map Tiles API policies</a></li>
+        <li><a href="https://developers.google.com/maps/billing-and-pricing/pricing" target="_blank" rel="noopener">Google Maps Platform pricing</a></li>
+        <li><a href="https://cesium.com/platform/cesium-ion/pricing/" target="_blank" rel="noopener">Cesium ion pricing</a></li>
+        <li><a href="https://ourairports.com/data/" target="_blank" rel="noopener">OurAirports open data</a></li>
+        <li><a href="https://flytri.com/facilities-information" target="_blank" rel="noopener">Tri-Cities Airport facilities</a></li>
+      </ul>
+      <p>Plane stats are approximate public figures, to be checked against manufacturer spec sheets.</p>
+    </footer>
+  </main>
+</div>
