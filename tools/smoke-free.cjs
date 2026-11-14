@@ -97,7 +97,13 @@ const path = require("path");
     Object.assign(f.s, { lat: (la2 * 180) / Math.PI, lon: (lo2 * 180) / Math.PI, alt: r.hEnd + d * Math.tan((3 * Math.PI) / 180) + 16, heading: r.heading, bank: 0, gamma: -3, onGround: false, gearDown: true, flaps: 3, speed: f.p.vapp });
     window.playnes.controls.setThrottle(0.1);
   });
-  await page.waitForFunction(() => window.playnes.flight.landedAt === "CLT" && window.playnes.flight.s.onGround, null, { timeout: 420000, polling: 500 });
+  const t0 = Date.now();
+  const probe = setInterval(async () => {
+    try {
+      console.log(`  [${Math.round((Date.now() - t0) / 1000)}s]`, await page.evaluate(() => { const f = window.playnes.flight; const s = f.s; const c = f.d.controls.state; return `phase=${f.phase} gnd=${s.onGround} agl=${(s.alt - f.groundHeightAt(s)).toFixed(1)} kt=${(s.speed / 0.5144).toFixed(0)} vs=${s.vs.toFixed(1)} pitchIn=${c.pitch.toFixed(2)} rollIn=${c.roll.toFixed(2)} lever=${c.throttle.toFixed(2)} paused=${f.paused} landedAt=${f.landedAt} ap=${!!f.autopilot}`; }));
+    } catch {}
+  }, 30000);
+  await page.waitForFunction(() => window.playnes.flight.landedAt === "CLT" && window.playnes.flight.s.onGround, null, { timeout: 420000, polling: 500 }).finally(() => clearInterval(probe));
   check(true, "landing helper brought the plane down on the CLT runway");
   await page.waitForTimeout(1500);
   await shot("6-landed");
