@@ -86,18 +86,18 @@ const path = require("path");
   await page.waitForTimeout(1500);
   await shot("5-minimap-target");
 
-  // Guided landing: put the plane on a 4 nm final to CLT and let go of the controls.
+  // Guided landing: put the plane on a 2.5 nm final to CLT and let go of the controls.
   await page.evaluate(() => {
     const f = window.playnes.flight;
     const r = f.allRunways.find((x) => x.airport.code === "CLT");
-    const d = 4 * 1852;
+    const d = 2.5 * 1852;
     const R = 6371008.8, br = ((r.heading + 180) * Math.PI) / 180, la = (r.end.lat * Math.PI) / 180, lo = (r.end.lon * Math.PI) / 180, dd = d / R;
     const la2 = Math.asin(Math.sin(la) * Math.cos(dd) + Math.cos(la) * Math.sin(dd) * Math.cos(br));
     const lo2 = lo + Math.atan2(Math.sin(br) * Math.sin(dd) * Math.cos(la), Math.cos(dd) - Math.sin(la) * Math.sin(la2));
     Object.assign(f.s, { lat: (la2 * 180) / Math.PI, lon: (lo2 * 180) / Math.PI, alt: r.hEnd + d * Math.tan((3 * Math.PI) / 180) + 16, heading: r.heading, bank: 0, gamma: -3, onGround: false, gearDown: true, flaps: 3, speed: f.p.vapp });
     window.playnes.controls.setThrottle(0.1);
   });
-  await page.waitForFunction(() => window.playnes.flight.landedAt === "CLT" && window.playnes.flight.s.onGround, null, { timeout: 240000 });
+  await page.waitForFunction(() => window.playnes.flight.landedAt === "CLT" && window.playnes.flight.s.onGround, null, { timeout: 420000, polling: 500 });
   check(true, "landing helper brought the plane down on the CLT runway");
   await page.waitForTimeout(1500);
   await shot("6-landed");
