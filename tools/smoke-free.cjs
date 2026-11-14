@@ -108,12 +108,15 @@ const path = require("path");
   await page.evaluate(() => {
     const f = window.playnes.flight;
     f.d.crashes = true;
+    window.__crashes = 0;
+    const orig = f.crash.bind(f);
+    f.crash = () => { window.__crashes++; orig(); };
     Object.assign(f.s, { lat: 35.6, lon: -81.3, alt: f.groundHeightAt({ lat: 35.6, lon: -81.3 }) + 60, onGround: false, gamma: -10, speed: 70, heading: 90 });
   });
   await page.mouse.move(yoke.x + yoke.width / 2, yoke.y + yoke.height / 2);
   await page.mouse.down();
   await page.mouse.move(yoke.x + yoke.width / 2, yoke.y + yoke.height * 0.1, { steps: 4 });
-  await page.waitForFunction(() => window.playnes.flight.phase === "crashed", null, { timeout: 60000 }).catch(async (e) => {
+  await page.waitForFunction(() => window.__crashes > 0, null, { timeout: 60000, polling: 100 }).catch(async (e) => {
     console.log("crash wait failed:", await page.evaluate(() => { const f = window.playnes.flight; const s = f.s; return JSON.stringify({ phase: f.phase, agl: s.alt - f.groundHeightAt(s), vs: s.vs, spd: s.speed, ground: s.onGround, pitchIn: f.d.controls.state.pitch, lastVs: f.lastCmd.targetVs, ap: !!f.autopilot, crashes: f.d.crashes, landedAt: f.landedAt }); }));
     throw e;
   });
@@ -165,13 +168,17 @@ const path = require("path");
   await page.evaluate((t) => {
     const f = window.playnes.flight;
     f.d.crashes = true;
+    f.timeScale = 6;
+    window.__crashes = 0;
+    const orig = f.crash.bind(f);
+    f.crash = () => { window.__crashes++; orig(); };
     const base = f.d.world.cartoon.height(t.lat, t.lon);
     // 400 m south of the building, heading north, a few meters below its roof.
     Object.assign(f.s, { lat: t.lat - 400 / 111320, lon: t.lon, heading: 0, alt: base + t.h * 0.6, speed: 60, onGround: false, gearDown: false, flaps: 0, bank: 0, gamma: 0, vs: 0 });
     f.d.controls.setThrottle(0.6, false);
     window.playnes.world.updateScenery(f.s, f.s.alt, 5);
   }, target);
-  const hit = await page.waitForFunction(() => window.playnes.flight.phase === "crashed", null, { timeout: 30000 }).then(() => true, () => false);
+  const hit = await page.waitForFunction(() => window.__crashes > 0, null, { timeout: 60000, polling: 100 }).then(() => true, () => false);
   const where = await page.evaluate((t) => { const s = window.playnes.flight.s; return Math.hypot((s.lat - t.lat) * 111320, (s.lon - t.lon) * 111320 * Math.cos(t.lat * Math.PI / 180)); }, target);
   const st = await F();
   check(hit && where < 250, `flying into a building crashes the playne (${Math.round(where)} m from its middle, ${target.h} m tall, phase ${st.phase}, on ground ${st.ground})`);

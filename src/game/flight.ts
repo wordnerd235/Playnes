@@ -902,8 +902,8 @@ export class FlightSession {
     }
     if (!wasGround && !s.onGround) this.airborneTime += dt;
     if (s.onGround && this.phase === "free" && crashes && !overRunway && s.speed > 35 * KT) this.crash();
-    // Bumping into trees, houses and airport buildings (crashes on; checked a few times a second).
-    if (crashes && this.phase === "free" && s.speed > 20 * KT && this.frame % 3 === 0) {
+    // Bumping into trees, houses and airport buildings (crashes on; only near the ground).
+    if (crashes && this.phase === "free" && s.speed > 20 * KT && agl < 90) {
       const top = this.d.world.obstacleTop(s, this.ac.shape.span * 0.4);
       if (top !== null && s.alt < top - 0.5) this.crash();
     }
