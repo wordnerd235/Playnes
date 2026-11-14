@@ -1,7 +1,7 @@
 // Menu screens: title, home, Flight School, charter board, hangar, debrief, parent corner.
 // Big touch targets, icons first, every important thing also spoken by the co-pilot.
 
-import { AIRCRAFT, aircraftById, type AircraftDef } from "../data/aircraft.ts";
+import { AIRCRAFT, aircraftById, carriesPassengers, type AircraftDef } from "../data/aircraft.ts";
 import { AIRPORTS, airportByCode } from "../data/airports.ts";
 import { LINES, PASSENGERS, tpl, type Line, type Passenger } from "../data/lines.ts";
 import type { FlightResult, FreeSnapshot, LessonId, Mission } from "../game/flight.ts";
@@ -296,12 +296,31 @@ export class Screens {
     void p;
   }
 
+  /** Stat bars (compared with the fastest / farthest / highest-climbing playne in the hangar). */
+  private planeStats(ac: AircraftDef, big = false): HTMLElement {
+    const max = (f: (a: AircraftDef) => number) => Math.max(...AIRCRAFT.map(f));
+    const rows: [string, string, number][] = [
+      ["Cruise", `${ac.cruiseKt.toLocaleString()} kt`, ac.cruiseKt / max((a) => a.cruiseKt)],
+      ["Range", `${ac.rangeNm.toLocaleString()} nm`, ac.rangeNm / max((a) => a.rangeNm)],
+      ["Climb", `${ac.climbFpm.toLocaleString()} ft/min`, Math.sqrt(ac.climbFpm / max((a) => a.climbFpm))],
+      ["Seats", String(ac.seats), ac.seats / max((a) => a.seats)],
+    ];
+    if (big) rows.push(["Flies up to", `${ac.cruiseAltFt.toLocaleString()} ft`, ac.cruiseAltFt / max((a) => a.cruiseAltFt)]);
+    return h(`div.plane-stats${big ? ".big" : ""}`, {}, rows.map(([label, value, f]) =>
+      h("div.stat", {}, [
+        h("span.stat-label", {}, label),
+        h("span.stat-bar", {}, [h("span.stat-fill", { style: { width: `${Math.max(6, Math.round(f * 100))}%` } })]),
+        h("span.stat-value", {}, value),
+      ]),
+    ));
+  }
+
   private planeCard(ac: AircraftDef): HTMLElement {
     const p = this.host.progress;
     const mine = owns(p, ac);
     const selected = p.selectedPlane === ac.id;
     let status: HTMLElement;
-    if (mine) status = h("span.plane-status.mine", {}, selected ? "Flying this one" : "Tap to fly");
+    if (mine) status = h("span.plane-status.mine", {}, selected ? "✓ Flying this one" : "In your hangar");
     else if (ac.unlock.type === "graduation") status = h("span.plane-status", {}, "🎓 Graduate Flight School");
     else if (ac.unlock.type === "wings") status = h(`span.plane-status${canBuy(p, ac) ? ".buy" : ""}`, {}, [h("span.wing-icon", { html: ICONS.wing }), `${ac.unlock.price}`]);
     else status = h("span.plane-status", {}, "Special");
@@ -309,31 +328,89 @@ export class Screens {
       h("div.plane-swatch", { style: { background: `linear-gradient(135deg, ${ac.livery.body} 55%, ${ac.livery.stripe} 55% 70%, ${ac.livery.accent} 70%)` } }, [h("span", { html: ICONS.plane })]),
       h("div.plane-maker", {}, ac.maker),
       h("div.plane-model", {}, ac.model),
-      h("div.plane-facts", {}, `${ac.category} · ${ac.seats} seat${ac.seats === 1 ? "" : "s"} · ${ac.rangeNm.toLocaleString()} nm`),
+      h("div.plane-facts", {}, ac.category),
+      this.planeStats(ac),
       status,
     ]);
     card.addEventListener("click", () => {
       this.host.sfx("click");
-      if (mine) {
-        p.selectedPlane = ac.id;
-        this.host.saveProgress();
-        this.host.say(tpl.planeIntro(ac.spoken), true);
-        this.host.say(tpl.planeWow(ac.wow));
-        this.hangarRefresh();
-      } else if (canBuy(p, ac)) {
-        buy(p, ac);
-        p.selectedPlane = ac.id;
-        this.host.saveProgress();
-        this.host.sfx("cash");
-        this.host.say(LINES.bought, true);
-        this.host.say(tpl.planeWow(ac.wow));
-        this.hangarRefresh();
-      } else {
-        this.host.say(tpl.planeIntro(ac.spoken), true);
-        this.host.say(ac.unlock.type === "graduation" ? LINES.school : LINES.locked);
-      }
+      this.planeDetails(ac);
     });
     return card;
+  }
+
+  /** Details card for one playne, with the choices (buy / fly / close). Nothing happens without a tap. */
+  private planeDetails(ac: AircraftDef, justBought = false): void {
+    const p = this.host.progress;
+    this.layer.querySelector(".plane-sheet")?.remove();
+    const mine = owns(p, ac);
+    const selected = p.selectedPlane === ac.id;
+    const close = () => sheet.remove();
+    const actions: HTMLElement[] = [];
+    const btn = (cls: string, label: (string | HTMLElement)[] | string, onclick: () => void) => h(`button.btn.${cls}`, { type: "button", onclick }, label);
+    let note = "";
+    if (justBought) {
+      note = "It's yours! Do you want to fly it now?";
+      actions.push(btn("secondary", "Maybe later", close));
+      actions.push(btn("primary", [h("span", { html: ICONS.plane }), "Fly it now"], () => this.choosePlane(ac, close)));
+    } else if (mine) {
+      if (selected) {
+        note = "You're flying this one.";
+        actions.push(btn("primary", "OK", close));
+      } else {
+        note = carriesPassengers(ac) ? "This playne is in your hangar." : "Fighter jets have one seat, so they fly in Free Flight only.";
+        actions.push(btn("secondary", "Close", close));
+        actions.push(btn("primary", [h("span", { html: ICONS.plane }), "Fly this playne"], () => this.choosePlane(ac, close)));
+      }
+    } else if (ac.unlock.type === "wings") {
+      const price = ac.unlock.price;
+      actions.push(btn("secondary", "Close", close));
+      if (canBuy(p, ac)) {
+        note = `You have ${p.wings} Wings.`;
+        actions.push(btn("primary.buy-btn", [h("span.wing-icon", { html: ICONS.wing }), `Buy for ${price} Wings`], () => {
+          buy(p, ac);
+          this.host.saveProgress();
+          this.host.sfx("cash");
+          this.host.say(LINES.bought, true);
+          this.hangarRefresh();
+          this.planeDetails(ac, true);
+        }));
+      } else {
+        note = `You need ${price - p.wings} more Wings. Fly charters to earn them!`;
+        actions.push(h("button.btn.primary", { type: "button", disabled: true }, [h("span.wing-icon", { html: ICONS.wing }), `${price} Wings`]));
+      }
+    } else {
+      note = ac.unlock.type === "graduation" ? "Finish all of Flight School to unlock this playne." : "A special playne.";
+      actions.push(btn("primary", "OK", close));
+    }
+    const sheet = h("div.plane-sheet", { onclick: (e: Event) => e.target === sheet && close() }, [
+      h("div.plane-sheet-card", {}, [
+        h("div.plane-swatch.big", { style: { background: `linear-gradient(135deg, ${ac.livery.body} 55%, ${ac.livery.stripe} 55% 70%, ${ac.livery.accent} 70%)` } }, [h("span", { html: ICONS.plane })]),
+        h("div.plane-maker", {}, ac.maker),
+        h("h2.plane-sheet-title", {}, ac.model),
+        h("div.plane-facts", {}, (() => {
+          const engine = ac.kind === "piston" ? "propeller" : ac.kind === "turboprop" ? "turboprop" : "jet";
+          return ac.category.toLowerCase().includes(engine) ? ac.category : `${ac.category} · ${engine}`;
+        })()),
+        this.planeStats(ac, true),
+        h("p.plane-wow", {}, ac.wow),
+        note ? h("p.plane-note", {}, note) : null,
+        h("div.plane-sheet-actions", {}, actions),
+      ]),
+    ]);
+    this.layer.append(sheet);
+    if (!justBought) {
+      this.host.say(tpl.planeIntro(ac.spoken), true);
+      this.host.say(tpl.planeWow(ac.wow));
+    }
+  }
+
+  private choosePlane(ac: AircraftDef, close: () => void): void {
+    this.host.progress.selectedPlane = ac.id;
+    this.host.saveProgress();
+    this.host.sfx("ding");
+    close();
+    this.hangarRefresh();
   }
 
   private hangarRefresh(): void {
