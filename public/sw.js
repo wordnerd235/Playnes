@@ -1,6 +1,6 @@
 // Playnes service worker: keeps the game itself (code, models, voices, Cesium assets) available
 // offline. It never touches map tiles from Google or Cesium ion: their terms forbid offline caching.
-const CACHE = "playnes-v2";
+const CACHE = "playnes-v3";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => {
@@ -16,8 +16,9 @@ self.addEventListener("fetch", (e) => {
 
   if (req.mode === "navigate") {
     // Network first so updates arrive; fall back to the cached page offline.
+    // "no-store" skips the browser's HTTP cache so a new version shows up right away.
     e.respondWith(
-      fetch(req)
+      fetch(req.url, { cache: "no-store", credentials: "same-origin" })
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(req, copy));

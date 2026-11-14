@@ -72,6 +72,7 @@ export class Screens {
         h("div.logo", {}, [h("span.logo-word", {}, "Playnes")]),
         h("p.tagline", {}, "Fly real planes across North America"),
         btn,
+        h("p.version", {}, `Version ${__BUILD__}`),
       ]),
     );
   }
@@ -519,7 +520,7 @@ export class Screens {
             resetBtn,
           ]),
           h("div.parent-actions", {}, [h("button.btn.primary", { type: "button", onclick: save }, "Save")]),
-          h("p.field-help", {}, "Playnes is a private family game. Map data © Google or Cesium as credited on screen."),
+          h("p.field-help", {}, `Playnes is a private family game. Map data © Google or Cesium as credited on screen. Version ${__BUILD__}.`),
         ]),
       ]),
     );

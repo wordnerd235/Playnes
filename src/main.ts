@@ -306,6 +306,18 @@ const game = new Game();
 
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker
+      .register("./sw.js", { updateViaCache: "none" })
+      .then((reg) => reg.update())
+      .catch(() => {});
+    // When a new version's service worker takes over, reload once to run the new code
+    // (only from the title screen, never mid-flight).
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!hadController || reloaded || game.flight) return;
+      reloaded = true;
+      location.reload();
+    });
   });
 }

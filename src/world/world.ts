@@ -5,6 +5,8 @@
 // The rest of the game only talks to the World interface, so switching is a settings change.
 
 import {
+  BoundingSphere,
+  Cartesian3,
   buildModuleUrl,
   Cartographic,
   Cesium3DTileset,
@@ -87,6 +89,30 @@ function installRecovery(widget: CesiumWidget, scenery: Scenery): void {
   });
 }
 
+/**
+ * Safety net for iPad Safari (no order-independent translucency): Cesium sorts see-through draw
+ * commands by bounding volume and crashes if one has none. This invisible primitive is kept
+ * last in the list and gives any command without a volume a huge sphere around the camera.
+ */
+function installCommandGuard(widget: CesiumWidget): void {
+  const scene = widget.scene;
+  const fallback = new BoundingSphere(new Cartesian3(), 1e7);
+  const guard = {
+    show: true,
+    update(frameState: { commandList: { boundingVolume?: unknown }[] }) {
+      Cartesian3.clone(scene.camera.positionWC, fallback.center);
+      for (const cmd of frameState.commandList) if (!cmd.boundingVolume) cmd.boundingVolume = fallback;
+    },
+    isDestroyed: () => false,
+    destroy: () => {},
+  };
+  scene.primitives.add(guard);
+  scene.preUpdate.addEventListener(() => {
+    const prims = scene.primitives;
+    if (prims.length && prims.get(prims.length - 1) !== guard) prims.raiseToTop(guard);
+  });
+}
+
 let cartoonCache: Promise<CartoonData | null> | null = null;
 /** Loads the bundled offline map data once (null if unavailable). */
 export function loadCartoon(): Promise<CartoonData | null> {
@@ -145,6 +171,7 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
   else w = await createBasicWorld(container, q, cartoon);
   const scenery = new Scenery(w.widget.scene, w.kind === "cartoon" ? cartoon : null, q === "high" ? 1 : q === "medium" ? 0.75 : 0.4);
   installRecovery(w.widget, scenery);
+  installCommandGuard(w.widget);
   const setGround = w.setGroundVisible.bind(w);
   const destroy = w.destroy.bind(w);
   return {
