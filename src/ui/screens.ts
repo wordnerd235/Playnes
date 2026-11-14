@@ -380,6 +380,7 @@ export class Screens {
     const invert = check("set-invert", s.invertPitch);
     const flip = check("set-flip", s.tiltFlipPitch);
     const crashes = check("set-crashes", s.crashes);
+    const autoSpeed = check("set-autospeed", s.freeAutoSpeed);
     const unlock = check("set-unlock", p.unlockAll);
     const volume = h("input", { id: "set-volume", type: "range", min: "0", max: "1", step: "0.05", value: String(s.volume) });
     const minutes = sel("set-minutes", String(s.sessionMinutes), [["0", "Off"], ["15", "15 minutes"], ["20", "20 minutes"], ["30", "30 minutes"], ["45", "45 minutes"]]);
@@ -398,6 +399,7 @@ export class Screens {
       s.invertPitch = invert.checked;
       s.tiltFlipPitch = flip.checked;
       s.crashes = crashes.checked;
+      s.freeAutoSpeed = autoSpeed.checked;
       s.volume = Number(volume.value);
       s.sessionMinutes = Number(minutes.value);
       p.unlockAll = unlock.checked;
@@ -480,6 +482,7 @@ export class Screens {
             h("label.check", {}, [flip, "Tilt: flip up and down (if it feels backwards)"]),
             h("label.check", {}, [invert, "Invert up/down on the yoke"]),
             h("label.check", {}, [crashes, "Free Flight: allow crashes (off = the co-pilot always saves the plane)"]),
+            h("label.check", {}, [autoSpeed, "Free Flight: co-pilot holds the speed (off = the lever is a real throttle)"]),
             field("Volume", volume),
             field("Break reminder", minutes),
           ]),

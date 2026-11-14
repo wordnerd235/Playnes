@@ -153,7 +153,7 @@ class Game implements ScreenHost {
     const lessonPlane = m.kind === "lesson" ? "c172" : this.progress.selectedPlane;
     const ac = aircraftById(m.kind === "lesson" ? lessonPlane : this.progress.selectedPlane);
     const flight = new FlightSession(
-      { world: this.world, audio: this.audio, controls: this.controls, hud: this.hud, aircraft: ac, assistLevel: this.settings.assistLevel, crashes: this.settings.crashes },
+      { world: this.world, audio: this.audio, controls: this.controls, hud: this.hud, aircraft: ac, assistLevel: this.settings.assistLevel, crashes: this.settings.crashes, autoSpeed: this.settings.freeAutoSpeed },
       m,
     );
     this.flight = flight;

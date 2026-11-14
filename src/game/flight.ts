@@ -39,7 +39,7 @@ import {
   NM,
   type LatLon,
 } from "../sim/geo.ts";
-import { createState, perfFor, step, type FlightState, type Perf } from "../sim/physics.ts";
+import { createState, indicated, perfFor, step, type FlightState, type Perf } from "../sim/physics.ts";
 import type { Hud, Prompt } from "../ui/hud.ts";
 import { CloudDeck } from "../world/clouds.ts";
 import { gfxOn } from "../world/safety.ts";
@@ -110,6 +110,8 @@ export interface FlightDeps {
   assistLevel: number;
   /** Free Flight only: crashing allowed. */
   crashes: boolean;
+  /** Free Flight only: the lever picks a speed and the co-pilot works the power. */
+  autoSpeed: boolean;
 }
 
 export interface FreeLanding {
@@ -178,7 +180,7 @@ export class FlightSession {
   // Free Flight
   onLanded: (l: FreeLanding) => void = () => {};
   private allRunways: RunwayInUse[] = [];
-  private autopilot: { heading: number; alt: number } | null = null;
+  private autopilot: { heading: number; alt: number; ias: number } | null = null;
   private edgeTimer = 0;
   private navTarget: Airport | null = null;
   private landmarksSaid = new Set<string>();
@@ -524,6 +526,7 @@ export class FlightSession {
       this.ask("gear", 9, () => this.s.gearDown, () => {
         void this.say(LINES.gearDownHelp);
         this.setGear(true);
+        this.afterGearDown();
       });
     } else {
       void this.say(LINES.flapsPrompt);
@@ -535,6 +538,7 @@ export class FlightSession {
   }
 
   private async enterCruise(): Promise<void> {
+    if (["toCruise", "cruise", "toApproach", "approach", "rollout", "done"].includes(this.phase)) return;
     this.setPhase("toCruise");
     this.d.hud.setPrompt(null);
     void this.say(LINES.intoClouds);
@@ -583,6 +587,7 @@ export class FlightSession {
   }
 
   private async enterApproach(): Promise<void> {
+    if (["toApproach", "approach", "rollout", "done"].includes(this.phase)) return;
     this.setPhase("toApproach");
     void this.say(LINES.descend);
     this.d.audio.sfx("whoosh");
@@ -653,7 +658,7 @@ export class FlightSession {
 
   openMap(): void {
     if (this.mission.kind !== "sandbox" || !this.s) return;
-    this.autopilot = { heading: this.s.heading, alt: Math.max(this.s.alt, this.groundHeightAt(this.s) + 150) };
+    this.autopilot = { heading: this.s.heading, alt: Math.max(this.s.alt, this.groundHeightAt(this.s) + 150), ias: Math.max(indicated(this.s.speed, this.s.alt), this.p.vapp * 1.1) };
     if (!this.s.onGround) void this.say(LINES.mapAutopilot, true);
     this.d.hud.openBigMap({ pos: this.s, heading: this.s.heading, target: this.navTarget }, (a: Airport) => this.setNavTarget(a), () => {
       this.autopilot = null;
@@ -729,6 +734,7 @@ export class FlightSession {
       level = 1;
       if (this.edgeTimer <= 0) g.targetHeading = ap.heading;
       g.targetVs = clamp((ap.alt - s.alt) * 0.15, -5, 5);
+      g.targetSpeed = ap.ias;
     }
 
     let throttle: number | null = c.throttle;
@@ -749,19 +755,25 @@ export class FlightSession {
       if (c.throttle <= 0.5 || s.speed < p.vr * 0.8) this.d.hud.setPrompt(null);
       if (s.speed < 25 * KT) brake = Math.max(brake, c.throttle < 0.05 ? 0.4 : 0);
     } else {
-      this.d.hud.setPrompt(null);
-      // The lever chooses speed; the co-pilot works the power.
-      const slow = p.vapp * 0.95;
-      g.targetSpeed = slow + c.throttle * (p.speedLimit - slow);
-      throttle = null;
-      // Lined up with a runway and stick centred: help down the glide path.
-      if (landingZone && near && Math.abs(pitch) < 0.08 && !ap) {
+      if (ap) {
+        throttle = null; // autopilot holds the speed it had when the map opened
+      } else if (this.d.autoSpeed) {
+        // Optional kid mode: the lever chooses a speed and the co-pilot works the power.
+        const slow = p.vapp * 0.95;
+        g.targetSpeed = slow + c.throttle * (p.speedLimit - slow);
+        throttle = null;
+      }
+      // Otherwise the lever is the real throttle: idle power and the plane slows, then glides down.
+      this.freeFlightHints(agl);
+      // Lined up with a runway and stick centred: help down the glide path (unless powering up to go around).
+      if (landingZone && near && Math.abs(pitch) < 0.08 && !ap && c.throttle < 0.8) {
         this.sayOnce(`land-${near.r.airport.code}-${Math.floor(this.time / 60)}`, LINES.landingHelp);
         const dir = rwHdg === near.r.heading ? 1 : -1;
         const sTd = dir > 0 ? near.s - AIM : near.r.length - AIM - near.s;
         const wantAlt = runwayHeight(near.r, dir > 0 ? 0 : near.r.length) + Math.max(0, -sTd) * Math.tan(GLIDE);
         g.targetVs = -s.speed * Math.tan(GLIDE) + clamp((wantAlt - s.alt) * 0.15, -4, 3);
-        g.targetSpeed = Math.min(g.targetSpeed, p.vapp + 5 * KT);
+        g.targetSpeed = Math.min(g.targetSpeed ?? Infinity, p.vapp + 5 * KT);
+        throttle = null;
         if (Math.abs(roll) < 0.08) g.targetHeading = rwHdg! - clamp(near.x * (dir > 0 ? 0.12 : -0.12), -25, 25);
       }
     }
@@ -776,6 +788,11 @@ export class FlightSession {
       if (e.type === "liftoff") {
         this.d.audio.sfx("chirp");
         this.said.delete("pullHint");
+        this.said.delete("freeFlapsUp");
+        if (!this.ac.shape.fixedGear) {
+          void this.say(LINES.positiveRate, true);
+          this.d.hud.setPrompt("gear");
+        }
       }
       if (e.type === "touchdown") this.onFreeTouchdown(e.sinkFpm, overRunway, near);
     }
@@ -791,6 +808,25 @@ export class FlightSession {
         }
       }
     }
+  }
+
+  /** After takeoff: remind to raise the wheels and flaps (they add a lot of drag). */
+  private freeFlightHints(agl: number): void {
+    const s = this.s;
+    if (this.timed) return;
+    if (s.gearDown && !this.ac.shape.fixedGear && agl > 15 && agl < 600 && s.vs > 0) {
+      this.d.hud.setPrompt("gear");
+      return;
+    }
+    if (s.flaps > 0 && agl > 250 && (!s.gearDown || this.ac.shape.fixedGear) && s.vs > -1) {
+      if (!this.said.has("freeFlapsUp")) {
+        this.said.add("freeFlapsUp");
+        void this.say(LINES.flapsUp);
+      }
+      this.d.hud.setPrompt("flaps");
+      return;
+    }
+    this.d.hud.setPrompt(null);
   }
 
   private onFreeTouchdown(sink: number, overRunway: boolean, near: { r: RunwayInUse; s: number; x: number } | null): void {
@@ -880,7 +916,10 @@ export class FlightSession {
         }
         break;
       case "flaps":
-        this.s.flaps = (this.s.flaps + 1) % 4;
+        // In flight above approach speed, one tap brings the flaps all the way up; otherwise
+        // each tap lowers one more notch (and wraps back to up on the ground).
+        if (!this.s.onGround && this.s.flaps > 0 && indicated(this.s.speed, this.s.alt) > this.p.vapp * 1.25) this.s.flaps = 0;
+        else this.s.flaps = (this.s.flaps + 1) % 4;
         if (this.timed?.prompt === "flaps" && this.s.flaps >= 3) {
           this.timed = null;
           this.d.hud.setPrompt(null);
@@ -1347,7 +1386,8 @@ export class FlightSession {
     const altFt = (s.alt + ref.mslOffset) / FT;
     const inCruise = this.phase === "cruise";
     this.d.hud.update({
-      speedKt: s.speed / KT,
+      speedKt: indicated(s.speed, s.alt) / KT,
+      groundKt: s.speed * Math.cos(s.gamma * DEG) / KT,
       altFt: inCruise ? this.ac.cruiseAltFt + this.cruise.altOffset / FT : altFt,
       heading: s.heading,
       bank: s.bank,

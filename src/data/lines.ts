@@ -75,6 +75,7 @@ export const LINES = {
   crash: c("Oops! We crashed. Let's try that again!"),
   edge: c("That's the edge of our map. Let's turn around!"),
   mapAutopilot: c("The autopilot will fly while you look at the map."),
+  flapsUp: c("Flaps up! Tap the flaps button so we can fly fast."),
   landingHelp: c("You're lined up with the runway. I'll help you land!"),
   // Lesson 1: meet your plane
   l1Intro: c("This is your plane! Tap each part to learn its name."),

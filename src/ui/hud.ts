@@ -11,6 +11,8 @@ export type Prompt = "radio" | "throttle" | "throttle-back" | "pull" | "gear" | 
 
 export interface HudData {
   speedKt: number;
+  /** Ground speed (true airspeed over the ground, no wind). */
+  groundKt: number;
   altFt: number;
   heading: number;
   bank: number;
@@ -38,6 +40,7 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, html?: 
 export class Hud {
   root: HTMLElement;
   private speed: HTMLElement;
+  private groundSpeed: HTMLElement;
   private alt: HTMLElement;
   private ball: SVGGElement;
   private progressBar: HTMLElement;
@@ -89,8 +92,9 @@ export class Hud {
         <path d="M-30 4 L-10 4 L0 12 L10 4 L30 4" fill="none" stroke="#ffcc00" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`;
     this.ball = left.querySelector(".att-ball") as SVGGElement;
-    const speedBox = el("div", "gauge", `<div class="gauge-k">SPEED</div><div class="gauge-v">0</div><div class="gauge-u">knots</div>`);
+    const speedBox = el("div", "gauge", `<div class="gauge-k">SPEED</div><div class="gauge-v">0</div><div class="gauge-u">knots</div><div class="gauge-sub">ground 0</div>`);
     this.speed = speedBox.querySelector(".gauge-v") as HTMLElement;
+    this.groundSpeed = speedBox.querySelector(".gauge-sub") as HTMLElement;
     left.append(speedBox);
 
     const center = el("div", "hud-route");
@@ -355,6 +359,7 @@ export class Hud {
 
   update(d: HudData): void {
     this.speed.textContent = String(Math.round(d.speedKt));
+    this.groundSpeed.textContent = `ground ${Math.round(d.groundKt)}`;
     this.alt.textContent = d.altFt >= 18000 ? `FL${Math.round(d.altFt / 100)}` : String(Math.round(d.altFt / 10) * 10);
     this.ball.setAttribute("transform", `rotate(${-d.bank}) translate(0 ${Math.max(-40, Math.min(40, d.pitch * 1.6))})`);
     if (d.progress !== null) {

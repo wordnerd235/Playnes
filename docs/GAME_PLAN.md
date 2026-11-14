@@ -31,7 +31,7 @@ The game is playable at the GitHub Pages site. See `docs/SETUP.md`.
 **Working now**
 - Three map sources behind one switch: Google Photorealistic 3D Tiles, Cesium ion, and a bundled **offline cartoon world** (default) built from AWS Terrain Tiles + Natural Earth, with terrain, fields, forests, rivers, lakes, towns, trees, clouds and crisp runways
 - 12 airports (TRI, CLT, AVL, MYR, ATL, TYS, CHA, GSP, CAE, GSO, RDU, ROA) and 19 landmarks
-- Flight model with co-pilot assists, Ground Buddy, envelope protection; unit-tested for all 13 planes
+- Flight model with a standard atmosphere (thrust and drag change with altitude), induced and parasite drag, real Vmo/Mmo limits; every plane calibrated to its book climb rate, cruise speed and glide ratio and unit-tested; co-pilot assists, Ground Buddy, envelope protection
 - 13 procedural "toy-real" planes with moving flaps, ailerons, elevators and rudder, blinking beacons and strobes, and a ground shadow
 - Controls: touch yoke + throttle lever, tilt, keyboard, game controller; drag-to-look bubble with reset
 - Charters (radio call → takeoff → hoops → cloud cruise with landmarks → approach with live PAPI lights → landing score), Flight School 1–5 with graduation, hangar with Wings prices

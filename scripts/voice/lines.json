@@ -330,6 +330,12 @@
   "speak": "The autopilot will fly while you look at the map."
  },
  {
+  "id": "bb7c26f2",
+  "who": "copilot",
+  "text": "Flaps up! Tap the flaps button so we can fly fast.",
+  "speak": "Flaps up! Tap the flaps button so we can fly fast."
+ },
+ {
   "id": "fae0050c",
   "who": "copilot",
   "text": "You're lined up with the runway. I'll help you land!",

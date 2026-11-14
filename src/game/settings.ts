@@ -17,6 +17,8 @@ export interface Settings {
   sessionMinutes: number;
   /** Free Flight: touching the ground off a runway is a crash (off = the co-pilot always saves you). */
   crashes: boolean;
+  /** Free Flight: the lever picks a speed and the co-pilot works the engine (off = real throttle). */
+  freeAutoSpeed: boolean;
 }
 
 const KEY = "playnes.settings.v1";
@@ -33,6 +35,7 @@ export const DEFAULT_SETTINGS: Settings = {
   assistLevel: 1,
   sessionMinutes: 0,
   crashes: false,
+  freeAutoSpeed: false,
 };
 
 export function loadSettings(): Settings {

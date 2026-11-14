@@ -4,7 +4,7 @@
 //   2 "Up & down"  - player also commands climb/descent (release = level flight)
 //   3+ (later)     - player also flies power, flare, brakes
 
-import type { Commands, FlightState, Perf } from "./physics.ts";
+import { indicated, type Commands, type FlightState, type Perf } from "./physics.ts";
 import { angleDiff, clamp, lerp } from "./geo.ts";
 
 export interface StickInput {
@@ -22,7 +22,7 @@ export interface Guidance {
   targetHeading: number | null;
   /** Vertical speed the co-pilot flies (level 1), m/s. */
   targetVs: number;
-  /** Airspeed the auto-throttle holds, m/s. Null = player/lesson controls power. */
+  /** Indicated airspeed the auto-throttle holds, m/s. Null = player/lesson controls power. */
   targetSpeed: number | null;
   /** Height above the ground below, meters. */
   agl: number;
@@ -82,11 +82,12 @@ export function computeCommands(
     if (Math.abs(input.pitch) < 0.08 && g.landing) targetVs = g.targetVs;
   }
 
+  const ias = indicated(s.speed, s.alt);
   // Speed protection: if the climb is bleeding off too much speed, climb less steeply.
   if (!s.onGround && targetVs > 0) {
     const lo = p.vstall * 1.2;
     const hi = Math.max(lo + 1, p.vclimb * 0.85);
-    targetVs *= clamp((s.speed - lo) / (hi - lo), 0, 1);
+    targetVs *= clamp((ias - lo) / (hi - lo), 0, 1);
   }
 
   // Flare: below ~30 ft the co-pilot eases the descent for a soft touchdown.
@@ -107,7 +108,8 @@ export function computeCommands(
   // ----- Power -----
   let throttle: number;
   if (g.targetSpeed !== null && !s.onGround) {
-    const err = g.targetSpeed - s.speed;
+    // Auto-throttle targets are indicated airspeeds.
+    const err = g.targetSpeed - ias;
     mem.throttleI = clamp(mem.throttleI + err * dt * 0.02, -0.4, 0.4);
     const base = 0.55 + (targetVs > 0 ? 0.25 : targetVs < -2 ? -0.35 : 0);
     throttle = clamp(base + err * 0.06 + mem.throttleI, 0, 1);

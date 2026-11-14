@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { AIRCRAFT, aircraftById } from "../src/data/aircraft.ts";
 import { computeCommands, createMemory, type Guidance, type StickInput } from "../src/sim/assist.ts";
 import { KT } from "../src/sim/geo.ts";
-import { createState, perfFor, step, type FlightEvent } from "../src/sim/physics.ts";
+import { createState, indicated, perfFor, step, type FlightEvent } from "../src/sim/physics.ts";
 
 const DT = 1 / 60;
 const noInput: StickInput = { roll: 0, pitch: 0, throttle: null, brake: 0 };
@@ -120,5 +120,73 @@ describe("flight model", () => {
     }
     expect(minAlt).toBeGreaterThan(5);
     expect(s.onGround).toBe(false);
+  });
+});
+
+describe("real-world performance", () => {
+  const KT_ = 0.514444;
+  const FPM = 0.3048 / 60;
+  const freeFlight = (over: Partial<Guidance> = {}): Guidance => baseGuidance({ landing: true, groundHeading: null, wantRotate: false, agl: 9000, ...over });
+
+  function hold(id: string, altFt: number, throttle: number, seconds: number, startKt: number, pitch = 0) {
+    const ac = aircraftById(id);
+    const p = perfFor(ac);
+    const s = createState({ lat: 35, lon: -81, alt: altFt * 0.3048, heading: 0, onGround: false, speed: startKt * KT_, gearDown: false, flaps: 0 });
+    s.throttle = throttle;
+    const mem = createMemory();
+    for (let i = 0; i < seconds / DT; i++) {
+      const cmd = computeCommands(2, { roll: 0, pitch, throttle, brake: 0 }, freeFlight(), s, p, mem, DT);
+      step(s, cmd, p, { groundHeight: -1e5 }, DT);
+    }
+    return { s, p };
+  }
+
+  it("cruises at book true airspeed at cruise altitude (92% power)", () => {
+    for (const ac of AIRCRAFT) {
+      const { s } = hold(ac.id, ac.cruiseAltFt, 0.92, 2400, ac.cruiseKt * 0.85);
+      expect(Math.abs(s.speed / KT_ - ac.cruiseKt), ac.id).toBeLessThan(6);
+    }
+  });
+
+  it("never goes past its maximum operating speed", () => {
+    for (const ac of AIRCRAFT) {
+      const { s } = hold(ac.id, 1000, 1, 400, ac.vclimb);
+      expect(indicated(s.speed, s.alt) / KT_, ac.id).toBeLessThan(ac.vmo * 1.05);
+    }
+  });
+
+  it("with the throttle at idle the plane slows and then glides down", () => {
+    for (const id of ["c172", "phenom100", "g700"]) {
+      const { s, p } = hold(id, 10000, 0, 300, aircraftById(id).cruiseKt * 0.5);
+      expect(s.vs / FPM, id).toBeLessThan(-300);
+      expect(indicated(s.speed, s.alt), id).toBeGreaterThan(p.vstall);
+    }
+  });
+
+  it("thin air: the same jet is much faster high up than down low", () => {
+    const low = hold("phenom100", 5000, 0.92, 1500, 250).s.speed;
+    const high = hold("phenom100", 30000, 0.92, 1500, 300).s.speed;
+    expect(high / low).toBeGreaterThan(1.15);
+  });
+
+  it("a Phenom 100 flies Charlotte to Tri-Cities (104 nm) in about 20-25 minutes", () => {
+    const ac = aircraftById("phenom100");
+    const p = perfFor(ac);
+    const s = createState({ lat: 35, lon: -81, alt: 230, heading: 0, onGround: false, speed: 130 * KT_, gearDown: false, flaps: 0 });
+    const mem = createMemory();
+    let dist = 0;
+    let t = 0;
+    const total = 104 * 1852;
+    while (dist < total && t < 3600) {
+      const remaining = total - dist;
+      const descending = remaining < (s.alt / 0.3048 / 1000) * 3 * 1852; // 3 nm per 1,000 ft
+      const climb = !descending && s.alt < 25000 * 0.3048;
+      const cmd = computeCommands(2, { roll: 0, pitch: climb ? 0.7 : descending ? -0.6 : 0, throttle: descending ? 0.15 : 1, brake: 0 }, freeFlight(), s, p, mem, DT);
+      step(s, cmd, p, { groundHeight: -1e5 }, DT);
+      dist += s.speed * Math.cos(s.gamma * Math.PI / 180) * DT;
+      t += DT;
+    }
+    expect(t / 60).toBeGreaterThan(17);
+    expect(t / 60).toBeLessThan(28);
   });
 });
