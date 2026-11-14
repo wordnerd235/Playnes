@@ -69,6 +69,13 @@ export const LINES = {
   lessonDone: c("Lesson complete! Great job!"),
   timeToLand: c("That was so much fun! Time for a break, Captain."),
   needWifi: c("We need the internet to see the real world. The hangar still works!"),
+  // Free flight
+  freeIntro: c("Free flight! Fly anywhere you like. Tap the map to see where the airports are."),
+  pullToTakeoff: c("Pull back to take off!"),
+  crash: c("Oops! We crashed. Let's try that again!"),
+  edge: c("That's the edge of our map. Let's turn around!"),
+  mapAutopilot: c("The autopilot will fly while you look at the map."),
+  landingHelp: c("You're lined up with the runway. I'll help you land!"),
   // Lesson 1: meet your plane
   l1Intro: c("This is your plane! Tap each part to learn its name."),
   l1Wings: c("These are the wings. Wings lift us up like a bird!"),

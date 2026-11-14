@@ -43,6 +43,7 @@ SS = 2  # supersampling for anti-aliased vectors
 
 NE_BASE = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/"
 NE_LAYERS = [
+    "ne_10m_land",
     "ne_10m_lakes",
     "ne_10m_lakes_north_america",
     "ne_10m_rivers_lake_centerlines",
@@ -185,7 +186,8 @@ def runway_polys(airports):
     for a in airports:
         e0, e1 = a["runway"]["ends"]
         w = a["runway"]["widthFt"] * 0.3048
-        out.append({"code": a["code"], "a": (e0["lon"], e0["lat"]), "b": (e1["lon"], e1["lat"]), "w": w, "ids": (e0["id"], e1["id"])})
+        out.append({"code": a["code"], "a": (e0["lon"], e0["lat"]), "b": (e1["lon"], e1["lat"]), "w": w, "ids": (e0["id"], e1["id"]),
+                    "elev": (e0["elevFt"] * 0.3048, e1["elevFt"] * 0.3048)})
     return out
 
 
@@ -221,8 +223,6 @@ def build_grid(dem: Dem, region, layers, runways):
     lats = region["north"] - np.arange(H) * GRID_STEP
     LON, LAT = np.meshgrid(lons, lats)
     elev = dem.at(LON, LAT)
-    ocean = elev <= 0.5
-    elev = np.maximum(elev, 0.0)
 
     # Rasterize lakes and towns onto the grid.
     def raster(names, kind="poly", width=1):
@@ -245,6 +245,9 @@ def build_grid(dem: Dem, region, layers, runways):
 
     lakes = raster(["ne_10m_lakes", "ne_10m_lakes_north_america"])
     towns = raster(["ne_10m_urban_areas"])
+    # Sea = outside the coastline polygons (the elevation data dips below 0 on some coastal land).
+    ocean = ~raster(["ne_10m_land"])
+    elev = np.where(ocean, 0.0, np.maximum(elev, 1.5))
     land = np.zeros((H, W), dtype=np.uint8)
     land[towns] = 2
     land[lakes | ocean] = 1
@@ -261,14 +264,18 @@ def build_grid(dem: Dem, region, layers, runways):
         near = (s > -1200) & (s < L + 1200) & (np.abs(x) < 1500)
         if not near.any():
             continue
-        h0 = float(np.median(dem.at(np.array([rw["a"][0]]), np.array([rw["a"][1]]))))
-        h1 = float(np.median(dem.at(np.array([rw["b"][0]]), np.array([rw["b"][1]]))))
+        def end_h(lonlat, published_m):
+            d = float(dem.at(np.array([lonlat[0]]), np.array([lonlat[1]]))[0])
+            # Trust the published runway elevation when the terrain data is clearly off.
+            return published_m if abs(d - published_m) > 8 else d
+        h0 = end_h(rw["a"], rw["elev"][0])
+        h1 = end_h(rw["b"], rw["elev"][1])
         flat = h0 + (h1 - h0) * np.clip(s / L, 0, 1)
         lat_w = np.clip(1 - (np.abs(x) - 150) / 600, 0, 1)
         lon_w = np.clip(1 - (np.maximum(-s, s - L) - 200) / 800, 0, 1)
         wgt = np.where(near, lat_w * lon_w, 0)
         elev = elev * (1 - wgt) + flat * wgt
-        land[(near) & (np.abs(x) < 450) & (s > -500) & (s < L + 500) & (land != 1)] = 3
+        land[(near) & (np.abs(x) < 450) & (s > -500) & (s < L + 500)] = 3
     return elev, land, W, H
 
 
@@ -415,14 +422,23 @@ def render_tile(z, tx, ty, dem, layers, runways, region):
     rgb = rgb * (1 - edge[..., None]) + frgb * edge[..., None]
 
     rgb *= shade[..., None]
-    water = elev <= 0.5
-    rgb[water] = WATER
-    img = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB")
-    d = ImageDraw.Draw(img, "RGBA")
-
     def to_px(lon, lat):
         x, y = lonlat_to_px(lon, lat, z)
         return ((x - tx * TILE) * SS, (y - ty * TILE) * SS)
+
+    # Sea: outside the Natural Earth land polygons.
+    land_mask = Image.new("L", (N, N), 0)
+    lmd = ImageDraw.Draw(land_mask)
+    for f in layers["ne_10m_land"]:
+        if f["kind"] != "poly":
+            continue
+        for i, ring in enumerate(f["coords"]):
+            xs, ys = to_px(np.array([c[0] for c in ring]), np.array([c[1] for c in ring]))
+            lmd.polygon(list(zip(xs.tolist(), ys.tolist())), fill=255 if i == 0 else 0)
+    water = np.asarray(land_mask) == 0
+    rgb[water] = WATER
+    img = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB")
+    d = ImageDraw.Draw(img, "RGBA")
 
     lon_min, lat_min = px_to_lonlat(tx * TILE - 8, (ty + 1) * TILE + 8, z)
     lon_max, lat_max = px_to_lonlat((tx + 1) * TILE + 8, ty * TILE - 8, z)

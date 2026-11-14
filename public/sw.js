@@ -1,6 +1,6 @@
 // Playnes service worker: keeps the game itself (code, models, voices, Cesium assets) available
 // offline. It never touches map tiles from Google or Cesium ion: their terms forbid offline caching.
-const CACHE = "playnes-v1";
+const CACHE = "playnes-v2";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => {

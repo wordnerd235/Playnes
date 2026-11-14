@@ -197,7 +197,7 @@ export class Audio {
     src.start();
   }
 
-  sfx(name: "ding" | "hoop" | "thunk" | "chirp" | "star" | "click" | "cash" | "whoosh"): void {
+  sfx(name: "ding" | "hoop" | "thunk" | "chirp" | "star" | "click" | "cash" | "whoosh" | "crash"): void {
     switch (name) {
       case "ding":
         this.tone(880, 0, 0.6, "sine", 0.18);
@@ -221,6 +221,11 @@ export class Audio {
         break;
       case "cash":
         [1568, 2093].forEach((f, i) => this.tone(f, i * 0.09, 0.3, "triangle", 0.1));
+        break;
+      case "crash":
+        this.noiseBurst(1.6, 500, 1.2);
+        this.noiseBurst(0.5, 2200, 0.5, "bandpass");
+        this.tone(60, 0, 0.8, "sine", 0.4);
         break;
       case "whoosh":
         this.noiseBurst(1.2, 900, 0.35);

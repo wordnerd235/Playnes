@@ -37,6 +37,8 @@ export class PlaneView {
   lookYaw = 0;
   lookPitch = 0;
   mode: CameraMode = "chase";
+  /** Camera shake amount (meters), decays (crash effect). */
+  shake = 0;
 
   constructor(private world: World, private ac: AircraftDef) {}
 
@@ -162,7 +164,9 @@ export class PlaneView {
     const horiz = dist * Math.cos(elev);
     const ground = destination(s, camHdg, horiz);
     const camAlt = s.alt + L * 0.15 + dist * Math.sin(elev);
-    const eye = Cartesian3.fromDegrees(ground.lon, ground.lat, camAlt);
+    this.shake = Math.max(0, this.shake - dt * 0.4);
+    const j = this.shake * 3;
+    const eye = Cartesian3.fromDegrees(ground.lon + (Math.random() - 0.5) * j * 1e-5, ground.lat + (Math.random() - 0.5) * j * 1e-5, camAlt + (Math.random() - 0.5) * j);
     // Aim above the plane so it sits in the lower part of the screen.
     const aimAbove = dist * 0.15 * Math.cos(elev);
     const target = Cartesian3.fromDegrees(s.lon, s.lat, s.alt + L * 0.12 + aimAbove);

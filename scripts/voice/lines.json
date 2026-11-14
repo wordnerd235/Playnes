@@ -300,6 +300,42 @@
   "speak": "We need the internet to see the real world. The hangar still works!"
  },
  {
+  "id": "4c51354a",
+  "who": "copilot",
+  "text": "Free flight! Fly anywhere you like. Tap the map to see where the airports are.",
+  "speak": "Free flight! Fly anywhere you like. Tap the map to see where the airports are."
+ },
+ {
+  "id": "fccd1c83",
+  "who": "copilot",
+  "text": "Pull back to take off!",
+  "speak": "Pull back to take off!"
+ },
+ {
+  "id": "38b06483",
+  "who": "copilot",
+  "text": "Oops! We crashed. Let's try that again!",
+  "speak": "Oops! We crashed. Let's try that again!"
+ },
+ {
+  "id": "547a2247",
+  "who": "copilot",
+  "text": "That's the edge of our map. Let's turn around!",
+  "speak": "That's the edge of our map. Let's turn around!"
+ },
+ {
+  "id": "73338753",
+  "who": "copilot",
+  "text": "The autopilot will fly while you look at the map.",
+  "speak": "The autopilot will fly while you look at the map."
+ },
+ {
+  "id": "fae0050c",
+  "who": "copilot",
+  "text": "You're lined up with the runway. I'll help you land!",
+  "speak": "You're lined up with the runway. I'll help you land!"
+ },
+ {
   "id": "2b76c2d6",
   "who": "copilot",
   "text": "This is your plane! Tap each part to learn its name.",
@@ -810,6 +846,810 @@
   "speak": "A birthday party wants to fly to Myrtle Beach!"
  },
  {
+  "id": "608d5094",
+  "who": "copilot",
+  "text": "Atlanta Tower, Playnes one two three, ready for takeoff, runway niner left.",
+  "speak": "Atlanta Tower, Planes one two three, ready for takeoff, runway niner left."
+ },
+ {
+  "id": "8ad5fdbe",
+  "who": "tower",
+  "text": "Playnes one two three, Atlanta Tower, runway niner left, cleared for takeoff.",
+  "speak": "Planes one two three, Atlanta Tower, runway niner left, cleared for takeoff."
+ },
+ {
+  "id": "e4adaac3",
+  "who": "copilot",
+  "text": "Atlanta Tower, Playnes one two three, on final, runway niner left.",
+  "speak": "Atlanta Tower, Planes one two three, on final, runway niner left."
+ },
+ {
+  "id": "f0fc918f",
+  "who": "tower",
+  "text": "Playnes one two three, runway niner left, cleared to land.",
+  "speak": "Planes one two three, runway niner left, cleared to land."
+ },
+ {
+  "id": "c40b4afc",
+  "who": "copilot",
+  "text": "Atlanta Tower, Playnes one two three, ready for takeoff, runway two seven right.",
+  "speak": "Atlanta Tower, Planes one two three, ready for takeoff, runway two seven right."
+ },
+ {
+  "id": "38977bc8",
+  "who": "tower",
+  "text": "Playnes one two three, Atlanta Tower, runway two seven right, cleared for takeoff.",
+  "speak": "Planes one two three, Atlanta Tower, runway two seven right, cleared for takeoff."
+ },
+ {
+  "id": "fc5e9b8d",
+  "who": "copilot",
+  "text": "Atlanta Tower, Playnes one two three, on final, runway two seven right.",
+  "speak": "Atlanta Tower, Planes one two three, on final, runway two seven right."
+ },
+ {
+  "id": "e56790cd",
+  "who": "tower",
+  "text": "Playnes one two three, runway two seven right, cleared to land.",
+  "speak": "Planes one two three, runway two seven right, cleared to land."
+ },
+ {
+  "id": "3b5c9f15",
+  "who": "tower",
+  "text": "Playnes one two three, welcome to Atlanta!",
+  "speak": "Planes one two three, welcome to Atlanta!"
+ },
+ {
+  "id": "19cebf36",
+  "who": "copilot",
+  "text": "Next stop, Atlanta!",
+  "speak": "Next stop, Atlanta!"
+ },
+ {
+  "id": "57e3f220",
+  "who": "copilot",
+  "text": "The Lopez family wants to fly to Atlanta!",
+  "speak": "The Lopez family wants to fly to Atlanta!"
+ },
+ {
+  "id": "8372f3a9",
+  "who": "copilot",
+  "text": "Grandma wants to fly to Atlanta!",
+  "speak": "Grandma wants to fly to Atlanta!"
+ },
+ {
+  "id": "8af9a0a8",
+  "who": "copilot",
+  "text": "A basketball team wants to fly to Atlanta!",
+  "speak": "A basketball team wants to fly to Atlanta!"
+ },
+ {
+  "id": "f68a2331",
+  "who": "copilot",
+  "text": "A doctor with medicine wants to fly to Atlanta!",
+  "speak": "A doctor with medicine wants to fly to Atlanta!"
+ },
+ {
+  "id": "402ad4c4",
+  "who": "copilot",
+  "text": "A rock band wants to fly to Atlanta!",
+  "speak": "A rock band wants to fly to Atlanta!"
+ },
+ {
+  "id": "97729770",
+  "who": "copilot",
+  "text": "A puppy rescue team wants to fly to Atlanta!",
+  "speak": "A puppy rescue team wants to fly to Atlanta!"
+ },
+ {
+  "id": "d1e529df",
+  "who": "copilot",
+  "text": "A birthday party wants to fly to Atlanta!",
+  "speak": "A birthday party wants to fly to Atlanta!"
+ },
+ {
+  "id": "2be4f3bf",
+  "who": "copilot",
+  "text": "Knoxville Tower, Playnes one two three, ready for takeoff, runway five left.",
+  "speak": "Knoxville Tower, Planes one two three, ready for takeoff, runway five left."
+ },
+ {
+  "id": "8af8ba61",
+  "who": "tower",
+  "text": "Playnes one two three, Knoxville Tower, runway five left, cleared for takeoff.",
+  "speak": "Planes one two three, Knoxville Tower, runway five left, cleared for takeoff."
+ },
+ {
+  "id": "074c49a4",
+  "who": "copilot",
+  "text": "Knoxville Tower, Playnes one two three, on final, runway five left.",
+  "speak": "Knoxville Tower, Planes one two three, on final, runway five left."
+ },
+ {
+  "id": "d773b4cd",
+  "who": "tower",
+  "text": "Playnes one two three, runway five left, cleared to land.",
+  "speak": "Planes one two three, runway five left, cleared to land."
+ },
+ {
+  "id": "b7a309ec",
+  "who": "copilot",
+  "text": "Knoxville Tower, Playnes one two three, ready for takeoff, runway two three right.",
+  "speak": "Knoxville Tower, Planes one two three, ready for takeoff, runway two three right."
+ },
+ {
+  "id": "4afe0f10",
+  "who": "tower",
+  "text": "Playnes one two three, Knoxville Tower, runway two three right, cleared for takeoff.",
+  "speak": "Planes one two three, Knoxville Tower, runway two three right, cleared for takeoff."
+ },
+ {
+  "id": "11acc087",
+  "who": "copilot",
+  "text": "Knoxville Tower, Playnes one two three, on final, runway two three right.",
+  "speak": "Knoxville Tower, Planes one two three, on final, runway two three right."
+ },
+ {
+  "id": "5b4a2c04",
+  "who": "tower",
+  "text": "Playnes one two three, runway two three right, cleared to land.",
+  "speak": "Planes one two three, runway two three right, cleared to land."
+ },
+ {
+  "id": "1c8b2776",
+  "who": "tower",
+  "text": "Playnes one two three, welcome to Knoxville!",
+  "speak": "Planes one two three, welcome to Knoxville!"
+ },
+ {
+  "id": "974483c9",
+  "who": "copilot",
+  "text": "Next stop, Knoxville!",
+  "speak": "Next stop, Knoxville!"
+ },
+ {
+  "id": "413b2b8f",
+  "who": "copilot",
+  "text": "The Lopez family wants to fly to Knoxville!",
+  "speak": "The Lopez family wants to fly to Knoxville!"
+ },
+ {
+  "id": "d4e2ce1a",
+  "who": "copilot",
+  "text": "Grandma wants to fly to Knoxville!",
+  "speak": "Grandma wants to fly to Knoxville!"
+ },
+ {
+  "id": "47e4b647",
+  "who": "copilot",
+  "text": "A basketball team wants to fly to Knoxville!",
+  "speak": "A basketball team wants to fly to Knoxville!"
+ },
+ {
+  "id": "f9816c12",
+  "who": "copilot",
+  "text": "A doctor with medicine wants to fly to Knoxville!",
+  "speak": "A doctor with medicine wants to fly to Knoxville!"
+ },
+ {
+  "id": "c8328343",
+  "who": "copilot",
+  "text": "A rock band wants to fly to Knoxville!",
+  "speak": "A rock band wants to fly to Knoxville!"
+ },
+ {
+  "id": "4a049c1f",
+  "who": "copilot",
+  "text": "A puppy rescue team wants to fly to Knoxville!",
+  "speak": "A puppy rescue team wants to fly to Knoxville!"
+ },
+ {
+  "id": "925fbc2c",
+  "who": "copilot",
+  "text": "A birthday party wants to fly to Knoxville!",
+  "speak": "A birthday party wants to fly to Knoxville!"
+ },
+ {
+  "id": "f533a6ad",
+  "who": "copilot",
+  "text": "Chattanooga Tower, Playnes one two three, ready for takeoff, runway two.",
+  "speak": "Chattanooga Tower, Planes one two three, ready for takeoff, runway two."
+ },
+ {
+  "id": "dc6f5853",
+  "who": "tower",
+  "text": "Playnes one two three, Chattanooga Tower, runway two, cleared for takeoff.",
+  "speak": "Planes one two three, Chattanooga Tower, runway two, cleared for takeoff."
+ },
+ {
+  "id": "f2a40fa8",
+  "who": "copilot",
+  "text": "Chattanooga Tower, Playnes one two three, on final, runway two.",
+  "speak": "Chattanooga Tower, Planes one two three, on final, runway two."
+ },
+ {
+  "id": "d78e0b5a",
+  "who": "tower",
+  "text": "Playnes one two three, runway two, cleared to land.",
+  "speak": "Planes one two three, runway two, cleared to land."
+ },
+ {
+  "id": "741f5881",
+  "who": "copilot",
+  "text": "Chattanooga Tower, Playnes one two three, ready for takeoff, runway two zero.",
+  "speak": "Chattanooga Tower, Planes one two three, ready for takeoff, runway two zero."
+ },
+ {
+  "id": "7a3e810d",
+  "who": "tower",
+  "text": "Playnes one two three, Chattanooga Tower, runway two zero, cleared for takeoff.",
+  "speak": "Planes one two three, Chattanooga Tower, runway two zero, cleared for takeoff."
+ },
+ {
+  "id": "c36c359a",
+  "who": "copilot",
+  "text": "Chattanooga Tower, Playnes one two three, on final, runway two zero.",
+  "speak": "Chattanooga Tower, Planes one two three, on final, runway two zero."
+ },
+ {
+  "id": "ec332c10",
+  "who": "tower",
+  "text": "Playnes one two three, runway two zero, cleared to land.",
+  "speak": "Planes one two three, runway two zero, cleared to land."
+ },
+ {
+  "id": "2a685631",
+  "who": "tower",
+  "text": "Playnes one two three, welcome to Chattanooga!",
+  "speak": "Planes one two three, welcome to Chattanooga!"
+ },
+ {
+  "id": "a40461b2",
+  "who": "copilot",
+  "text": "Next stop, Chattanooga!",
+  "speak": "Next stop, Chattanooga!"
+ },
+ {
+  "id": "5f670494",
+  "who": "copilot",
+  "text": "The Lopez family wants to fly to Chattanooga!",
+  "speak": "The Lopez family wants to fly to Chattanooga!"
+ },
+ {
+  "id": "56219495",
+  "who": "copilot",
+  "text": "Grandma wants to fly to Chattanooga!",
+  "speak": "Grandma wants to fly to Chattanooga!"
+ },
+ {
+  "id": "a77c533c",
+  "who": "copilot",
+  "text": "A basketball team wants to fly to Chattanooga!",
+  "speak": "A basketball team wants to fly to Chattanooga!"
+ },
+ {
+  "id": "741a611d",
+  "who": "copilot",
+  "text": "A doctor with medicine wants to fly to Chattanooga!",
+  "speak": "A doctor with medicine wants to fly to Chattanooga!"
+ },
+ {
+  "id": "d72af178",
+  "who": "copilot",
+  "text": "A rock band wants to fly to Chattanooga!",
+  "speak": "A rock band wants to fly to Chattanooga!"
+ },
+ {
+  "id": "deb6bb24",
+  "who": "copilot",
+  "text": "A puppy rescue team wants to fly to Chattanooga!",
+  "speak": "A puppy rescue team wants to fly to Chattanooga!"
+ },
+ {
+  "id": "cff095bb",
+  "who": "copilot",
+  "text": "A birthday party wants to fly to Chattanooga!",
+  "speak": "A birthday party wants to fly to Chattanooga!"
+ },
+ {
+  "id": "b6070db9",
+  "who": "copilot",
+  "text": "Greer Tower, Playnes one two three, ready for takeoff, runway four.",
+  "speak": "Greer Tower, Planes one two three, ready for takeoff, runway four."
+ },
+ {
+  "id": "989769b1",
+  "who": "tower",
+  "text": "Playnes one two three, Greer Tower, runway four, cleared for takeoff.",
+  "speak": "Planes one two three, Greer Tower, runway four, cleared for takeoff."
+ },
+ {
+  "id": "ba8556fa",
+  "who": "copilot",
+  "text": "Greer Tower, Playnes one two three, on final, runway four.",
+  "speak": "Greer Tower, Planes one two three, on final, runway four."
+ },
+ {
+  "id": "26f5de20",
+  "who": "tower",
+  "text": "Playnes one two three, runway four, cleared to land.",
+  "speak": "Planes one two three, runway four, cleared to land."
+ },
+ {
+  "id": "1d51edcf",
+  "who": "copilot",
+  "text": "Greer Tower, Playnes one two three, ready for takeoff, runway two two.",
+  "speak": "Greer Tower, Planes one two three, ready for takeoff, runway two two."
+ },
+ {
+  "id": "e8763569",
+  "who": "tower",
+  "text": "Playnes one two three, Greer Tower, runway two two, cleared for takeoff.",
+  "speak": "Planes one two three, Greer Tower, runway two two, cleared for takeoff."
+ },
+ {
+  "id": "8e1562ba",
+  "who": "copilot",
+  "text": "Greer Tower, Playnes one two three, on final, runway two two.",
+  "speak": "Greer Tower, Planes one two three, on final, runway two two."
+ },
+ {
+  "id": "36013580",
+  "who": "tower",
+  "text": "Playnes one two three, runway two two, cleared to land.",
+  "speak": "Planes one two three, runway two two, cleared to land."
+ },
+ {
+  "id": "a9f6ee1e",
+  "who": "tower",
+  "text": "Playnes one two three, welcome to Greenville Spartanburg!",
+  "speak": "Planes one two three, welcome to Greenville Spartanburg!"
+ },
+ {
+  "id": "328279e7",
+  "who": "copilot",
+  "text": "Next stop, Greenville Spartanburg!",
+  "speak": "Next stop, Greenville Spartanburg!"
+ },
+ {
+  "id": "6915b851",
+  "who": "copilot",
+  "text": "The Lopez family wants to fly to Greenville Spartanburg!",
+  "speak": "The Lopez family wants to fly to Greenville Spartanburg!"
+ },
+ {
+  "id": "d72d5f6a",
+  "who": "copilot",
+  "text": "Grandma wants to fly to Greenville Spartanburg!",
+  "speak": "Grandma wants to fly to Greenville Spartanburg!"
+ },
+ {
+  "id": "e1b45f19",
+  "who": "copilot",
+  "text": "A basketball team wants to fly to Greenville Spartanburg!",
+  "speak": "A basketball team wants to fly to Greenville Spartanburg!"
+ },
+ {
+  "id": "c68ccdf2",
+  "who": "copilot",
+  "text": "A doctor with medicine wants to fly to Greenville Spartanburg!",
+  "speak": "A doctor with medicine wants to fly to Greenville Spartanburg!"
+ },
+ {
+  "id": "629a21dd",
+  "who": "copilot",
+  "text": "A rock band wants to fly to Greenville Spartanburg!",
+  "speak": "A rock band wants to fly to Greenville Spartanburg!"
+ },
+ {
+  "id": "ec905fc1",
+  "who": "copilot",
+  "text": "A puppy rescue team wants to fly to Greenville Spartanburg!",
+  "speak": "A puppy rescue team wants to fly to Greenville Spartanburg!"
+ },
+ {
+  "id": "2519b988",
+  "who": "copilot",
+  "text": "A birthday party wants to fly to Greenville Spartanburg!",
+  "speak": "A birthday party wants to fly to Greenville Spartanburg!"
+ },
+ {
+  "id": "827a98e0",
+  "who": "copilot",
+  "text": "Columbia Tower, Playnes one two three, ready for takeoff, runway one one.",
+  "speak": "Columbia Tower, Planes one two three, ready for takeoff, runway one one."
+ },
+ {
+  "id": "899cc46e",
+  "who": "tower",
+  "text": "Playnes one two three, Columbia Tower, runway one one, cleared for takeoff.",
+  "speak": "Planes one two three, Columbia Tower, runway one one, cleared for takeoff."
+ },
+ {
+  "id": "7b447847",
+  "who": "copilot",
+  "text": "Columbia Tower, Playnes one two three, on final, runway one one.",
+  "speak": "Columbia Tower, Planes one two three, on final, runway one one."
+ },
+ {
+  "id": "31d66dfc",
+  "who": "tower",
+  "text": "Playnes one two three, runway one one, cleared to land.",
+  "speak": "Planes one two three, runway one one, cleared to land."
+ },
+ {
+  "id": "f202e400",
+  "who": "copilot",
+  "text": "Columbia Tower, Playnes one two three, ready for takeoff, runway two niner.",
+  "speak": "Columbia Tower, Planes one two three, ready for takeoff, runway two niner."
+ },
+ {
+  "id": "ae7992ae",
+  "who": "tower",
+  "text": "Playnes one two three, Columbia Tower, runway two niner, cleared for takeoff.",
+  "speak": "Planes one two three, Columbia Tower, runway two niner, cleared for takeoff."
+ },
+ {
+  "id": "cceffaa3",
+  "who": "copilot",
+  "text": "Columbia Tower, Playnes one two three, on final, runway two niner.",
+  "speak": "Columbia Tower, Planes one two three, on final, runway two niner."
+ },
+ {
+  "id": "511bff18",
+  "who": "tower",
+  "text": "Playnes one two three, runway two niner, cleared to land.",
+  "speak": "Planes one two three, runway two niner, cleared to land."
+ },
+ {
+  "id": "763fa866",
+  "who": "tower",
+  "text": "Playnes one two three, welcome to Columbia!",
+  "speak": "Planes one two three, welcome to Columbia!"
+ },
+ {
+  "id": "e97636bb",
+  "who": "copilot",
+  "text": "Next stop, Columbia!",
+  "speak": "Next stop, Columbia!"
+ },
+ {
+  "id": "6bb9e509",
+  "who": "copilot",
+  "text": "The Lopez family wants to fly to Columbia!",
+  "speak": "The Lopez family wants to fly to Columbia!"
+ },
+ {
+  "id": "404d80a2",
+  "who": "copilot",
+  "text": "Grandma wants to fly to Columbia!",
+  "speak": "Grandma wants to fly to Columbia!"
+ },
+ {
+  "id": "1ee14461",
+  "who": "copilot",
+  "text": "A basketball team wants to fly to Columbia!",
+  "speak": "A basketball team wants to fly to Columbia!"
+ },
+ {
+  "id": "cb9d609a",
+  "who": "copilot",
+  "text": "A doctor with medicine wants to fly to Columbia!",
+  "speak": "A doctor with medicine wants to fly to Columbia!"
+ },
+ {
+  "id": "86949245",
+  "who": "copilot",
+  "text": "A rock band wants to fly to Columbia!",
+  "speak": "A rock band wants to fly to Columbia!"
+ },
+ {
+  "id": "2f6b0299",
+  "who": "copilot",
+  "text": "A puppy rescue team wants to fly to Columbia!",
+  "speak": "A puppy rescue team wants to fly to Columbia!"
+ },
+ {
+  "id": "ad8c0e94",
+  "who": "copilot",
+  "text": "A birthday party wants to fly to Columbia!",
+  "speak": "A birthday party wants to fly to Columbia!"
+ },
+ {
+  "id": "3f34bf8a",
+  "who": "copilot",
+  "text": "Greensboro Tower, Playnes one two three, ready for takeoff, runway five right.",
+  "speak": "Greensboro Tower, Planes one two three, ready for takeoff, runway five right."
+ },
+ {
+  "id": "1a7e7a9e",
+  "who": "tower",
+  "text": "Playnes one two three, Greensboro Tower, runway five right, cleared for takeoff.",
+  "speak": "Planes one two three, Greensboro Tower, runway five right, cleared for takeoff."
+ },
+ {
+  "id": "50f79517",
+  "who": "copilot",
+  "text": "Greensboro Tower, Playnes one two three, on final, runway five right.",
+  "speak": "Greensboro Tower, Planes one two three, on final, runway five right."
+ },
+ {
+  "id": "125f6afa",
+  "who": "tower",
+  "text": "Playnes one two three, runway five right, cleared to land.",
+  "speak": "Planes one two three, runway five right, cleared to land."
+ },
+ {
+  "id": "fb0fe029",
+  "who": "copilot",
+  "text": "Greensboro Tower, Playnes one two three, ready for takeoff, runway two three left.",
+  "speak": "Greensboro Tower, Planes one two three, ready for takeoff, runway two three left."
+ },
+ {
+  "id": "9ce7c1c7",
+  "who": "tower",
+  "text": "Playnes one two three, Greensboro Tower, runway two three left, cleared for takeoff.",
+  "speak": "Planes one two three, Greensboro Tower, runway two three left, cleared for takeoff."
+ },
+ {
+  "id": "6c0a561c",
+  "who": "copilot",
+  "text": "Greensboro Tower, Playnes one two three, on final, runway two three left.",
+  "speak": "Greensboro Tower, Planes one two three, on final, runway two three left."
+ },
+ {
+  "id": "52a0371f",
+  "who": "tower",
+  "text": "Playnes one two three, runway two three left, cleared to land.",
+  "speak": "Planes one two three, runway two three left, cleared to land."
+ },
+ {
+  "id": "9e0b8356",
+  "who": "tower",
+  "text": "Playnes one two three, welcome to Greensboro!",
+  "speak": "Planes one two three, welcome to Greensboro!"
+ },
+ {
+  "id": "d42d82e3",
+  "who": "copilot",
+  "text": "Next stop, Greensboro!",
+  "speak": "Next stop, Greensboro!"
+ },
+ {
+  "id": "0f48b7b5",
+  "who": "copilot",
+  "text": "The Lopez family wants to fly to Greensboro!",
+  "speak": "The Lopez family wants to fly to Greensboro!"
+ },
+ {
+  "id": "ddbd72f2",
+  "who": "copilot",
+  "text": "Grandma wants to fly to Greensboro!",
+  "speak": "Grandma wants to fly to Greensboro!"
+ },
+ {
+  "id": "a66fd6fd",
+  "who": "copilot",
+  "text": "A basketball team wants to fly to Greensboro!",
+  "speak": "A basketball team wants to fly to Greensboro!"
+ },
+ {
+  "id": "3d8cb9fa",
+  "who": "copilot",
+  "text": "A doctor with medicine wants to fly to Greensboro!",
+  "speak": "A doctor with medicine wants to fly to Greensboro!"
+ },
+ {
+  "id": "a32579d1",
+  "who": "copilot",
+  "text": "A rock band wants to fly to Greensboro!",
+  "speak": "A rock band wants to fly to Greensboro!"
+ },
+ {
+  "id": "0f9a8505",
+  "who": "copilot",
+  "text": "A puppy rescue team wants to fly to Greensboro!",
+  "speak": "A puppy rescue team wants to fly to Greensboro!"
+ },
+ {
+  "id": "c76de848",
+  "who": "copilot",
+  "text": "A birthday party wants to fly to Greensboro!",
+  "speak": "A birthday party wants to fly to Greensboro!"
+ },
+ {
+  "id": "43036c20",
+  "who": "copilot",
+  "text": "Raleigh Durham Tower, Playnes one two three, ready for takeoff, runway five left.",
+  "speak": "Raleigh Durham Tower, Planes one two three, ready for takeoff, runway five left."
+ },
+ {
+  "id": "116090ba",
+  "who": "tower",
+  "text": "Playnes one two three, Raleigh Durham Tower, runway five left, cleared for takeoff.",
+  "speak": "Planes one two three, Raleigh Durham Tower, runway five left, cleared for takeoff."
+ },
+ {
+  "id": "85f3a239",
+  "who": "copilot",
+  "text": "Raleigh Durham Tower, Playnes one two three, on final, runway five left.",
+  "speak": "Raleigh Durham Tower, Planes one two three, on final, runway five left."
+ },
+ {
+  "id": "3dd0d58b",
+  "who": "copilot",
+  "text": "Raleigh Durham Tower, Playnes one two three, ready for takeoff, runway two three right.",
+  "speak": "Raleigh Durham Tower, Planes one two three, ready for takeoff, runway two three right."
+ },
+ {
+  "id": "c7ee0433",
+  "who": "tower",
+  "text": "Playnes one two three, Raleigh Durham Tower, runway two three right, cleared for takeoff.",
+  "speak": "Planes one two three, Raleigh Durham Tower, runway two three right, cleared for takeoff."
+ },
+ {
+  "id": "6a8120d6",
+  "who": "copilot",
+  "text": "Raleigh Durham Tower, Playnes one two three, on final, runway two three right.",
+  "speak": "Raleigh Durham Tower, Planes one two three, on final, runway two three right."
+ },
+ {
+  "id": "6afc1655",
+  "who": "tower",
+  "text": "Playnes one two three, welcome to Raleigh Durham!",
+  "speak": "Planes one two three, welcome to Raleigh Durham!"
+ },
+ {
+  "id": "974058f0",
+  "who": "copilot",
+  "text": "Next stop, Raleigh Durham!",
+  "speak": "Next stop, Raleigh Durham!"
+ },
+ {
+  "id": "7a3b3c1e",
+  "who": "copilot",
+  "text": "The Lopez family wants to fly to Raleigh Durham!",
+  "speak": "The Lopez family wants to fly to Raleigh Durham!"
+ },
+ {
+  "id": "73d7e3d1",
+  "who": "copilot",
+  "text": "Grandma wants to fly to Raleigh Durham!",
+  "speak": "Grandma wants to fly to Raleigh Durham!"
+ },
+ {
+  "id": "8a3f08a6",
+  "who": "copilot",
+  "text": "A basketball team wants to fly to Raleigh Durham!",
+  "speak": "A basketball team wants to fly to Raleigh Durham!"
+ },
+ {
+  "id": "315591b9",
+  "who": "copilot",
+  "text": "A doctor with medicine wants to fly to Raleigh Durham!",
+  "speak": "A doctor with medicine wants to fly to Raleigh Durham!"
+ },
+ {
+  "id": "11382c3a",
+  "who": "copilot",
+  "text": "A rock band wants to fly to Raleigh Durham!",
+  "speak": "A rock band wants to fly to Raleigh Durham!"
+ },
+ {
+  "id": "dbd704ae",
+  "who": "copilot",
+  "text": "A puppy rescue team wants to fly to Raleigh Durham!",
+  "speak": "A puppy rescue team wants to fly to Raleigh Durham!"
+ },
+ {
+  "id": "1a578ccb",
+  "who": "copilot",
+  "text": "A birthday party wants to fly to Raleigh Durham!",
+  "speak": "A birthday party wants to fly to Raleigh Durham!"
+ },
+ {
+  "id": "07855e89",
+  "who": "copilot",
+  "text": "Roanoke Tower, Playnes one two three, ready for takeoff, runway six.",
+  "speak": "Roanoke Tower, Planes one two three, ready for takeoff, runway six."
+ },
+ {
+  "id": "a74b385b",
+  "who": "tower",
+  "text": "Playnes one two three, Roanoke Tower, runway six, cleared for takeoff.",
+  "speak": "Planes one two three, Roanoke Tower, runway six, cleared for takeoff."
+ },
+ {
+  "id": "c382c7ec",
+  "who": "copilot",
+  "text": "Roanoke Tower, Playnes one two three, on final, runway six.",
+  "speak": "Roanoke Tower, Planes one two three, on final, runway six."
+ },
+ {
+  "id": "768651a4",
+  "who": "tower",
+  "text": "Playnes one two three, runway six, cleared to land.",
+  "speak": "Planes one two three, runway six, cleared to land."
+ },
+ {
+  "id": "b4db35b1",
+  "who": "copilot",
+  "text": "Roanoke Tower, Playnes one two three, ready for takeoff, runway two four.",
+  "speak": "Roanoke Tower, Planes one two three, ready for takeoff, runway two four."
+ },
+ {
+  "id": "d3cd9e69",
+  "who": "tower",
+  "text": "Playnes one two three, Roanoke Tower, runway two four, cleared for takeoff.",
+  "speak": "Planes one two three, Roanoke Tower, runway two four, cleared for takeoff."
+ },
+ {
+  "id": "1e08d4ae",
+  "who": "copilot",
+  "text": "Roanoke Tower, Playnes one two three, on final, runway two four.",
+  "speak": "Roanoke Tower, Planes one two three, on final, runway two four."
+ },
+ {
+  "id": "ed2f590e",
+  "who": "tower",
+  "text": "Playnes one two three, runway two four, cleared to land.",
+  "speak": "Planes one two three, runway two four, cleared to land."
+ },
+ {
+  "id": "87c256c7",
+  "who": "tower",
+  "text": "Playnes one two three, welcome to Roanoke!",
+  "speak": "Planes one two three, welcome to Roanoke!"
+ },
+ {
+  "id": "e931cc70",
+  "who": "copilot",
+  "text": "Next stop, Roanoke!",
+  "speak": "Next stop, Roanoke!"
+ },
+ {
+  "id": "738e70b2",
+  "who": "copilot",
+  "text": "The Lopez family wants to fly to Roanoke!",
+  "speak": "The Lopez family wants to fly to Roanoke!"
+ },
+ {
+  "id": "874fce8b",
+  "who": "copilot",
+  "text": "Grandma wants to fly to Roanoke!",
+  "speak": "Grandma wants to fly to Roanoke!"
+ },
+ {
+  "id": "bcb7605a",
+  "who": "copilot",
+  "text": "A basketball team wants to fly to Roanoke!",
+  "speak": "A basketball team wants to fly to Roanoke!"
+ },
+ {
+  "id": "477bcdf3",
+  "who": "copilot",
+  "text": "A doctor with medicine wants to fly to Roanoke!",
+  "speak": "A doctor with medicine wants to fly to Roanoke!"
+ },
+ {
+  "id": "b72cb1f6",
+  "who": "copilot",
+  "text": "A rock band wants to fly to Roanoke!",
+  "speak": "A rock band wants to fly to Roanoke!"
+ },
+ {
+  "id": "6c7edba2",
+  "who": "copilot",
+  "text": "A puppy rescue team wants to fly to Roanoke!",
+  "speak": "A puppy rescue team wants to fly to Roanoke!"
+ },
+ {
+  "id": "d1535a71",
+  "who": "copilot",
+  "text": "A birthday party wants to fly to Roanoke!",
+  "speak": "A birthday party wants to fly to Roanoke!"
+ },
+ {
   "id": "a861761a",
   "who": "copilot",
   "text": "Look down! That's Grandfather Mountain! It has a swinging bridge way up high!",
@@ -844,6 +1684,84 @@
   "who": "copilot",
   "text": "Look down! That's the Pee Dee River! This river flows all the way to the ocean.",
   "speak": "Look down! That's the Pee Dee River! This river flows all the way to the ocean."
+ },
+ {
+  "id": "041c9038",
+  "who": "copilot",
+  "text": "Look down! That's Clingmans Dome! It's the tallest mountain in the Great Smoky Mountains.",
+  "speak": "Look down! That's Clingmans Dome! It's the tallest mountain in the Great Smoky Mountains."
+ },
+ {
+  "id": "c3f95164",
+  "who": "copilot",
+  "text": "Look down! That's the Great Smoky Mountains! The trees make a blue mist, so the mountains look smoky!",
+  "speak": "Look down! That's the Great Smoky Mountains! The trees make a blue mist, so the mountains look smoky!"
+ },
+ {
+  "id": "043e595b",
+  "who": "copilot",
+  "text": "Look down! That's the Biltmore House! It's the biggest house in America!",
+  "speak": "Look down! That's the Biltmore House! It's the biggest house in America!"
+ },
+ {
+  "id": "1c2bc9aa",
+  "who": "copilot",
+  "text": "Look down! That's Chimney Rock! It's a giant rock tower on the side of a mountain.",
+  "speak": "Look down! That's Chimney Rock! It's a giant rock tower on the side of a mountain."
+ },
+ {
+  "id": "04bf5687",
+  "who": "copilot",
+  "text": "Look down! That's Mount Rogers! It's the tallest mountain in Virginia, and wild ponies live nearby!",
+  "speak": "Look down! That's Mount Rogers! It's the tallest mountain in Virginia, and wild ponies live nearby!"
+ },
+ {
+  "id": "9f48a58f",
+  "who": "copilot",
+  "text": "Look down! That's Pilot Mountain! Long ago, travelers used it to find their way, just like a pilot!",
+  "speak": "Look down! That's Pilot Mountain! Long ago, travelers used it to find their way, just like a pilot!"
+ },
+ {
+  "id": "8f8c1d10",
+  "who": "copilot",
+  "text": "Look down! That's Linville Gorge! People call it the Grand Canyon of the East.",
+  "speak": "Look down! That's Linville Gorge! People call it the Grand Canyon of the East."
+ },
+ {
+  "id": "d3eebd93",
+  "who": "copilot",
+  "text": "Look down! That's Stone Mountain! The whole mountain is one giant rock!",
+  "speak": "Look down! That's Stone Mountain! The whole mountain is one giant rock!"
+ },
+ {
+  "id": "7fcdec30",
+  "who": "copilot",
+  "text": "Look down! That's the city of Atlanta! Look at all the skyscrapers!",
+  "speak": "Look down! That's the city of Atlanta! Look at all the skyscrapers!"
+ },
+ {
+  "id": "83bad478",
+  "who": "copilot",
+  "text": "Look down! That's Lake Lanier! People made this giant lake by building a dam!",
+  "speak": "Look down! That's Lake Lanier! People made this giant lake by building a dam!"
+ },
+ {
+  "id": "1ae0b7e9",
+  "who": "copilot",
+  "text": "Look down! That's Lake Murray! People made this giant lake by building a dam!",
+  "speak": "Look down! That's Lake Murray! People made this giant lake by building a dam!"
+ },
+ {
+  "id": "691e9697",
+  "who": "copilot",
+  "text": "Look down! That's the Roanoke Star! It's a giant star that lights up the mountain at night!",
+  "speak": "Look down! That's the Roanoke Star! It's a giant star that lights up the mountain at night!"
+ },
+ {
+  "id": "82097b92",
+  "who": "copilot",
+  "text": "Look down! That's the Atlantic Ocean! If you kept going, you'd fly all the way to Africa!",
+  "speak": "Look down! That's the Atlantic Ocean! If you kept going, you'd fly all the way to Africa!"
  },
  {
   "id": "ff239ce2",

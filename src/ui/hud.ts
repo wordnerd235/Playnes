@@ -4,6 +4,8 @@
 import type { Line } from "../data/lines.ts";
 import type { Controls } from "../input/controls.ts";
 import { ICONS } from "./icons.ts";
+import { BigMap, Minimap, type MapState } from "./maps.ts";
+import type { Airport } from "../data/airports.ts";
 
 export type Prompt = "radio" | "throttle" | "throttle-back" | "pull" | "gear" | "flaps" | "brake" | "steer-left" | "steer-right" | null;
 
@@ -61,6 +63,9 @@ export class Hud {
   /** Look-around drag (degrees of yaw and pitch to add). */
   onLook: (dYaw: number, dPitch: number) => void = () => {};
   onLookReset: () => void = () => {};
+  onOpenMap: () => void = () => {};
+  private minimap: Minimap;
+  private bigmap: BigMap;
   private leverDragging = false;
 
   constructor(parent: HTMLElement, private controls: Controls) {
@@ -185,7 +190,11 @@ export class Hud {
     pad.addEventListener("pointercancel", end);
     look.append(pad, this.lookReset);
 
-    this.root.append(top, this.caption, this.yoke, rightCtl, look, this.toastEl, this.terrainEl, this.warpEl, this.hoopsEl, this.hintEl);
+    this.minimap = new Minimap(() => this.onOpenMap());
+    this.minimap.el.hidden = true;
+    this.bigmap = new BigMap(parent);
+
+    this.root.append(top, this.caption, this.yoke, rightCtl, look, this.minimap.el, this.toastEl, this.terrainEl, this.warpEl, this.hoopsEl, this.hintEl);
     parent.append(this.root, this.whiteEl);
   }
 
@@ -280,8 +289,33 @@ export class Hud {
     this.toastEl.classList.remove("on");
   }
 
+  setSandbox(on: boolean): void {
+    this.minimap.el.hidden = !on;
+    if (!on) this.bigmap.close();
+  }
+
+  setRoute(from: string, to: string): void {
+    this.fromLabel.textContent = from;
+    this.toLabel.textContent = to;
+  }
+
+  updateMaps(s: MapState): void {
+    if (!this.minimap.el.hidden) this.minimap.update(s);
+    this.bigmap.update(s);
+  }
+
+  openBigMap(s: MapState, onPick: (a: Airport) => void, onClose: () => void): void {
+    this.bigmap.onPick = onPick;
+    this.bigmap.onClose = () => {
+      this.bigmap.close();
+      onClose();
+    };
+    this.bigmap.open(s);
+  }
+
   hide(): void {
     this.root.hidden = true;
+    this.bigmap.close();
     this.caption.hidden = true;
   }
 

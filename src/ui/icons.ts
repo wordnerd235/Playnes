@@ -18,6 +18,7 @@ export const ICONS = {
   star: svg(`<path d="M24 5l5.8 12.3 13.4 1.7-9.8 9.3 2.5 13.3L24 35.2 12.1 41.6l2.5-13.3-9.8-9.3 13.4-1.7z" fill="currentColor" stroke-width="2"/>`),
   back: svg(`<path d="M30 8L14 24l16 16"/>`),
   lock: svg(`<rect x="10" y="21" width="28" height="21" rx="4" fill="currentColor" stroke="none"/><path d="M16 21v-6a8 8 0 0 1 16 0v6"/>`),
+  compass: svg(`<circle cx="24" cy="24" r="18"/><path d="M24 10l5 14-5 14-5-14z" fill="currentColor" stroke-width="2"/><circle cx="24" cy="24" r="2.5" fill="#fff" stroke="none"/>`),
   eye: svg(`<path d="M3 24c6-10 13-15 21-15s15 5 21 15c-6 10-13 15-21 15S9 34 3 24z"/><circle cx="24" cy="24" r="7" fill="currentColor"/>`),
   reset: svg(`<path d="M10 24a14 14 0 1 0 4-10"/><path d="M10 8v8h8"/>`),
   check: svg(`<path d="M9 25l10 10 20-22" stroke-width="5"/>`),

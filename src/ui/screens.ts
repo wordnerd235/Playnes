@@ -8,6 +8,7 @@ import type { FlightResult, LessonId, Mission } from "../game/flight.ts";
 import { buy, canBuy, exportCode, importCode, owns, type Progress, type Reward } from "../game/progress.ts";
 import type { Settings } from "../game/settings.ts";
 import { distance, NM } from "../sim/geo.ts";
+import { saveForOffline } from "../game/offline.ts";
 import { clear, h } from "./dom.ts";
 import { ICONS } from "./icons.ts";
 
@@ -98,10 +99,11 @@ export class Screens {
         h("div.home-grid", {}, [
           card("school", ICONS.school, "Flight School", nextLesson ? `Next: ${nextLesson.title}` : "All done! ⭐", () => this.school()),
           card("charter", ICONS.map, "Charter Flights", p.graduated ? "Fly passengers" : "Fly passengers", () => this.charters()),
+          card("free", ICONS.compass, "Free Flight", "Explore the map", () => this.host.startMission({ kind: "sandbox", airport: p.currentAirport })),
           card("hangar", ICONS.plane, "Hangar", `${plane.maker} ${plane.model}`, () => this.hangar()),
         ]),
         this.host.worldKind === "basic"
-          ? h("p.world-note", {}, "Simple globe mode. A grown-up can add a Google Maps key in settings (gear, hold) for the real 3D world.")
+          ? h("p.world-note", {}, "Simple globe mode: the offline map didn't load. A grown-up can add a Google Maps key in settings (gear, hold) for the real 3D world.")
           : null,
       ]),
     );
@@ -366,7 +368,7 @@ export class Screens {
       const e = h("select", { id }, opts.map(([v, t]) => h("option", { value: v, selected: v === value }, t)));
       return e;
     };
-    const world = sel("set-world", s.world, [["auto", "Automatic (Google if a key is set)"], ["google", "Google Photorealistic 3D"], ["ion", "Cesium ion"], ["basic", "Simple globe (no key, works offline)"]]);
+    const world = sel("set-world", s.world, [["auto", "Automatic (Google if a key is set)"], ["google", "Google Photorealistic 3D"], ["ion", "Cesium ion"], ["basic", "Cartoon world (no key, works offline)"]]);
     const gkey = h("input", { id: "set-gkey", type: "password", value: s.googleKey, placeholder: "Google Maps Platform API key", autocomplete: "off", spellcheck: false });
     const ion = h("input", { id: "set-ion", type: "password", value: s.ionToken, placeholder: "Cesium ion access token", autocomplete: "off", spellcheck: false });
     const quality = sel("set-quality", s.quality, [["auto", "Automatic"], ["high", "High (computer)"], ["low", "Low (older iPad)"]]);
@@ -375,11 +377,13 @@ export class Screens {
     const tilt = check("set-tilt", s.tilt);
     const invert = check("set-invert", s.invertPitch);
     const flip = check("set-flip", s.tiltFlipPitch);
+    const crashes = check("set-crashes", s.crashes);
     const unlock = check("set-unlock", p.unlockAll);
     const volume = h("input", { id: "set-volume", type: "range", min: "0", max: "1", step: "0.05", value: String(s.volume) });
     const minutes = sel("set-minutes", String(s.sessionMinutes), [["0", "Off"], ["15", "15 minutes"], ["20", "20 minutes"], ["30", "30 minutes"], ["45", "45 minutes"]]);
     const code = h("textarea", { id: "set-code", rows: 3, spellcheck: false, placeholder: "Backup code" });
     const msg = h("p.field-msg", { role: "status" });
+    const offlineMsg = h("p.field-msg", { role: "status" }, "Downloads about 25 MB so the cartoon world works in the car or on a plane. Install to the Home Screen first.");
 
     const save = () => {
       const worldChanged = world.value !== s.world || gkey.value !== s.googleKey || ion.value !== s.ionToken || quality.value !== s.quality;
@@ -391,6 +395,7 @@ export class Screens {
       s.tilt = tilt.checked;
       s.invertPitch = invert.checked;
       s.tiltFlipPitch = flip.checked;
+      s.crashes = crashes.checked;
       s.volume = Number(volume.value);
       s.sessionMinutes = Number(minutes.value);
       p.unlockAll = unlock.checked;
@@ -419,10 +424,24 @@ export class Screens {
         h("div.parent-body", {}, [
           h("section", {}, [
             h("h2", {}, "World map"),
-            field("Map source", world, `Now showing: ${this.host.worldKind}. Google needs internet; the simple globe works anywhere.`),
+            field("Map source", world, `Now showing: ${this.host.worldKind}. Google and Cesium need internet; the cartoon world works anywhere.`),
             field("Google Maps API key", gkey, "See docs/SETUP.md. Restrict the key to this site and the Map Tiles API."),
             field("Cesium ion token (optional)", ion),
             field("Graphics quality", quality),
+            h("div.code-row", {}, [
+              h("button.btn.secondary", {
+                type: "button",
+                onclick: async (e: Event) => {
+                  const btn = e.currentTarget as HTMLButtonElement;
+                  btn.disabled = true;
+                  offlineMsg.textContent = "Downloading the map, planes and voices...";
+                  const r = await saveForOffline((d, t) => (offlineMsg.textContent = `Saving for offline: ${d} of ${t}...`));
+                  offlineMsg.textContent = r.failed ? `Saved ${r.ok} files; ${r.failed} failed. Try again on Wi-Fi.` : `All set! The cartoon world now works with no internet (${r.ok} files).`;
+                  btn.disabled = false;
+                },
+              }, "Save for offline play"),
+            ]),
+            offlineMsg,
           ]),
           h("section", {}, [
             h("h2", {}, "Flying"),
@@ -430,6 +449,7 @@ export class Screens {
             h("label.check", {}, [tilt, "Tilt the iPad to steer"]),
             h("label.check", {}, [flip, "Tilt: flip up and down (if it feels backwards)"]),
             h("label.check", {}, [invert, "Invert up/down on the yoke"]),
+            h("label.check", {}, [crashes, "Free Flight: allow crashes (off = the co-pilot always saves the plane)"]),
             field("Volume", volume),
             field("Break reminder", minutes),
           ]),

@@ -1,0 +1,209 @@
+// Things near the plane that make speed and height easy to feel: puffy cumulus clouds (every
+// world), plus cartoon trees and town buildings in the offline world. Rebuilt as the plane moves.
+
+import { BillboardCollection, Cartesian2, Cartesian3, CloudCollection, Color, VerticalOrigin, type Scene } from "cesium";
+import { destination, distance, type LatLon } from "../sim/geo.ts";
+import { LAND, type CartoonData } from "./cartoon.ts";
+
+const COS35 = Math.cos((35 * Math.PI) / 180);
+
+function frac(v: number): number {
+  return v - Math.floor(v);
+}
+function hash(v: number, seed: number): number {
+  return frac(Math.sin(v * 12.9898 + seed * 78.233) * 43758.5453);
+}
+/** Same value noise as scripts/world/build_world.py, so trees grow where the map shows forest. */
+function valueNoise(x: number, y: number, scale: number, seed: number): number {
+  const gx = x / scale;
+  const gy = y / scale;
+  const x0 = Math.floor(gx);
+  const y0 = Math.floor(gy);
+  const fx = gx - x0;
+  const fy = gy - y0;
+  const h = (ix: number, iy: number) => frac(Math.sin(ix * 127.1 + iy * 311.7 + seed * 74.7) * 43758.5453);
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+  return (h(x0, y0) * (1 - sx) + h(x0 + 1, y0) * sx) * (1 - sy) + (h(x0, y0 + 1) * (1 - sx) + h(x0 + 1, y0 + 1) * sx) * sy;
+}
+
+function sprite(w: number, h: number, draw: (c: CanvasRenderingContext2D) => void): HTMLCanvasElement {
+  const cv = document.createElement("canvas");
+  cv.width = w;
+  cv.height = h;
+  draw(cv.getContext("2d")!);
+  return cv;
+}
+
+const roundTree = (shade: string) =>
+  sprite(64, 96, (c) => {
+    c.fillStyle = "#6b4a2b";
+    c.fillRect(28, 60, 8, 36);
+    c.fillStyle = shade;
+    for (const [x, y, r] of [[32, 40, 26], [20, 50, 16], [44, 50, 16], [32, 22, 18]]) {
+      c.beginPath();
+      c.arc(x, y, r, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.fillStyle = "rgba(255,255,255,0.18)";
+    c.beginPath();
+    c.arc(25, 28, 9, 0, Math.PI * 2);
+    c.fill();
+  });
+
+const pineTree = (shade: string) =>
+  sprite(64, 112, (c) => {
+    c.fillStyle = "#6b4a2b";
+    c.fillRect(28, 88, 8, 24);
+    c.fillStyle = shade;
+    for (const [top, half, bottom] of [[4, 18, 44], [22, 24, 66], [42, 30, 92]]) {
+      c.beginPath();
+      c.moveTo(32, top);
+      c.lineTo(32 + half, bottom);
+      c.lineTo(32 - half, bottom);
+      c.closePath();
+      c.fill();
+    }
+  });
+
+const building = (wall: string, roof: string) =>
+  sprite(64, 96, (c) => {
+    c.fillStyle = roof;
+    c.fillRect(6, 0, 52, 10);
+    c.fillStyle = wall;
+    c.fillRect(8, 8, 48, 88);
+    c.fillStyle = "rgba(40,60,90,0.75)";
+    for (let y = 16; y < 88; y += 14) for (let x = 14; x < 52; x += 12) c.fillRect(x, y, 6, 8);
+  });
+
+export class Scenery {
+  private clouds: CloudCollection;
+  private props: BillboardCollection;
+  private cloudCenter: LatLon | null = null;
+  private propCenter: LatLon | null = null;
+  private visible = true;
+  // Data URLs, so every billboard shares one texture-atlas entry per picture.
+  private trees: string[] = [];
+  private houses: string[] = [];
+
+  /** 0..1 detail scale from the graphics setting. */
+  constructor(private scene: Scene, private data: CartoonData | null, private detail = 1) {
+    this.clouds = scene.primitives.add(new CloudCollection({ noiseDetail: 16 })) as CloudCollection;
+    this.props = scene.primitives.add(new BillboardCollection({ scene })) as BillboardCollection;
+    if (data) {
+      this.trees = [roundTree("#3f9a4a"), roundTree("#55ad52"), pineTree("#2f7f45"), pineTree("#3b8f4c")].map((c) => c.toDataURL());
+      this.houses = [building("#f2e6d0", "#c0573e"), building("#dfe7ef", "#5c6b7a"), building("#f6d9a8", "#8a5a3c")].map((c) => c.toDataURL());
+    }
+  }
+
+  setVisible(v: boolean): void {
+    this.visible = v;
+    this.clouds.show = v;
+    this.props.show = v;
+  }
+
+  /** Call every frame with the plane (or camera) position. heightAgl decides tree detail. */
+  update(p: LatLon, alt: number, heightAgl: number): void {
+    if (!this.visible) return;
+    if (!this.cloudCenter || distance(p, this.cloudCenter) > 7000) this.buildClouds(p);
+    if (this.data) {
+      const near = heightAgl < 1500;
+      this.props.show = near;
+      if (near && (!this.propCenter || distance(p, this.propCenter) > 450)) this.buildProps(p);
+    }
+    void alt;
+  }
+
+  private buildClouds(p: LatLon): void {
+    this.cloudCenter = { ...p };
+    this.clouds.removeAll();
+    const cell = 2600;
+    const R = 26000;
+    const mx = p.lon * 111320 * COS35;
+    const my = p.lat * 111320;
+    for (let gx = Math.floor((mx - R) / cell); gx <= Math.floor((mx + R) / cell); gx++) {
+      for (let gy = Math.floor((my - R) / cell); gy <= Math.floor((my + R) / cell); gy++) {
+        const k = gx * 7919 + gy * 104729;
+        if (hash(k, 1) > 0.22 * this.detail) continue;
+        const cx = (gx + hash(k, 2)) * cell;
+        const cy = (gy + hash(k, 3)) * cell;
+        const lon = cx / (111320 * COS35);
+        const lat = cy / 111320;
+        const base = (this.data ? this.data.height(lat, lon) : 300) + 1200 + hash(k, 4) * 900;
+        const sx = 1100 + hash(k, 5) * 1300;
+        const sy = 450 + hash(k, 6) * 350;
+        this.clouds.add({
+          position: Cartesian3.fromDegrees(lon, lat, base),
+          scale: new Cartesian2(sx, sy),
+          maximumSize: new Cartesian3(sx * 0.9, sy, sy * 0.9),
+          slice: 0.36 + hash(k, 7) * 0.2,
+          brightness: 1,
+        });
+      }
+    }
+  }
+
+  private buildProps(p: LatLon): void {
+    const data = this.data!;
+    this.propCenter = { ...p };
+    this.props.removeAll();
+    const R = 1400 + 900 * this.detail;
+    const cell = 46;
+    const mx0 = p.lon * 111320 * COS35;
+    const my0 = p.lat * 111320;
+    let count = 0;
+    for (let gx = Math.floor((mx0 - R) / cell); gx <= Math.floor((mx0 + R) / cell); gx++) {
+      for (let gy = Math.floor((my0 - R) / cell); gy <= Math.floor((my0 + R) / cell); gy++) {
+        const k = gx * 3301 + gy * 9001;
+        const mx = (gx + 0.15 + hash(k, 1) * 0.7) * cell;
+        const my = (gy + 0.15 + hash(k, 2) * 0.7) * cell;
+        if ((mx - mx0) ** 2 + (my - my0) ** 2 > R * R) continue;
+        const lon = mx / (111320 * COS35);
+        const lat = my / 111320;
+        if (!data.inside(lat, lon)) continue;
+        const land = data.landAt(lat, lon);
+        if (land === LAND.water || land === LAND.airport) continue;
+        const h = data.height(lat, lon);
+        if (land === LAND.town) {
+          if (hash(k, 3) > 0.32) continue;
+          const tall = 8 + hash(k, 4) * hash(k, 5) * hash(k, 12) * 60;
+          this.props.add({
+            position: Cartesian3.fromDegrees(lon, lat, h - 1),
+            image: this.houses[Math.floor(hash(k, 6) * this.houses.length)],
+            width: 14 + hash(k, 7) * 10,
+            height: tall,
+            sizeInMeters: true,
+            verticalOrigin: VerticalOrigin.BOTTOM,
+          });
+          count++;
+          continue;
+        }
+        const f = valueNoise(mx, my, 1800, 7) * 0.7 + valueNoise(mx, my, 500, 8) * 0.3;
+        const thresh = Math.min(0.66, Math.max(0.2, 0.66 - h / 3600));
+        const inForest = f > thresh;
+        if (!inForest && hash(k, 8) > 0.04) continue; // a few lone trees in fields
+        const size = 0.8 + hash(k, 9) * 0.6;
+        const pine = h > 700 ? hash(k, 10) < 0.7 : hash(k, 10) < 0.3;
+        const img = this.trees[(pine ? 2 : 0) + (hash(k, 11) < 0.5 ? 0 : 1)];
+        this.props.add({
+          position: Cartesian3.fromDegrees(lon, lat, h - 1.5),
+          image: img,
+          width: 11 * size,
+          height: (pine ? 19 : 16) * size,
+          sizeInMeters: true,
+          verticalOrigin: VerticalOrigin.BOTTOM,
+          color: Color.WHITE,
+        });
+        count++;
+        if (count > 2500 + 2500 * this.detail) return;
+      }
+    }
+  }
+
+  destroy(): void {
+    this.scene.primitives.remove(this.clouds);
+    this.scene.primitives.remove(this.props);
+  }
+}
+
+export { destination };

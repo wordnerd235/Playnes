@@ -12,13 +12,14 @@ import {
   Cartesian4,
   Matrix3,
   PointPrimitiveCollection,
-  PolylineDashMaterialProperty,
+  ClassificationType,
   type Entity,
   type ModelNode,
   type PointPrimitive,
 } from "cesium";
 import type { AircraftDef } from "../data/aircraft.ts";
-import { airportByCode, LANDMARKS, type Landmark } from "../data/airports.ts";
+import { AIRPORTS, airportByCode, LANDMARKS, type Airport, type Landmark } from "../data/airports.ts";
+import { inRegion, REGION } from "../data/region.ts";
 import { LINES, tpl, type Line, type Passenger } from "../data/lines.ts";
 import type { Audio } from "../audio/audio.ts";
 import type { Controls, ControlEvent } from "../input/controls.ts";
@@ -42,13 +43,15 @@ import { createState, perfFor, step, type FlightState, type Perf } from "../sim/
 import type { Hud, Prompt } from "../ui/hud.ts";
 import { CloudDeck } from "../world/clouds.ts";
 import type { World } from "../world/world.ts";
+import { frameMatrix, PlaneView } from "./planeView.ts";
 import { makeRunway, onRunwayArea, pickEnd, runwayCoords, runwayHeight, runwayPoint, type RunwayInUse } from "./runway.ts";
 
 export type LessonId = "l2" | "l3" | "l4" | "l5";
 
 export type Mission =
   | { kind: "charter"; from: string; to: string; passenger: Passenger }
-  | { kind: "lesson"; lesson: LessonId; airport: string };
+  | { kind: "lesson"; lesson: LessonId; airport: string }
+  | { kind: "sandbox"; airport: string };
 
 export interface FlightResult {
   mission: Mission;
@@ -75,6 +78,8 @@ type Phase =
   | "l2slow"
   | "l2brake"
   | "l4"
+  | "free"
+  | "crashed"
   | "done";
 
 interface Hoop {
@@ -102,6 +107,14 @@ export interface FlightDeps {
   hud: Hud;
   aircraft: AircraftDef;
   assistLevel: number;
+  /** Free Flight only: crashing allowed. */
+  crashes: boolean;
+}
+
+export interface FreeLanding {
+  airport: Airport;
+  stars: number;
+  landing: "butter" | "smooth" | "firm";
 }
 
 const GLIDE = 3 * DEG;
@@ -122,18 +135,14 @@ export class FlightSession {
   private phase: Phase = "loading";
   private phaseTime = 0;
   private time = 0;
-  private model: Model | null = null;
-  private gearNode: ModelNode | null = null;
-  private propNode: ModelNode | null = null;
-  private propAngle = 0;
+  private view: PlaneView;
+  private lastCmd = { targetBank: 0, targetVs: 0 };
   private hoops: Hoop[] = [];
   private hoopIndex = 0;
   private hoopModels: Model[] = [];
   private dep!: RunwayInUse;
   private arr: RunwayInUse | null = null;
   private clouds: CloudDeck;
-  private cameraMode: "chase" | "cockpit" | "side" = "chase";
-  private camHeading = 0;
   private timed: TimedPrompt | null = null;
   private said = new Set<string>();
   private unsub: () => void;
@@ -164,15 +173,29 @@ export class FlightSession {
   private papi: PointPrimitiveCollection | null = null;
   private papiLights: { light: PointPrimitive; pos: LatLon; setting: number }[] = [];
   private entities: Entity[] = [];
+  // Free Flight
+  onLanded: (l: FreeLanding) => void = () => {};
+  private allRunways: RunwayInUse[] = [];
+  private autopilot: { heading: number; alt: number } | null = null;
+  private edgeTimer = 0;
+  private navTarget: Airport | null = null;
+  private landmarksSaid = new Set<string>();
+  private landedAt: string | null = null;
+  private airborneTime = 0;
+  private crashTimer = 0;
 
   constructor(deps: FlightDeps, readonly mission: Mission) {
     this.d = deps;
     this.ac = deps.aircraft;
     this.p = perfFor(this.ac);
     this.clouds = new CloudDeck(deps.world.widget.scene);
+    this.view = new PlaneView(deps.world, deps.aircraft);
+    deps.hud.onLook = (dy, dp) => this.view.addLook(dy, dp);
+    deps.hud.onLookReset = () => this.view.resetLook();
     this.unsub = deps.controls.on((e) => this.onControl(e));
     const from = airportByCode(mission.kind === "charter" ? mission.from : mission.airport);
     const to = airportByCode(mission.kind === "charter" ? mission.to : mission.airport);
+    deps.hud.onOpenMap = () => this.openMap();
     this.origin = from;
     this.destinationLL = to;
     this.routeTotal = Math.max(1, distance(from, to));
@@ -192,6 +215,7 @@ export class FlightSession {
 
   async start(): Promise<void> {
     const m = this.mission;
+    if (m.kind === "sandbox") return this.startSandbox(m.airport);
     const fromAp = airportByCode(m.kind === "charter" ? m.from : m.airport);
     const toAp = airportByCode(m.kind === "charter" ? m.to : m.airport);
     const course = m.kind === "charter" ? bearing(fromAp, toAp) : 0;
@@ -214,17 +238,8 @@ export class FlightSession {
       this.addPapi(this.arr);
     }
 
-    this.model = await Model.fromGltfAsync({ url: `./models/${this.ac.id}.glb`, minimumPixelSize: 48, maximumScale: 20000 });
-    this.d.world.widget.scene.primitives.add(this.model);
-    this.d.world.exclude.push(this.model);
-    this.model.readyEvent.addEventListener(() => {
-      try {
-        this.gearNode = this.model!.getNode("gear") ?? null;
-        this.propNode = this.model!.getNode("prop") ?? null;
-      } catch {
-        /* nodes optional */
-      }
-    });
+    await this.view.load();
+    if (this.destroyed) return;
 
     this.d.audio.startEngine(this.ac.kind);
     this.d.hud.show(fromAp.code, toAp.code);
@@ -235,29 +250,40 @@ export class FlightSession {
     else this.startLineup();
   }
 
-  /** The key-free globe has no runways in its imagery, so draw simple ones. */
+  /**
+   * Crisp runway with markings for the offline worlds (the map tiles alone look blurry up close).
+   * Cartoon world: draped on the terrain. Bare globe: flat at runway height.
+   */
   private addRunwayVisuals(r: RunwayInUse): void {
-    if (this.d.world.kind !== "basic") return;
-    const w = r.airport.runway.widthFt * FT;
-    const corners = [runwayPoint(r, -30, -w / 2), runwayPoint(r, r.length + 30, -w / 2), runwayPoint(r, r.length + 30, w / 2), runwayPoint(r, -30, w / 2)];
+    const kind = this.d.world.kind;
+    if (kind !== "basic" && kind !== "cartoon") return;
+    const draped = kind === "cartoon";
     const ents = this.d.world.widget.entities;
-    this.entities.push(
-      ents.add({
-        polygon: { hierarchy: Cartesian3.fromDegreesArray(corners.flatMap((c) => [c.lon, c.lat])), material: Color.fromCssColorString("#4a4f57"), height: runwayHeight(r, 0) + 0.2 },
-      }),
-      ents.add({
-        polyline: {
-          positions: [runwayPoint(r, 60), runwayPoint(r, r.length - 60)].map((p) => Cartesian3.fromDegrees(p.lon, p.lat, runwayHeight(r, 0) + 0.5)),
-          width: 3,
-          material: new PolylineDashMaterialProperty({ color: Color.WHITE, dashLength: 24 }),
-        },
-      }),
-    );
-    for (const [s, x] of [[8, 0], [r.length - 8, 0]] as const) {
-      const a = runwayPoint(r, s, -w / 2 + 3);
-      const b = runwayPoint(r, s, w / 2 - 3);
-      this.entities.push(ents.add({ polyline: { positions: [a, b].map((p) => Cartesian3.fromDegrees(p.lon, p.lat, runwayHeight(r, 0) + 0.5)), width: 6, material: Color.WHITE } }));
-      void x;
+    const w = r.airport.runway.widthFt * FT;
+    const rect = (s0: number, s1: number, x0: number, x1: number, color: Color) => {
+      const pts = [runwayPoint(r, s0, x0), runwayPoint(r, s1, x0), runwayPoint(r, s1, x1), runwayPoint(r, s0, x1)];
+      this.entities.push(
+        ents.add({
+          polygon: {
+            hierarchy: Cartesian3.fromDegreesArray(pts.flatMap((c) => [c.lon, c.lat])),
+            material: color,
+            ...(draped ? { classificationType: ClassificationType.TERRAIN } : { height: runwayHeight(r, (s0 + s1) / 2) + 0.2 }),
+          },
+        }),
+      );
+    };
+    const asphalt = Color.fromCssColorString("#44484f");
+    const paint = Color.fromCssColorString("#f4f4f0");
+    rect(-40, r.length + 40, -w / 2, w / 2, asphalt);
+    rect(0, r.length, -w / 2 + 1, -w / 2 + 2, paint);
+    rect(0, r.length, w / 2 - 2, w / 2 - 1, paint);
+    for (let s = 120; s < r.length - 120; s += 66) rect(s, s + 36, -0.5, 0.5, paint);
+    for (const [s0, dir] of [[6, 1], [r.length - 6, -1]] as const) {
+      for (let k = 0; k < 8; k++) {
+        const x = -w / 2 + 4 + k * ((w - 8) / 8) + (k >= 4 ? 4 : 0);
+        rect(s0, s0 + dir * 45, x, x + 1.8, paint);
+      }
+      for (const x of [-w / 4 - 3, w / 4 - 3]) rect(s0 + dir * 300, s0 + dir * 345, x, x + 6, paint);
     }
   }
 
@@ -325,7 +351,7 @@ export class FlightSession {
     const r = this.dep;
     const pos = runwayPoint(r, 60);
     this.s = createState({ lat: pos.lat, lon: pos.lon, alt: runwayHeight(r, 60), heading: r.heading, flaps: 1, gearDown: true, onGround: true });
-    this.camHeading = r.heading;
+    this.view.resetCameraHeading(r.heading);
     this.d.controls.reset();
     this.setPhase("lineup");
     const m = this.mission;
@@ -436,7 +462,7 @@ export class FlightSession {
     const startP = runwayPoint(r, r.length + 3000);
     const alt = runwayHeight(r, r.length) + 750;
     this.s = createState({ lat: startP.lat, lon: startP.lon, alt, heading: r.heading, onGround: false, speed: Math.min(this.p.vclimb, this.p.speedLimit) * 0.9, gearDown: this.ac.shape.fixedGear, flaps: 0 });
-    this.camHeading = r.heading;
+    this.view.resetCameraHeading(r.heading);
     this.d.controls.reset();
     this.d.controls.setThrottle(0.6, false);
     // S-turns: right, left, right.
@@ -474,7 +500,7 @@ export class FlightSession {
     }
     this.s.gamma = -3;
     this.s.vs = -speed * Math.tan(GLIDE);
-    this.camHeading = r.heading;
+    this.view.resetCameraHeading(r.heading);
     this.d.controls.setThrottle(0.4, false);
     this.clearHoops();
     const radius = this.hoopRadius();
@@ -581,6 +607,245 @@ export class FlightSession {
     await this.d.hud.whiteout(false, 1200);
   }
 
+
+  // ------------------------------------------------------------------ free flight
+
+  private async startSandbox(code: string): Promise<void> {
+    const pts: LatLon[] = AIRPORTS.flatMap((a) => a.runway.ends);
+    const hs = await this.d.world.sampleHeights(pts);
+    if (this.destroyed) return;
+    const fallback = (ft: number) => (this.d.world.kind === "basic" ? 0 : ft * FT + (this.d.world.kind === "cartoon" ? 0 : GEOID_GUESS));
+    this.allRunways = AIRPORTS.map((a, i) => makeRunway(a, a.runway.ends[0], a.runway.ends[1], hs[2 * i] ?? fallback(a.runway.ends[0].elevFt), hs[2 * i + 1] ?? fallback(a.runway.ends[1].elevFt)));
+    for (const r of this.allRunways) this.addRunwayVisuals(r);
+    await this.view.load();
+    if (this.destroyed) return;
+    this.d.audio.startEngine(this.ac.kind);
+    this.d.hud.show("FREE", "—");
+    this.d.hud.setSandbox(true);
+    this.startFreeAt(airportByCode(code));
+    void this.say(LINES.freeIntro);
+  }
+
+  /** Line up on the airport's preferred runway, ready to go. */
+  private startFreeAt(ap: Airport): void {
+    const base = this.allRunways.find((r) => r.airport.code === ap.code)!;
+    const pref = base.end.id === ap.runway.preferred ? base : makeRunway(ap, base.other, base.end, base.hOther, base.hEnd);
+    this.dep = pref;
+    const pos = runwayPoint(pref, 60);
+    this.s = createState({ lat: pos.lat, lon: pos.lon, alt: runwayHeight(pref, 60), heading: pref.heading, flaps: 1, gearDown: true, onGround: true });
+    this.view.resetCameraHeading(pref.heading);
+    this.d.controls.reset();
+    this.landedAt = ap.code;
+    this.airborneTime = 0;
+    this.autopilot = null;
+    this.setPhase("free");
+    this.d.hud.setPrompt(null);
+  }
+
+  setNavTarget(a: Airport | null): void {
+    this.navTarget = a;
+    this.d.hud.setRoute("FREE", a ? a.code : "—");
+    if (a) void this.say(tpl.nextStop(a.spoken));
+  }
+
+  openMap(): void {
+    if (this.mission.kind !== "sandbox" || !this.s) return;
+    this.autopilot = { heading: this.s.heading, alt: Math.max(this.s.alt, this.groundHeightAt(this.s) + 150) };
+    if (!this.s.onGround) void this.say(LINES.mapAutopilot, true);
+    this.d.hud.openBigMap({ pos: this.s, heading: this.s.heading, target: this.navTarget }, (a: Airport) => this.setNavTarget(a), () => {
+      this.autopilot = null;
+    });
+  }
+
+  /** Runway (either direction) the point is over or lined up with. */
+  private runwayNear(p: LatLon, alongMargin: number, xMargin: number): { r: RunwayInUse; s: number; x: number; reversed: boolean } | null {
+    let best: { r: RunwayInUse; s: number; x: number; reversed: boolean } | null = null;
+    for (const r of this.allRunways) {
+      if (distance(p, r.end) > r.length + alongMargin + 2000) continue;
+      const c = runwayCoords(r, p);
+      if (c.s > -alongMargin && c.s < r.length + alongMargin && Math.abs(c.x) < xMargin) {
+        if (!best || Math.abs(c.x) < Math.abs(best.x)) best = { r, s: c.s, x: c.x, reversed: false };
+      }
+    }
+    return best;
+  }
+
+  private updateFree(dt: number): void {
+    const s = this.s;
+    const c = this.d.controls.state;
+    const p = this.p;
+    const ground = this.groundHeightAt(s);
+    const agl = s.alt - ground;
+    const crashes = this.d.crashes;
+    const ap = this.autopilot;
+    const near = this.runwayNear(s, 7000, 400);
+    // Which way along the runway are we pointing?
+    let rwHdg: number | null = null;
+    let rwyAgl: number | null = null;
+    let aligned = false;
+    if (near) {
+      const fwd = near.r.heading;
+      const back = (near.r.heading + 180) % 360;
+      rwHdg = Math.abs(angleDiff(s.heading, fwd)) < Math.abs(angleDiff(s.heading, back)) ? fwd : back;
+      aligned = Math.abs(angleDiff(s.heading, rwHdg)) < 35;
+      rwyAgl = s.alt - runwayHeight(near.r, Math.max(0, Math.min(near.r.length, near.s)));
+    }
+    const overRunway = !!near && Math.abs(near.x) < near.r.airport.runway.widthFt * FT * 0.5 + 30 && near.s > -100 && near.s < near.r.length + 100;
+    const landingZone = !!near && aligned && !s.onGround && (rwyAgl ?? 999) < 700;
+
+    const g: Guidance = {
+      targetHeading: null,
+      targetVs: 0,
+      targetSpeed: null,
+      agl,
+      runwayAgl: landingZone ? rwyAgl : null,
+      landing: crashes || landingZone,
+      autoFlare: this.d.assistLevel <= 3,
+      groundHeading: null,
+      wantRotate: true,
+      autoRotate: false,
+    };
+    let roll = c.roll;
+    let pitch = c.pitch;
+    let level = Math.max(2, this.d.assistLevel);
+
+    // Edge of the map: turn back toward the middle.
+    if (!s.onGround && !inRegion(s.lat, s.lon, 0.06) && this.edgeTimer <= 0) {
+      this.edgeTimer = 18;
+      void this.say(LINES.edge, true);
+    }
+    if (this.edgeTimer > 0) {
+      this.edgeTimer -= dt;
+      roll = 0;
+      g.targetHeading = bearing(s, { lat: (REGION.north + REGION.south) / 2, lon: (REGION.east + REGION.west) / 2 });
+    }
+
+    if (ap && !s.onGround) {
+      roll = 0;
+      pitch = 0;
+      level = 1;
+      if (this.edgeTimer <= 0) g.targetHeading = ap.heading;
+      g.targetVs = clamp((ap.alt - s.alt) * 0.15, -5, 5);
+    }
+
+    let throttle: number | null = c.throttle;
+    let brake = c.brake;
+    if (s.onGround) {
+      if (ap) {
+        throttle = 0;
+        brake = 1;
+      }
+      // Centerline helper on a runway when the stick is centred.
+      if (overRunway && rwHdg !== null && Math.abs(roll) < 0.1) g.groundHeading = rwHdg;
+      // Taking off (power up, past rotation speed): hint to pull back.
+      if (s.speed > p.vr && c.throttle > 0.5 && !this.said.has("pullHint")) {
+        this.said.add("pullHint");
+        void this.say(LINES.pullToTakeoff);
+        this.d.hud.setPrompt("pull");
+      }
+      if (c.throttle <= 0.5 || s.speed < p.vr * 0.8) this.d.hud.setPrompt(null);
+      if (s.speed < 25 * KT) brake = Math.max(brake, c.throttle < 0.05 ? 0.4 : 0);
+    } else {
+      this.d.hud.setPrompt(null);
+      // The lever chooses speed; the co-pilot works the power.
+      const slow = p.vapp * 0.95;
+      g.targetSpeed = slow + c.throttle * (p.speedLimit - slow);
+      throttle = null;
+      // Lined up with a runway and stick centred: help down the glide path.
+      if (landingZone && near && Math.abs(pitch) < 0.08 && !ap) {
+        this.sayOnce(`land-${near.r.airport.code}-${Math.floor(this.time / 60)}`, LINES.landingHelp);
+        const dir = rwHdg === near.r.heading ? 1 : -1;
+        const sTd = dir > 0 ? near.s - AIM : near.r.length - AIM - near.s;
+        const wantAlt = runwayHeight(near.r, dir > 0 ? 0 : near.r.length) + Math.max(0, -sTd) * Math.tan(GLIDE);
+        g.targetVs = -s.speed * Math.tan(GLIDE) + clamp((wantAlt - s.alt) * 0.15, -4, 3);
+        g.targetSpeed = Math.min(g.targetSpeed, p.vapp + 5 * KT);
+        if (Math.abs(roll) < 0.08) g.targetHeading = rwHdg! - clamp(near.x * (dir > 0 ? 0.12 : -0.12), -25, 25);
+      }
+    }
+
+    const cmd = computeCommands(level, { roll, pitch, throttle, brake }, g, s, p, this.mem, dt);
+    this.lastCmd = { targetBank: cmd.targetBank, targetVs: cmd.targetVs };
+    const wasGround = s.onGround;
+    const events = step(s, cmd, p, { groundHeight: ground }, dt);
+    if (this.mem.terrainWarning) this.sayOnce(`terrain${Math.floor(this.time / 8)}`, LINES.terrain);
+
+    for (const e of events) {
+      if (e.type === "liftoff") {
+        this.d.audio.sfx("chirp");
+        this.said.delete("pullHint");
+      }
+      if (e.type === "touchdown") this.onFreeTouchdown(e.sinkFpm, overRunway, near);
+    }
+    if (!wasGround && !s.onGround) this.airborneTime += dt;
+    if (s.onGround && this.phase === "free" && crashes && !overRunway && s.speed > 35 * KT) this.crash();
+
+    // Landmarks close by get a shout-out.
+    if (!s.onGround && agl < 3000) {
+      for (const l of LANDMARKS) {
+        if (!this.landmarksSaid.has(l.id) && distance(s, l) < 4000) {
+          this.landmarksSaid.add(l.id);
+          void this.say(tpl.landmark(l.spoken, l.fact));
+        }
+      }
+    }
+  }
+
+  private onFreeTouchdown(sink: number, overRunway: boolean, near: { r: RunwayInUse; s: number; x: number } | null): void {
+    const s = this.s;
+    const water = this.d.world.cartoon?.landAt(s.lat, s.lon) === 1;
+    if (this.d.crashes && (!overRunway || sink > 900 || Math.abs(s.bank) > 25 || water)) {
+      this.crash();
+      return;
+    }
+    if (!overRunway || !near) {
+      if (!this.d.crashes) {
+        // Not a runway: the co-pilot bounces us back up.
+        s.onGround = false;
+        s.alt += 2;
+        s.vs = 3;
+        s.gamma = 4;
+      }
+      return;
+    }
+    this.d.audio.sfx("chirp");
+    if (this.airborneTime < 15 && this.landedAt === near.r.airport.code) return;
+    const soft = sink < 400;
+    const landing = sink < 150 ? "butter" : soft ? "smooth" : "firm";
+    const centre = Math.abs(near.x) < 8;
+    const stars = (soft ? 1 : 0) + (centre ? 1 : 0) + 1;
+    this.d.hud.toast(landing === "butter" ? "BUTTER!" : landing === "smooth" ? "Smooth!" : "Firm!", "big");
+    void this.say(landing === "butter" ? LINES.butter : landing === "smooth" ? LINES.smooth : LINES.firm, true);
+    void this.say(tpl.welcomeTo(near.r.airport.spoken));
+    this.landedAt = near.r.airport.code;
+    this.airborneTime = 0;
+    if (this.navTarget?.code === near.r.airport.code) this.setNavTarget(null);
+    this.onLanded({ airport: near.r.airport, stars, landing });
+  }
+
+  private crash(): void {
+    if (this.phase === "crashed") return;
+    this.setPhase("crashed");
+    this.crashTimer = 3.5;
+    this.s.speed = 0;
+    this.s.throttle = 0;
+    this.s.bank = 25;
+    this.s.pitch = -8;
+    this.d.audio.sfx("crash");
+    this.d.audio.stopEngine();
+    this.d.hud.toast("CRASH!", "big");
+    void this.say(LINES.crash, true);
+    this.view.shake = 1.2;
+  }
+
+  private updateCrashed(dt: number): void {
+    this.crashTimer -= dt;
+    if (this.crashTimer > 0) return;
+    let best = AIRPORTS[0];
+    for (const a of AIRPORTS) if (distance(this.s, a) < distance(this.s, best)) best = a;
+    this.d.audio.startEngine(this.ac.kind);
+    this.startFreeAt(best);
+  }
+
   // ------------------------------------------------------------------ controls
 
   private setGear(down: boolean): void {
@@ -620,7 +885,8 @@ export class FlightSession {
         }
         break;
       case "camera":
-        this.cameraMode = this.cameraMode === "chase" ? "cockpit" : this.cameraMode === "cockpit" ? "side" : "chase";
+        this.view.mode = this.view.mode === "chase" ? "cockpit" : "chase";
+        this.view.resetLook();
         break;
       case "radio":
         if (this.phase === "lineup") this.radioTakeoff();
@@ -672,6 +938,7 @@ export class FlightSession {
     this.updateModel(dt);
     this.updateCamera(dt);
     this.updateHud();
+    if (this.phase !== "cruise" && this.phase !== "toCruise") this.d.world.updateScenery(this.s, this.s.alt, this.s.alt - this.groundHeightAt(this.s));
     this.d.audio.updateEngine(this.s.throttle, this.s.speed);
   }
 
@@ -695,13 +962,15 @@ export class FlightSession {
       }
     }
 
-    if (this.phase === "cruise") this.updateCruise(dt);
+    if (this.phase === "free") this.updateFree(dt);
+    else if (this.phase === "crashed") this.updateCrashed(dt);
+    else if (this.phase === "cruise") this.updateCruise(dt);
     else if (this.phase !== "toCruise" && this.phase !== "toApproach" && this.phase !== "done") this.updatePhysics(dt);
     this.updatePapi();
   }
 
   private groundHeightAt(p: LatLon): number {
-    for (const r of [this.dep, this.arr]) {
+    for (const r of [this.dep, this.arr, ...this.allRunways]) {
       if (r && onRunwayArea(r, p)) return runwayHeight(r, runwayCoords(r, p).s);
     }
     if (this.frame - this.groundCache.frame >= 6 || !this.groundCache.valid) {
@@ -830,6 +1099,7 @@ export class FlightSession {
     const cmd = computeCommands(level, { roll: c.roll, pitch: c.pitch, throttle, brake }, g, s, p, this.mem, dt);
     if (this.phase === "lineup") cmd.throttle = 0;
     if (this.phase === "rollout") cmd.throttle = 0;
+    this.lastCmd = { targetBank: cmd.targetBank, targetVs: cmd.targetVs };
     const events = step(s, cmd, p, { groundHeight: ground }, dt);
 
     for (const e of events) {
@@ -1040,66 +1310,29 @@ export class FlightSession {
   // ------------------------------------------------------------------ rendering
 
   private updateModel(dt: number): void {
-    if (!this.model) return;
     const s = this.s;
-    this.model.modelMatrix = frameMatrix(s, s.alt, s.heading, s.pitch, s.bank, 1);
-    if (this.gearNode) this.gearNode.show = s.gearDown;
-    if (this.propNode) {
-      this.propAngle += dt * (8 + s.throttle * 50);
-      this.propNode.matrix = Matrix4.multiply(
-        Matrix4.fromTranslation(this.propTranslation()),
-        Matrix4.fromRotationTranslation(Matrix3.fromRotationZ(this.propAngle)),
-        new Matrix4(),
-      );
-    }
-  }
-
-  private propT: Cartesian3 | null = null;
-  private propTranslation(): Cartesian3 {
-    if (!this.propT && this.propNode) {
-      const m = this.propNode.originalMatrix;
-      this.propT = Matrix4.getTranslation(m, new Cartesian3());
-    }
-    return this.propT ?? new Cartesian3();
+    const c = this.d.controls.state;
+    const rollCmd = clamp((this.lastCmd.targetBank - s.bank) / 12, -1, 1);
+    const pitchCmd = s.onGround ? (s.pitch > 1 ? 1 : c.pitch) : clamp((this.lastCmd.targetVs - s.vs) / 4, -1, 1);
+    const yaw = s.onGround ? c.roll : rollCmd * 0.2;
+    const ground = this.phase === "cruise" || this.phase === "toCruise" ? null : this.groundHeightAt(s);
+    this.view.update(s, dt, { roll: rollCmd, pitch: pitchCmd, yaw }, ground);
   }
 
   private updateCamera(dt: number): void {
     const s = this.s;
-    const scene = this.d.world.widget.scene;
-    const L = this.ac.shape.length;
-    const k = 1 - Math.exp(-dt * 2.5);
-    this.camHeading = this.camHeading + angleDiff(s.heading, this.camHeading) * (dt === 0 ? 1 : k);
     const moment = this.phase === "cruise" && this.cruise.moment !== 0;
-    if (this.cameraMode === "cockpit") {
-      const f = frameVectors(s, s.alt, s.heading, s.pitch, s.bank);
-      const eye = Cartesian3.add(f.pos, Cartesian3.add(Cartesian3.multiplyByScalar(f.fwd, L * 0.36, new Cartesian3()), Cartesian3.multiplyByScalar(f.up, this.ac.shape.fuselageDiameter * 0.75 + 0.9, new Cartesian3()), new Cartesian3()), new Cartesian3());
-      const dir = moment ? Cartesian3.normalize(Cartesian3.subtract(f.fwd, Cartesian3.multiplyByScalar(f.up, 0.8, new Cartesian3()), new Cartesian3()), new Cartesian3()) : f.fwd;
-      scene.camera.setView({ destination: eye, orientation: { direction: dir, up: f.up } });
-      return;
-    }
-    const dist = Math.max(16, L * 2.3);
-    const height = L * 0.45 + 3;
-    const sideAngle = this.cameraMode === "side" ? 75 : 0;
-    const camHdg = this.camHeading + 180 + sideAngle;
-    const ground = destination(s, camHdg, dist * (moment ? 0.8 : 1));
-    const camAlt = s.alt + height + (moment ? dist * 0.9 : 0);
-    const eye = Cartesian3.fromDegrees(ground.lon, ground.lat, camAlt);
-    const target = Cartesian3.fromDegrees(s.lon, s.lat, s.alt + L * 0.12);
-    const dir = Cartesian3.normalize(Cartesian3.subtract(target, eye, new Cartesian3()), new Cartesian3());
-    const upGeo = Cartesian3.normalize(eye, new Cartesian3());
-    const right = Cartesian3.normalize(Cartesian3.cross(dir, upGeo, new Cartesian3()), new Cartesian3());
-    const up = Cartesian3.cross(right, dir, new Cartesian3());
-    scene.camera.setView({ destination: eye, orientation: { direction: dir, up } });
-
+    const cam = this.view.updateCamera(s, dt, moment);
     // Cloud deck follows the camera; scroll the pattern to show speed.
     if (this.phase === "cruise" || this.phase === "toCruise") {
       const v = this.ac.cruiseKt * KT * 1.3 * dt;
-      this.clouds.update({ lat: ground.lat, lon: ground.lon, height: camAlt }, this.cruise.cloudTop, Math.sin(s.heading * DEG) * v, Math.cos(s.heading * DEG) * v);
+      this.clouds.update(cam, this.cruise.cloudTop, Math.sin(s.heading * DEG) * v, Math.cos(s.heading * DEG) * v);
     }
   }
 
   private updateHud(): void {
     const s = this.s;
+    if (this.mission.kind === "sandbox") this.d.hud.updateMaps({ pos: s, heading: s.heading, target: this.navTarget });
     const ref = this.arr && this.cruiseProgressFraction() > 0.5 ? this.arr : this.dep;
     const altFt = (s.alt + ref.mslOffset) / FT;
     const inCruise = this.phase === "cruise";
@@ -1153,7 +1386,11 @@ export class FlightSession {
     this.d.audio.stopEngine();
     this.d.audio.stopVoice();
     this.clearHoops();
-    if (this.model) this.d.world.widget.scene.primitives.remove(this.model);
+    this.view.destroy();
+    this.d.hud.setSandbox(false);
+    this.d.hud.onOpenMap = () => {};
+    this.d.hud.onLook = () => {};
+    this.d.hud.onLookReset = () => {};
     if (this.papi) this.d.world.widget.scene.primitives.remove(this.papi);
     for (const e of this.entities) this.d.world.widget.entities.remove(e);
     this.d.world.exclude.length = 0;
@@ -1165,47 +1402,6 @@ export class FlightSession {
 }
 
 // ------------------------------------------------------------------ math helpers
-
-/** Position + orientation vectors (world) for a body at lat/lon/alt with heading/pitch/bank. */
-function frameVectors(p: LatLon, alt: number, heading: number, pitch: number, bank: number) {
-  const pos = Cartesian3.fromDegrees(p.lon, p.lat, alt);
-  const enu = Transforms.eastNorthUpToFixedFrame(pos);
-  const col = (i: number) => {
-    const c = Matrix4.getColumn(enu, i, new Cartesian4());
-    return new Cartesian3(c.x, c.y, c.z);
-  };
-  const E = col(0);
-  const N = col(1);
-  const U = col(2);
-  const h = heading * DEG;
-  const th = pitch * DEG;
-  const ph = bank * DEG;
-  const comb = (e: number, n: number, u: number) =>
-    Cartesian3.add(Cartesian3.add(Cartesian3.multiplyByScalar(E, e, new Cartesian3()), Cartesian3.multiplyByScalar(N, n, new Cartesian3()), new Cartesian3()), Cartesian3.multiplyByScalar(U, u, new Cartesian3()), new Cartesian3());
-  const fwd = comb(Math.sin(h) * Math.cos(th), Math.cos(h) * Math.cos(th), Math.sin(th));
-  const right0 = comb(Math.cos(h), -Math.sin(h), 0);
-  const up0 = Cartesian3.cross(right0, fwd, new Cartesian3());
-  const right = Cartesian3.subtract(Cartesian3.multiplyByScalar(right0, Math.cos(ph), new Cartesian3()), Cartesian3.multiplyByScalar(up0, Math.sin(ph), new Cartesian3()), new Cartesian3());
-  const up = Cartesian3.add(Cartesian3.multiplyByScalar(up0, Math.cos(ph), new Cartesian3()), Cartesian3.multiplyByScalar(right0, Math.sin(ph), new Cartesian3()), new Cartesian3());
-  return { pos, fwd, right, up };
-}
-
-/**
- * Model matrix for a glTF built with nose +Z, up +Y, left +X. Cesium converts glTF axes so the
- * model's own frame is X forward, Y left, Z up; the columns below map those to world vectors.
- */
-function frameMatrix(p: LatLon, alt: number, heading: number, pitch: number, bank: number, scale: number): Matrix4 {
-  const f = frameVectors(p, alt, heading, pitch, bank);
-  const left = Cartesian3.negate(f.right, new Cartesian3());
-  const s = scale;
-  // prettier-ignore
-  return new Matrix4(
-    f.fwd.x * s, left.x * s, f.up.x * s, f.pos.x,
-    f.fwd.y * s, left.y * s, f.up.y * s, f.pos.y,
-    f.fwd.z * s, left.z * s, f.up.z * s, f.pos.z,
-    0, 0, 0, 1,
-  );
-}
 
 /** Signed distance of the aircraft past the plane of a hoop (positive = gone through). */
 function alongTrackLocal(h: Hoop, s: LatLon): number {

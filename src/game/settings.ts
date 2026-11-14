@@ -15,6 +15,8 @@ export interface Settings {
   assistLevel: number;
   /** Minutes before "time to land" reminder; 0 = off. */
   sessionMinutes: number;
+  /** Free Flight: touching the ground off a runway is a crash (off = the co-pilot always saves you). */
+  crashes: boolean;
 }
 
 const KEY = "playnes.settings.v1";
@@ -30,6 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
   volume: 0.9,
   assistLevel: 1,
   sessionMinutes: 0,
+  crashes: false,
 };
 
 export function loadSettings(): Settings {

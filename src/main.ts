@@ -8,7 +8,7 @@ import { aircraftById } from "./data/aircraft.ts";
 import { airportByCode } from "./data/airports.ts";
 import { LINES, type Line } from "./data/lines.ts";
 import { Audio } from "./audio/audio.ts";
-import { FlightSession, type FlightResult, type Mission } from "./game/flight.ts";
+import { FlightSession, type FlightResult, type FreeLanding, type Mission } from "./game/flight.ts";
 import { charterRewards, loadProgress, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
 import { googleKey, ionToken, loadSettings, resolveWorld, saveSettings, type Settings } from "./game/settings.ts";
 import { Controls } from "./input/controls.ts";
@@ -97,13 +97,15 @@ class Game implements ScreenHost {
     if (!this.world) return;
     this.orbit += dt * 4;
     const ap = airportByCode(this.progress.currentAirport);
-    const range = this.worldKind === "basic" ? 9000 : 2600;
+    const flat = this.worldKind === "basic";
+    const range = flat ? 9000 : 2600;
     const eyeLL = destination(ap, this.orbit, range);
-    const eyeH = (this.worldKind === "basic" ? 0 : ap.elevFt * 0.3048) + (this.worldKind === "basic" ? 5000 : 900);
+    const eyeH = (flat ? 0 : ap.elevFt * 0.3048) + (flat ? 5000 : 900);
+    this.world.updateScenery(ap, ap.elevFt * 0.3048, 900);
     const eye = Cartesian3.fromDegrees(eyeLL.lon, eyeLL.lat, eyeH);
     this.world.widget.scene.camera.setView({
       destination: eye,
-      orientation: { heading: CMath.toRadians(this.orbit + 180), pitch: CMath.toRadians(this.worldKind === "basic" ? -35 : -18), roll: 0 },
+      orientation: { heading: CMath.toRadians(this.orbit + 180), pitch: CMath.toRadians(flat ? -35 : -18), roll: 0 },
     });
   }
 
@@ -136,15 +138,16 @@ class Game implements ScreenHost {
     if (!this.world) return;
     if (this.breakDue()) return;
     this.lastMission = m;
-    this.screens.loading(m.kind === "charter" ? `Flying to ${airportByCode(m.to).spoken}...` : "Heading to the runway...");
+    this.screens.loading(m.kind === "charter" ? `Flying to ${airportByCode(m.to).spoken}...` : m.kind === "sandbox" ? "Getting ready for free flight..." : "Heading to the runway...");
     const lessonPlane = m.kind === "lesson" ? "c172" : this.progress.selectedPlane;
     const ac = aircraftById(m.kind === "lesson" ? lessonPlane : this.progress.selectedPlane);
     const flight = new FlightSession(
-      { world: this.world, audio: this.audio, controls: this.controls, hud: this.hud, aircraft: ac, assistLevel: this.settings.assistLevel },
+      { world: this.world, audio: this.audio, controls: this.controls, hud: this.hud, aircraft: ac, assistLevel: this.settings.assistLevel, crashes: this.settings.crashes },
       m,
     );
     this.flight = flight;
     flight.onDone = (r) => this.finishFlight(r);
+    flight.onLanded = (l) => this.freeLanding(l);
     flight
       .start()
       .then(() => this.screens.hide())
@@ -186,7 +189,7 @@ class Game implements ScreenHost {
       if (r.landing === "butter") p.butterLandings++;
       p.wings += rewards.reduce((a, b) => a + b.wings, 0);
       this.saveProgress();
-    } else {
+    } else if (r.mission.kind === "lesson") {
       rewards = this.markLesson(r.mission.lesson);
       if (r.landing) rewards.push({ label: `${r.stars} landing star${r.stars === 1 ? "" : "s"}`, wings: 0 });
     }
@@ -202,6 +205,23 @@ class Game implements ScreenHost {
     this.screens.debrief(r, rewards, newStamp, graduatedNow ? () => this.screens.graduation(() => this.screens.hangar()) : again, graduatedNow ? () => this.screens.graduation(() => this.screens.hangar()) : () => this.screens.home());
     this.say(LINES.wingsEarned);
     if (newStamp) this.say(LINES.newStamp);
+  }
+
+  /** Free Flight: landing at an airport stamps the passport and pays a little. */
+  private freeLanding(l: FreeLanding): void {
+    const p = this.progress;
+    let wings = 3 + l.stars * 2;
+    const first = !p.airportsVisited.includes(l.airport.code);
+    if (first) {
+      p.airportsVisited.push(l.airport.code);
+      wings += 15;
+      setTimeout(() => this.say(LINES.newStamp), 2500);
+    }
+    p.wings += wings;
+    p.currentAirport = l.airport.code;
+    if (l.landing === "butter") p.butterLandings++;
+    this.saveProgress();
+    setTimeout(() => this.hud.toast(`+${wings} Wings${first ? " · new stamp!" : ""}`, "good"), 2800);
   }
 
   private endFlight(): void {

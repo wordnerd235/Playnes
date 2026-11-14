@@ -24,31 +24,30 @@ The player is the captain of their own little charter company. It's based at **T
 
 ---
 
-## Build status (Nov 13, 2026)
+## Build status (Nov 14, 2026)
 
-The first playable version is in this repository. See `docs/SETUP.md` to run it.
+The game is playable at the GitHub Pages site. See `docs/SETUP.md`.
 
 **Working now**
-- Swappable world: Google Photorealistic 3D Tiles, Cesium ion, or a key-free simple globe (the default until a key is entered)
-- Flight model and co-pilot assist levels 1–2, Ground Buddy, envelope protection; unit-tested for all 13 planes
-- Controls: touch yoke + throttle lever, tilt-to-fly, keyboard, game controller
-- Full charter loop: radio call → takeoff → climb hoops → cruise above a cloud deck with landmark look-downs → approach hoops with live PAPI lights → landing score → Wings and passport stamps
-- Flight School lessons 1–5 with graduation (unlocks the Phenom 100)
-- Hangar with all 13 real planes as procedural "toy-real" 3D models, Wings prices and spoken facts
-- 167 voice lines generated with free Kokoro TTS (co-pilot + radio-filtered tower); device speech covers any new line
-- Destinations: TRI, CLT, AVL, MYR
-- Grown-up corner (hold + math gate), backup codes, break reminder, installable PWA, GitHub Pages workflow
-- Headless smoke tests: a full TRI → CLT charter lands "BUTTER!" with 3 stars; lessons 2–5 complete with co-pilot help
+- Three map sources behind one switch: Google Photorealistic 3D Tiles, Cesium ion, and a bundled **offline cartoon world** (default) built from AWS Terrain Tiles + Natural Earth, with terrain, fields, forests, rivers, lakes, towns, trees, clouds and crisp runways
+- 12 airports (TRI, CLT, AVL, MYR, ATL, TYS, CHA, GSP, CAE, GSO, RDU, ROA) and 19 landmarks
+- Flight model with co-pilot assists, Ground Buddy, envelope protection; unit-tested for all 13 planes
+- 13 procedural "toy-real" planes with moving flaps, ailerons, elevators and rudder, blinking beacons and strobes, and a ground shadow
+- Controls: touch yoke + throttle lever, tilt, keyboard, game controller; drag-to-look bubble with reset
+- Charters (radio call → takeoff → hoops → cloud cruise with landmarks → approach with live PAPI lights → landing score), Flight School 1–5 with graduation, hangar with Wings prices
+- **Free Flight** sandbox: minimap, big map with autopilot while open, fly-to target line, landing helper on any runway, passport stamps, edge-of-map turnaround, optional crashes
+- 320 voice lines generated with free Kokoro TTS
+- Grown-up corner, backup codes, break reminder, installable PWA, "Save for offline play"
+- Headless tests: charter, lessons 2–5, touch-only controls, Free Flight (maps, autopilot, guided landing, crash)
 
 **Needs the real iPad**
-- Google 3D tile performance and memory at each quality setting (the Phase 0 go/no-go)
-- Tilt direction (the setting can flip it) and touch-yoke feel with the actual player
-- Voice volume balance against engine sound
+- Frame rate in the cartoon world (trees, clouds) and with Google tiles; the Low graphics setting thins out scenery
+- Tilt direction and touch-yoke feel with the actual player
 
-**Next (Phase 2)**
-- More destinations (TEB, MCO, PBI, YYZ…), charter variety, juice-cup comfort meter, paint shop
-- Taxi and walkaround mini-games, tower-cam replay
-- Verify CLT runway names on the FAA diagram
+**Next**
+- Juice-cup comfort meter, paint shop, taxi and walkaround mini-games, tower-cam replay
+- Charters to the new airports and more destinations (TEB, MCO, PBI, YYZ…)
+- Verify CLT and ATL runway names on the FAA diagrams
 
 ---
 

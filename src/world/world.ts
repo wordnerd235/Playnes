@@ -22,8 +22,11 @@ import {
 } from "cesium";
 import type { LatLon } from "../sim/geo.ts";
 import type { Quality } from "../game/settings.ts";
+import { CartoonData } from "./cartoon.ts";
+import { Scenery } from "./scenery.ts";
 
-export type WorldKind = "google" | "ion" | "basic";
+/** "cartoon" = offline cartoon world; "basic" = bare globe if the offline data is missing. */
+export type WorldKind = "google" | "ion" | "cartoon" | "basic";
 
 export interface World {
   kind: WorldKind;
@@ -37,7 +40,21 @@ export interface World {
   groundReady(): boolean;
   /** Objects (plane, hoops) that ground sampling must ignore. */
   exclude: object[];
+  /** Offline map data (also used by the minimap and big map in every world). */
+  cartoon: CartoonData | null;
+  /** Keep clouds/trees around this point. */
+  updateScenery(p: LatLon, alt: number, agl: number): void;
   destroy(): void;
+}
+
+let cartoonCache: Promise<CartoonData | null> | null = null;
+/** Loads the bundled offline map data once (null if unavailable). */
+export function loadCartoon(): Promise<CartoonData | null> {
+  cartoonCache ??= CartoonData.load().catch((e) => {
+    console.warn("offline world data unavailable", e);
+    return null;
+  });
+  return cartoonCache;
 }
 
 export interface WorldOptions {
@@ -66,7 +83,7 @@ function baseWidget(container: HTMLElement, kind: WorldKind, q: "high" | "medium
   });
   const scene = widget.scene;
   scene.fog.enabled = true;
-  scene.fog.density = kind === "google" ? 1.2e-4 : 2.0e-4;
+  scene.fog.density = kind === "google" ? 1.2e-4 : kind === "cartoon" ? 1.4e-4 : 2.0e-4;
   scene.postProcessStages.fxaa.enabled = q !== "high";
   scene.screenSpaceCameraController.enableInputs = false;
   // A pleasant midday sun over the eastern US.
@@ -78,12 +95,32 @@ function baseWidget(container: HTMLElement, kind: WorldKind, q: "high" | "medium
 
 export async function createWorld(container: HTMLElement, kind: WorldKind, opts: WorldOptions): Promise<World> {
   const q = qualityLevel(opts.quality);
-  if (kind === "google") return createGoogleWorld(container, opts.googleKey ?? "", q);
-  if (kind === "ion") return createIonWorld(container, opts.ionToken ?? "", q);
-  return createBasicWorld(container, q);
+  const cartoon = await loadCartoon();
+  let w: Omit<World, "cartoon" | "updateScenery">;
+  if (kind === "google") w = await createGoogleWorld(container, opts.googleKey ?? "", q);
+  else if (kind === "ion") w = await createIonWorld(container, opts.ionToken ?? "", q);
+  else w = await createBasicWorld(container, q, cartoon);
+  const scenery = new Scenery(w.widget.scene, w.kind === "cartoon" ? cartoon : null, q === "high" ? 1 : q === "medium" ? 0.75 : 0.4);
+  const setGround = w.setGroundVisible.bind(w);
+  const destroy = w.destroy.bind(w);
+  return {
+    ...w,
+    cartoon,
+    setGroundVisible(v: boolean) {
+      setGround(v);
+      scenery.setVisible(v);
+    },
+    updateScenery(p, alt, agl) {
+      scenery.update(p, alt, agl);
+    },
+    destroy() {
+      scenery.destroy();
+      destroy();
+    },
+  };
 }
 
-async function createGoogleWorld(container: HTMLElement, key: string, q: "high" | "medium" | "low"): Promise<World> {
+async function createGoogleWorld(container: HTMLElement, key: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery">> {
   const widget = baseWidget(container, "google", q, { globe: false, baseLayer: false });
   const scene = widget.scene;
   const tileset: Cesium3DTileset = await createGooglePhotorealistic3DTileset(
@@ -128,7 +165,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   };
 }
 
-async function createIonWorld(container: HTMLElement, token: string, q: "high" | "medium" | "low"): Promise<World> {
+async function createIonWorld(container: HTMLElement, token: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery">> {
   Ion.defaultAccessToken = token;
   const widget = baseWidget(container, "ion", q, {
     terrain: Terrain.fromWorldTerrain(),
@@ -172,21 +209,30 @@ async function createIonWorld(container: HTMLElement, token: string, q: "high" |
   };
 }
 
-async function createBasicWorld(container: HTMLElement, q: "high" | "medium" | "low"): Promise<World> {
+async function createBasicWorld(container: HTMLElement, q: "high" | "medium" | "low", cartoon: CartoonData | null): Promise<Omit<World, "cartoon" | "updateScenery">> {
   const provider = await TileMapServiceImageryProvider.fromUrl(buildModuleUrl("Assets/Textures/NaturalEarthII"), {
-    credit: new Credit("Natural Earth II imagery (bundled with CesiumJS)"),
+    credit: new Credit("Natural Earth II"),
   });
-  const widget = baseWidget(container, "basic", q, { baseLayer: new ImageryLayer(provider) });
+  const widget = baseWidget(container, cartoon ? "cartoon" : "basic", q, {
+    baseLayer: new ImageryLayer(provider),
+    ...(cartoon ? { terrainProvider: cartoon.terrainProvider() } : {}),
+  });
   const scene = widget.scene;
+  if (cartoon) {
+    scene.imageryLayers.addImageryProvider(cartoon.imageryProvider());
+    scene.globe.depthTestAgainstTerrain = true;
+    scene.globe.maximumScreenSpaceError = q === "high" ? 1.5 : 2.5;
+    scene.globe.tileCacheSize = 200;
+  }
   return {
-    kind: "basic",
+    kind: cartoon ? "cartoon" : "basic",
     widget,
     exclude: [],
-    groundHeight() {
-      return 0;
+    groundHeight(p) {
+      return cartoon ? cartoon.height(p.lat, p.lon) : 0;
     },
     async sampleHeights(points) {
-      return points.map(() => 0);
+      return points.map((p) => (cartoon ? cartoon.height(p.lat, p.lon) : 0));
     },
     setGroundVisible(v) {
       scene.globe.show = v;

@@ -3,8 +3,8 @@
 A real-world flying game for a young airplane fan. Fly real business jets from Tri-Cities (TRI) and Charlotte (CLT) across North America, learn the basics of flying from a friendly co-pilot, and earn Wings to unlock new planes.
 
 - **Platforms:** iPad (main, installable web app) and Windows PC (Edge/Chrome)
-- **Status:** first playable build. Flight School, charters to CLT, AVL and MYR, and 13 real planes in the hangar.
-- **World map:** Google Photorealistic 3D Tiles when a key is entered in grown-up settings; otherwise a simple globe that needs no key.
+- **Status:** playable. Flight School, charters, Free Flight across 12 airports, and 13 real planes in the hangar.
+- **World map:** a bundled offline cartoon world by default; Google Photorealistic 3D Tiles or Cesium ion when a key is entered in grown-up settings.
 
 ```bash
 npm install

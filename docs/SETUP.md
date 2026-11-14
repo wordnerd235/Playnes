@@ -12,7 +12,19 @@ The game is a web app. Once it's hosted (section 3), open the link on the iPad i
 2. Open Playnes from the Home Screen and tap **Tap to fly!**
 3. Optional, recommended: turn on **Guided Access** (Settings → Accessibility → Guided Access). Triple-click the top button while the game is open to lock the iPad to it.
 
-Without a map key the game runs on a **simple globe**: real airport positions, simple drawn runways, low-detail Earth imagery. Everything else works, including all flights, lessons, planes and saving. Add a Google key (section 2) for the photoreal 3D world.
+Without a map key the game runs in the **cartoon world**: a bundled, offline map of the playable region (Tennessee, the Carolinas, north Georgia and southwest Virginia) with real mountains, rivers, lakes, roads, towns, farm fields, trees and clouds, plus crisp runways at all 12 airports. Everything works in it, including Free Flight. Add a Google key (section 2) for the photoreal 3D world.
+
+**Offline play (car trips, real flights):** in grown-up settings, tap **Save for offline play** once on Wi-Fi (about 25 MB). After that, the cartoon world works with no internet. Google and Cesium maps always need internet.
+
+### Free Flight
+
+The purple **Free Flight** card on the home screen is an open sandbox:
+- Take off from the airport you're at and fly anywhere in the region. The lever sets your speed in the air; the co-pilot handles the engine.
+- The **minimap** (top right) shows nearby airports (✈) and landmarks (⭐). Tap it for the **big map**: the autopilot keeps flying your last heading and height while it's open. Tap an airport to see how far it is, then **Fly to** draws a pink line to it on the minimap.
+- Line up with any runway and let go of the stick: the co-pilot helps you down the glide path. Landing at a new airport stamps the passport and earns Wings.
+- Fly to the edge of the map and the co-pilot turns you around.
+- **Crashes** are off by default (the co-pilot always pulls up). Turn on "Free Flight: allow crashes" in grown-up settings for a challenge; after a crash you restart at the nearest airport.
+- The **eye bubble** at the bottom of the screen: drag it to look around. The ⟲ button next to it resets the view. The camera button switches between chase and cockpit views.
 
 ### Grown-up settings
 
@@ -45,9 +57,19 @@ On the home screen, **press and hold the gear icon** (top left) for about 2 seco
 
 ### 2b. Cesium ion instead (optional)
 
+Cesium ion gives satellite photos on real 3D terrain with simple 3D buildings, for all of North America. It looks less lifelike than Google's photoreal tiles but needs no billing setup.
+
 1. Create a free account at [cesium.com/ion](https://cesium.com/ion/) (the Community plan is for personal, non-commercial use).
 2. Access Tokens → copy the default token.
 3. In grown-up settings choose **Map source: Cesium ion** and paste the token.
+
+### Which map should I use?
+
+| Map | Looks | Needs | Works offline |
+|-----|-------|-------|---------------|
+| Cartoon world (default) | Bright cartoon: real terrain, rivers, towns, trees | Nothing | Yes, after "Save for offline play" |
+| Google Photorealistic 3D | Real buildings, trees and terrain everywhere | Google key + billing account | No |
+| Cesium ion | Satellite photos on 3D terrain, grey buildings | Free Cesium account token | No |
 
 ---
 
@@ -82,6 +104,16 @@ A key can also come from a local `.env.local` file (git-ignored):
 VITE_GOOGLE_MAPS_API_KEY=your-key
 ```
 
+### Rebuild the offline cartoon map
+
+The cartoon world is built from public data: [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) for elevation and [Natural Earth](https://www.naturalearthdata.com/) for coastlines, lakes, rivers, roads and towns. To change the region (`src/data/region.ts`), add airports, or restyle the map (`scripts/world/build_world.py`):
+
+```bash
+python3 -m venv ~/mapenv && ~/mapenv/bin/pip install numpy pillow
+node scripts/world/export-data.mjs ~/worldcache/data.json
+~/mapenv/bin/python scripts/world/build_world.py --cache ~/worldcache    # ~5 minutes, writes public/world/
+```
+
 ### Regenerate the 3D planes
 
 The planes are built from code, so there are no model licenses to worry about. Edit shapes and colors in `src/data/aircraft.ts`, then:
@@ -111,6 +143,8 @@ npm run build
 python3 -m http.server 8765 &                                    # serve the repo root
 node tools/smoke.cjs http://127.0.0.1:8765/dist/ /tmp/shots      # full charter flight with screenshots
 node tools/smoke-lessons.cjs http://127.0.0.1:8765/dist/ /tmp/shots
+node tools/smoke-touch.cjs http://127.0.0.1:8765/dist/ /tmp/shots    # on-screen controls only
+node tools/smoke-free.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # Free Flight: maps, autopilot, landing, crash
 ```
 
 These use the Playwright browser and fast-forward the physics, because software rendering is slow.
@@ -125,12 +159,12 @@ src/
   data/              aircraft, airports + landmarks, every spoken line
   sim/               geodesy, flight physics, co-pilot assists
   game/              flight session (phases, hoops, scoring), runway helpers, progress, settings
-  world/             swappable map providers (google / ion / basic) and the cloud deck
+  world/             swappable map providers (google / ion / cartoon), offline map data, scenery, cloud deck
   input/             touch yoke + throttle, tilt, keyboard, game controller
   audio/             voice player (files, then device speech), sound effects, engine synth
   ui/                HUD, menu screens, icons
-scripts/             model builder, Cesium asset copy, voice generation
-public/              models, voice audio, icons, manifest, service worker
+scripts/             model builder, offline map builder, Cesium asset copy, voice generation
+public/              models, offline map (world/), voice audio, icons, manifest, service worker
 tests/               unit tests (vitest)
 tools/               dev helpers: model preview, screenshots, smoke tests
 docs/                GAME_PLAN.md (design + review), SETUP.md (this file), plan-page.html

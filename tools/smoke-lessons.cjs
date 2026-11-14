@@ -18,7 +18,7 @@ const path = require("path");
     try {
       await page.evaluate((l) => window.playnes.startMission({ kind: "lesson", lesson: l, airport: "TRI" }), lesson);
       await page.waitForFunction(() => window.playnes.flight && window.playnes.flight.phase !== "loading", null, { timeout: 60000 });
-      await page.evaluate(() => (window.playnes.flight.timeScale = 6));
+      await page.evaluate(() => (window.playnes.flight.timeScale = 12));
       await page.waitForTimeout(4000);
       await page.screenshot({ path: path.join(out, `lesson-${lesson}.png`) });
       await page.waitForSelector(".debrief", { timeout: 300000 });
