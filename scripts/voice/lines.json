@@ -414,6 +414,12 @@
   "speak": "Okay, no destination. Fly wherever you like!"
  },
  {
+  "id": "24c65df7",
+  "who": "copilot",
+  "text": "Our first takeoff from this airport! Bonus Wings!",
+  "speak": "Our first takeoff from this airport! Bonus Wings!"
+ },
+ {
   "id": "7d31956f",
   "who": "copilot",
   "text": "This is your playne! Tap each part to learn its name.",

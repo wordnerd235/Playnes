@@ -23,7 +23,21 @@ The purple **Free Flight** card on the home screen is an open sandbox:
 - Fly anywhere in the region. The lever is a **real throttle**: pull it back and the plane slows, then glides down. Raise the wheels and flaps after takeoff (the co-pilot reminds you) and climb high to go fast. Thin air up high means a jet flies much faster there, just like the real thing: a Phenom 100 cruises around 400 knots at 30,000 ft, so Charlotte to Tri-Cities takes about 20-25 minutes, the same as a real flight. Grown-up settings can switch to "co-pilot holds the speed" for little pilots.
 - The speed gauge shows **airspeed** (what pilots read in the cockpit); the small "ground" number underneath is how fast you're actually covering the map.
 - The **minimap** (top right) shows nearby airports (✈) and landmarks (⭐). Tap it for the **big map**: the autopilot keeps flying your last heading and height while it's open. Tap an airport to see how far it is, then **Fly to** draws a pink line to it on the minimap.
-- Line up with any runway and let go of the stick: the co-pilot helps you down the glide path. Landing at a new airport stamps the passport and earns Wings.
+- Line up with any runway and let go of the stick: the co-pilot helps you down the glide path.
+- **Wings in Free Flight:** landing at an airport pays for the trip from the airport you took off from (by straight-line distance, about 8 Wings per 100 nm) plus landing stars. Circuits back to the same airport pay a little; emergency landings in fields pay nothing (the trip starts again from the next airport takeoff).
+
+### Wings (rewards)
+
+| What | Wings |
+|---|---|
+| Charter (only when you land at the destination) | 10 + distance × (0.1 + 0.025 × seats) per nm. Cessna (4 seats) Charlotte→Tri-Cities 104 nm ≈ 31; a 19-seat Gulfstream ≈ 70 |
+| Free Flight trip between two airports | about 0.08 per nm (no passengers) |
+| Landing stars | 5 each (2 in Free Flight); butter landing +5 (+3 in Free Flight) |
+| First landing at an airport (passport stamp) | +20, once per airport |
+| First takeoff from an airport | +10, once per airport |
+| Flight School lesson | 25 the first time (50 for the landing lesson), 5 for practice |
+
+All the numbers live in `REWARDS` in `src/game/progress.ts`.
 - Fly to the edge of the map and the co-pilot turns you around.
 - **Crashes** are off by default (the co-pilot always pulls up). Turn on "Free Flight: allow crashes" in grown-up settings for a challenge; after a crash you restart at the nearest airport.
 - The **eye bubble** just above the yoke: drag it to look around. The ⟲ button next to it resets the view. The camera button switches between the chase view and the **cockpit** (window frame and instrument panel: round dials in the Cessna, glass screens in the turboprops and jets).

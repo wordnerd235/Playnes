@@ -90,6 +90,8 @@ export interface FreeSnapshot {
   onGround: boolean;
   navTarget: string | null;
   landedAt: string | null;
+  /** Airport this Free Flight trip took off from. */
+  from?: string | null;
   savedAt: number;
 }
 
@@ -157,6 +159,10 @@ export interface FreeLanding {
   airport: Airport;
   stars: number;
   landing: "butter" | "smooth" | "firm";
+  /** Where this trip took off (null if from a field or started in the air). */
+  from: Airport | null;
+  /** Straight-line distance from `from` to `airport`, nautical miles. */
+  distanceNm: number;
 }
 
 const GLIDE = 3 * DEG;
@@ -221,10 +227,14 @@ export class FlightSession {
   private runwayPrims: Primitive[] = [];
   // Free Flight
   onLanded: (l: FreeLanding) => void = () => {};
+  /** First takeoff from an airport earns a bonus: returns the Wings (0 if not new). */
+  onTakeoff: (code: string) => number = () => 0;
   private allRunways: RunwayInUse[] = [];
   private autopilot: { heading: number; alt: number; ias: number } | null = null;
   /** Speedbrakes extended (jets). */
   private speedbrakeOut = false;
+  /** Free Flight: airport the current trip took off from. */
+  private freeFrom: Airport | null = null;
   private lastMach = 0;
   private lastBoom = -100;
   private edgeTimer = 0;
@@ -765,6 +775,7 @@ export class FlightSession {
       onGround: s.onGround,
       navTarget: this.navTarget?.code ?? null,
       landedAt: this.landedAt,
+      from: this.freeFrom?.code ?? null,
       savedAt: Date.now(),
     };
   }
@@ -793,6 +804,7 @@ export class FlightSession {
     this.d.controls.setThrottle(r.throttle, false);
     this.view.resetCameraHeading(r.heading);
     this.landedAt = r.landedAt;
+    this.freeFrom = r.from ? AIRPORTS.find((a) => a.code === r.from) ?? null : null;
     this.airborneTime = s.onGround ? 0 : 30;
     if (r.navTarget) {
       this.navTarget = AIRPORTS.find((a) => a.code === r.navTarget) ?? null;
@@ -973,6 +985,8 @@ export class FlightSession {
 
     for (const e of events) {
       if (e.type === "liftoff") {
+        this.freeFrom = overRunway && near ? near.r.airport : null;
+        if (this.freeFrom) this.takeoffFrom(this.freeFrom);
         this.said.delete("pullHint");
         this.said.delete("freeFlapsUp");
         if (!this.ac.shape.fixedGear) {
@@ -1084,6 +1098,7 @@ export class FlightSession {
         this.d.hud.toast("Safe landing!", "big");
         void this.say(LINES.emergencyLanding, true);
         this.airborneTime = 0;
+        this.freeFrom = null;
         return;
       }
       if (this.d.crashes) this.crash();
@@ -1112,7 +1127,9 @@ export class FlightSession {
     this.landedAt = near.r.airport.code;
     this.airborneTime = 0;
     if (this.navTarget?.code === near.r.airport.code) this.setNavTarget(null);
-    this.onLanded({ airport: near.r.airport, stars, landing });
+    const from = this.freeFrom;
+    this.freeFrom = null;
+    this.onLanded({ airport: near.r.airport, stars, landing, from, distanceNm: from ? distance(from, near.r.airport) / NM : 0 });
   }
 
   private crash(): void {
@@ -1204,6 +1221,17 @@ export class FlightSession {
         break;
       default:
         break;
+    }
+  }
+
+  private takeoffFrom(a: Airport): void {
+    const bonus = this.onTakeoff(a.code);
+    if (bonus > 0) {
+      setTimeout(() => {
+        if (this.destroyed) return;
+        this.d.hud.toast(`First takeoff from ${a.code}! +${bonus} Wings`, "good");
+        void this.say(LINES.newTakeoff);
+      }, 3500);
     }
   }
 
@@ -1458,6 +1486,7 @@ export class FlightSession {
 
   private onLiftoff(): void {
     this.setPhase("climb");
+    this.takeoffFrom(this.dep.airport);
     if (this.ac.shape.fixedGear) {
       void this.say(LINES.hoops);
     } else {

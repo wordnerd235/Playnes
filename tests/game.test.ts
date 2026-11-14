@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { AIRCRAFT } from "../src/data/aircraft.ts";
 import { AIRPORTS, airportByCode } from "../src/data/airports.ts";
 import { allLines, lineKey, speakable, LINES } from "../src/data/lines.ts";
-import { buy, canBuy, charterRewards, exportCode, importCode, newProgress } from "../src/game/progress.ts";
+import { buy, canBuy, charterRewards, exportCode, freeLandingRewards, importCode, newProgress, takeoffBonus, total } from "../src/game/progress.ts";
 import { makeRunway, pickEnd, runwayCoords, runwayPoint } from "../src/game/runway.ts";
 import { bearing, distance, NM } from "../src/sim/geo.ts";
 
@@ -77,10 +77,30 @@ describe("progress", () => {
     expect(buy(p, pc12)).toBe(false);
   });
 
-  it("charter rewards follow the plan", () => {
-    const r = charterRewards(104, 3, true);
-    expect(r.reduce((a, b) => a + b.wings, 0)).toBe(12 + 15 + 15);
-    expect(charterRewards(5000, 0, false)[0].wings).toBe(40);
+  it("charters pay more for longer trips and bigger playnes", () => {
+    const trip = (distanceNm: number, seats: number) => total(charterRewards({ from: "CLT", to: "TRI", distanceNm, seats, stars: 0, butter: false, newLanding: false }));
+    expect(trip(104, 4)).toBe(31); // Cessna, Charlotte to Tri-Cities
+    expect(trip(104, 19)).toBeGreaterThan(trip(104, 10));
+    expect(trip(104, 10)).toBeGreaterThan(trip(104, 4));
+    expect(trip(300, 6)).toBeGreaterThan(trip(104, 6) * 2.3);
+    const full = charterRewards({ from: "CLT", to: "TRI", distanceNm: 104, seats: 4, stars: 3, butter: true, newLanding: true });
+    expect(total(full)).toBe(31 + 15 + 5 + 20);
+  });
+
+  it("free flight trips pay by distance between airports; circuits pay little", () => {
+    const trip = total(freeLandingRewards({ from: "CLT", to: "TRI", distanceNm: 104, stars: 2, butter: false, newLanding: false }));
+    const circuit = total(freeLandingRewards({ from: "TRI", to: "TRI", distanceNm: 0, stars: 2, butter: false, newLanding: false }));
+    expect(trip).toBe(8 + 4);
+    expect(circuit).toBe(2 + 4);
+    expect(total(freeLandingRewards({ from: null, to: "TRI", distanceNm: 0, stars: 0, butter: false, newLanding: true }))).toBe(2 + 20);
+  });
+
+  it("first takeoff from an airport pays once", () => {
+    const p = newProgress();
+    expect(takeoffBonus(p, "TRI")).toBe(10);
+    expect(takeoffBonus(p, "TRI")).toBe(0);
+    expect(p.wings).toBe(10);
+    expect(p.airportsDeparted).toEqual(["TRI"]);
   });
 });
 

@@ -19,6 +19,9 @@ const path = require("path");
   await page.evaluate(() => window.playnes.startMission({ kind: "lesson", lesson: "l2", airport: "TRI" }));
   await page.waitForFunction(() => window.playnes.flight && window.playnes.flight.phase === "l2go", null, { timeout: 60000 });
   await page.evaluate(() => (window.playnes.flight.timeScale = 4));
+  // The flight starts behind the loading screen while the ground loads; wait until it's gone.
+  await page.waitForFunction(() => { const l = document.querySelector(".loading"); return !l || !!l.closest("[hidden]"); }, null, { timeout: 30000 });
+  await page.waitForTimeout(800);
 
   // Nothing may sit on top of the controls.
   for (const sel of [".lever", ".yoke", "#hud-flaps", "#hud-radio", "#hud-brake"]) {

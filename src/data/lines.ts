@@ -89,6 +89,7 @@ export const LINES = {
   fighterFreeOnly: c("Fighter jets only have one seat, so we'll fly a playne with seats for charters."),
   emergencyLanding: c("We made it down safely! Great emergency landing."),
   routeCleared: c("Okay, no destination. Fly wherever you like!"),
+  newTakeoff: c("Our first takeoff from this airport! Bonus Wings!"),
   // Lesson 1: meet your plane
   l1Intro: c("This is your playne! Tap each part to learn its name."),
   l1Wings: c("These are the wings. Wings lift us up like a bird!"),

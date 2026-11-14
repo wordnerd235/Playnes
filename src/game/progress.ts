@@ -11,6 +11,8 @@ export interface Progress {
   lessonsDone: string[];
   graduated: boolean;
   airportsVisited: string[];
+  /** Airports the player has taken off from (one-time takeoff bonus). */
+  airportsDeparted: string[];
   currentAirport: string;
   flights: number;
   butterLandings: number;
@@ -28,6 +30,7 @@ export function newProgress(): Progress {
     lessonsDone: [],
     graduated: false,
     airportsVisited: ["TRI"],
+    airportsDeparted: [],
     currentAirport: "TRI",
     flights: 0,
     butterLandings: 0,
@@ -41,6 +44,7 @@ function sanitize(p: Partial<Progress>): Progress {
   out.wings = Math.max(0, Math.floor(Number(out.wings) || 0));
   out.planes = Array.from(new Set(["c172", ...(out.planes || [])])).filter((id) => AIRCRAFT.some((a) => a.id === id));
   if (!out.planes.includes(out.selectedPlane)) out.selectedPlane = "c172";
+  out.airportsDeparted = Array.isArray(out.airportsDeparted) ? out.airportsDeparted : [];
   return out;
 }
 
@@ -118,20 +122,85 @@ export interface Reward {
   wings: number;
 }
 
-/** Landing stars pay 5 Wings each; a butter-smooth touchdown earns a bonus. */
-export function landingRewards(stars: number, butter: boolean): Reward[] {
+/** All the reward numbers in one place. */
+export const REWARDS = {
+  /** Every completed charter. */
+  charterBase: 10,
+  /** Charter pay per nautical mile, plus a bit more per seat (more passengers = more fares). */
+  charterPerNm: 0.1,
+  charterPerNmPerSeat: 0.025,
+  /** Free Flight trips (no passengers): per nautical mile between the two airports. */
+  freePerNm: 0.08,
+  /** Free Flight landing back where you took off (practice). */
+  freePractice: 2,
+  /** Landing quality. Free Flight pays less, so quick circuits don't beat real trips. */
+  star: 5,
+  butter: 5,
+  freeStar: 2,
+  freeButter: 3,
+  /** One-time bonuses per airport. */
+  newLanding: 20,
+  newTakeoff: 10,
+} as const;
+
+/** Landing stars and a butter-smooth touchdown bonus. */
+export function landingRewards(stars: number, butter: boolean, free = false): Reward[] {
   const r: Reward[] = [];
-  if (stars > 0) r.push({ label: `${stars} landing star${stars > 1 ? "s" : ""}`, wings: stars * 5 });
-  if (butter) r.push({ label: "Butter landing bonus", wings: 5 });
+  if (stars > 0) r.push({ label: `${stars} landing star${stars > 1 ? "s" : ""}`, wings: stars * (free ? REWARDS.freeStar : REWARDS.star) });
+  if (butter) r.push({ label: "Butter landing bonus", wings: free ? REWARDS.freeButter : REWARDS.butter });
   return r;
 }
 
-export function charterRewards(distanceNm: number, stars: number, firstVisit: boolean, butter = false): Reward[] {
-  const r: Reward[] = [{ label: "Charter flight", wings: 10 + Math.min(30, Math.floor(distanceNm / 50)) }];
-  r.push(...landingRewards(stars, butter));
-  if (firstVisit) r.push({ label: "New passport stamp", wings: 15 });
+export interface CharterOutcome {
+  from: string;
+  to: string;
+  distanceNm: number;
+  seats: number;
+  stars: number;
+  butter: boolean;
+  /** First landing ever at the destination. */
+  newLanding: boolean;
+}
+
+/** Pay for a charter that ended with a landing: longer trips and bigger playnes pay more. */
+export function charterRewards(o: CharterOutcome): Reward[] {
+  const nm = Math.round(o.distanceNm);
+  const fare = REWARDS.charterBase + Math.round(o.distanceNm * (REWARDS.charterPerNm + REWARDS.charterPerNmPerSeat * o.seats));
+  const r: Reward[] = [{ label: `Charter ${o.from} → ${o.to}: ${nm} nm, ${o.seats} seats`, wings: fare }];
+  r.push(...landingRewards(o.stars, o.butter));
+  if (o.newLanding) r.push({ label: `First landing at ${o.to}`, wings: REWARDS.newLanding });
   return r;
 }
+
+export interface FreeLandingOutcome {
+  /** Airport we took off from (null after an off-airport landing or a fresh start in the air). */
+  from: string | null;
+  to: string;
+  distanceNm: number;
+  stars: number;
+  butter: boolean;
+  newLanding: boolean;
+}
+
+/** Free Flight: a landing at an airport pays for the trip from where you took off. */
+export function freeLandingRewards(o: FreeLandingOutcome): Reward[] {
+  const r: Reward[] = [];
+  if (o.from && o.from !== o.to) r.push({ label: `Trip ${o.from} → ${o.to}: ${Math.round(o.distanceNm)} nm`, wings: Math.max(2, Math.round(o.distanceNm * REWARDS.freePerNm)) });
+  else r.push({ label: "Landing practice", wings: REWARDS.freePractice });
+  r.push(...landingRewards(o.stars, o.butter, true));
+  if (o.newLanding) r.push({ label: `First landing at ${o.to}`, wings: REWARDS.newLanding });
+  return r;
+}
+
+/** First takeoff from an airport: a one-time bonus (and remembers it). Returns the Wings earned. */
+export function takeoffBonus(p: Progress, code: string): number {
+  if (p.airportsDeparted.includes(code)) return 0;
+  p.airportsDeparted.push(code);
+  p.wings += REWARDS.newTakeoff;
+  return REWARDS.newTakeoff;
+}
+
+export const total = (r: Reward[]): number => r.reduce((a, b) => a + b.wings, 0);
 
 /** The playne to fly a charter in: the chosen one, unless it has no passenger seats (fighter). */
 export function charterPlaneId(p: Progress): string {

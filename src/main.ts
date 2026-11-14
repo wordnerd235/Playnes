@@ -9,7 +9,7 @@ import { airportByCode } from "./data/airports.ts";
 import { LINES, type Line } from "./data/lines.ts";
 import { Audio } from "./audio/audio.ts";
 import { FlightSession, type FlightResult, type FreeLanding, type FreeSnapshot, type Mission } from "./game/flight.ts";
-import { charterPlaneId, charterRewards, landingRewards, loadProgress, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
+import { charterPlaneId, charterRewards, freeLandingRewards, landingRewards, loadProgress, takeoffBonus, total, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
 import { googleKey, ionToken, loadSettings, resolveWorld, saveSettings, type Settings } from "./game/settings.ts";
 import { Controls } from "./input/controls.ts";
 import { destination } from "./sim/geo.ts";
@@ -33,6 +33,9 @@ class Game implements ScreenHost {
   lastMission: Mission | null = null;
   sessionStart = performance.now();
   freeSave: FreeSnapshot | null = loadFreeSave();
+  /** Playne of the current flight, and bonuses already paid during it. */
+  private flightPlane = "c172";
+  private flightBonuses: Reward[] = [];
   private lastFreeSave = 0;
   private orbit = 0;
   private frameErrors = 0;
@@ -166,6 +169,9 @@ class Game implements ScreenHost {
     this.flight = flight;
     flight.onDone = (r) => this.finishFlight(r);
     flight.onLanded = (l) => this.freeLanding(l);
+    flight.onTakeoff = (code) => this.takeoff(code);
+    this.flightPlane = ac.id;
+    this.flightBonuses = [];
     flight
       .start()
       .then(() => flight.settleGround())
@@ -204,14 +210,22 @@ class Game implements ScreenHost {
     const p = this.progress;
     let rewards: Reward[] = [];
     let newStamp = false;
-    if (r.mission.kind === "charter") {
+    if (r.mission.kind === "charter" && r.completed) {
       newStamp = !p.airportsVisited.includes(r.mission.to);
-      rewards = charterRewards(r.distanceNm, r.stars, newStamp, r.landing === "butter");
+      rewards = charterRewards({
+        from: r.mission.from,
+        to: r.mission.to,
+        distanceNm: r.distanceNm,
+        seats: aircraftById(this.flightPlane).seats,
+        stars: r.stars,
+        butter: r.landing === "butter",
+        newLanding: newStamp,
+      });
       if (newStamp) p.airportsVisited.push(r.mission.to);
       p.currentAirport = r.mission.to;
       p.flights++;
       if (r.landing === "butter") p.butterLandings++;
-      p.wings += rewards.reduce((a, b) => a + b.wings, 0);
+      p.wings += total(rewards);
       this.saveProgress();
     } else if (r.mission.kind === "lesson") {
       rewards = this.markLesson(r.mission.lesson);
@@ -224,6 +238,8 @@ class Game implements ScreenHost {
         this.saveProgress();
       }
     }
+    // Takeoff bonuses were paid at liftoff; list them too.
+    rewards.push(...this.flightBonuses);
     this.endFlight();
     const graduatedNow = !p.graduated && LESSONS.every((l) => p.lessonsDone.includes(l.id));
     if (graduatedNow) {
@@ -241,18 +257,36 @@ class Game implements ScreenHost {
   /** Free Flight: landing at an airport stamps the passport and pays a little. */
   private freeLanding(l: FreeLanding): void {
     const p = this.progress;
-    let wings = 3 + l.stars * 2 + (l.landing === "butter" ? 5 : 0);
     const first = !p.airportsVisited.includes(l.airport.code);
+    const rewards = freeLandingRewards({
+      from: l.from?.code ?? null,
+      to: l.airport.code,
+      distanceNm: l.distanceNm,
+      stars: l.stars,
+      butter: l.landing === "butter",
+      newLanding: first,
+    });
     if (first) {
       p.airportsVisited.push(l.airport.code);
-      wings += 15;
       setTimeout(() => this.say(LINES.newStamp), 2500);
     }
+    const wings = total(rewards);
     p.wings += wings;
     p.currentAirport = l.airport.code;
     if (l.landing === "butter") p.butterLandings++;
     this.saveProgress();
-    setTimeout(() => this.hud.toast(`+${wings} Wings${first ? " · new stamp!" : ""}`, "good"), 2800);
+    const trip = l.from && l.from.code !== l.airport.code ? ` · ${Math.round(l.distanceNm)} nm trip` : "";
+    setTimeout(() => this.hud.toast(`+${wings} Wings${trip}${first ? " · new stamp!" : ""}`, "good"), 2800);
+  }
+
+  /** First takeoff from an airport (any mode): one-time bonus. */
+  private takeoff(code: string): number {
+    const bonus = takeoffBonus(this.progress, code);
+    if (bonus > 0) {
+      this.flightBonuses.push({ label: `First takeoff from ${code}`, wings: bonus });
+      this.saveProgress();
+    }
+    return bonus;
   }
 
   storeFreeSave(snap: FreeSnapshot | null): void {
