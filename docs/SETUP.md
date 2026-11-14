@@ -26,6 +26,10 @@ The purple **Free Flight** card on the home screen is an open sandbox:
 - Line up with any runway and let go of the stick: the co-pilot helps you down the glide path.
 - **Wings in Free Flight:** landing at an airport pays for the trip from the airport you took off from (by straight-line distance, about 8 Wings per 100 nm) plus landing stars. Circuits back to the same airport pay a little; emergency landings in fields pay nothing (the trip starts again from the next airport takeoff).
 
+### Solo charters
+
+Once a charter route has been completed (say Tri-Cities to Charlotte), the next time it's flown it's **solo**: the co-pilot gives no tips or button prompts, doesn't steer toward the hoops or the runway, doesn't hold the climb or glide path (you fly up and down yourself; letting go holds level flight) and doesn't flare for you. The tower still talks on the radio, and power is still managed. As a last resort the co-pilot still quietly steps in if you'd otherwise be stuck (it waits much longer first). Solo routes show a "Solo flight" badge on the charter card.
+
 ### Wings (rewards)
 
 | What | Wings |

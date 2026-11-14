@@ -90,6 +90,7 @@ export const LINES = {
   emergencyLanding: c("We made it down safely! Great emergency landing."),
   routeCleared: c("Okay, no destination. Fly wherever you like!"),
   newTakeoff: c("Our first takeoff from this airport! Bonus Wings!"),
+  soloCharter: c("You've flown this trip before, so you're flying solo! I'll stay quiet unless we really need help."),
   // Interface tour
   tourIntro: c("Let's learn the buttons and gauges! Tap Next to see each one."),
   tourSpeed: c("This is our speed, in knots. The small number underneath is how fast we cross the ground."),

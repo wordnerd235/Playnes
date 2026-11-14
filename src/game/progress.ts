@@ -19,6 +19,8 @@ export interface Progress {
   unlockAll: boolean;
   /** The interface tour has been shown once. */
   tourDone: boolean;
+  /** Charter routes completed ("TRI-CLT"): flown solo next time. */
+  chartersDone: string[];
 }
 
 const KEY = "playnes.progress.v1";
@@ -38,6 +40,7 @@ export function newProgress(): Progress {
     butterLandings: 0,
     unlockAll: false,
     tourDone: false,
+    chartersDone: [],
   };
 }
 
@@ -48,6 +51,7 @@ function sanitize(p: Partial<Progress>): Progress {
   out.planes = Array.from(new Set(["c172", ...(out.planes || [])])).filter((id) => AIRCRAFT.some((a) => a.id === id));
   if (!out.planes.includes(out.selectedPlane)) out.selectedPlane = "c172";
   out.airportsDeparted = Array.isArray(out.airportsDeparted) ? out.airportsDeparted : [];
+  out.chartersDone = Array.isArray(out.chartersDone) ? out.chartersDone : [];
   return out;
 }
 
@@ -223,3 +227,6 @@ export function charterPlaneId(p: Progress): string {
   const owned = AIRCRAFT.filter((a) => p.planes.includes(a.id) && carriesPassengers(a));
   return (owned[owned.length - 1] ?? AIRCRAFT[0]).id;
 }
+
+/** Key for a charter route, e.g. "TRI-CLT". */
+export const charterKey = (from: string, to: string): string => `${from}-${to}`;

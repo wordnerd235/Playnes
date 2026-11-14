@@ -5,7 +5,7 @@ import { AIRCRAFT, aircraftById, carriesPassengers, type AircraftDef } from "../
 import { AIRPORTS, airportByCode } from "../data/airports.ts";
 import { LINES, PASSENGERS, tpl, type Line, type Passenger } from "../data/lines.ts";
 import type { FlightResult, FreeSnapshot, LessonId, Mission } from "../game/flight.ts";
-import { buy, canBuy, charterPlaneId, exportCode, importCode, owns, type Progress, type Reward } from "../game/progress.ts";
+import { buy, canBuy, charterKey, charterPlaneId, charterRewards, exportCode, REWARDS, importCode, owns, type Progress, type Reward } from "../game/progress.ts";
 import type { Settings } from "../game/settings.ts";
 import { distance, NM } from "../sim/geo.ts";
 import { saveForOffline } from "../game/offline.ts";
@@ -202,15 +202,17 @@ export class Screens {
     const cards = dests.slice(0, 3).map((a, i) => {
       const pax: Passenger = fits[(seed + i * 3) % fits.length];
       const nm = Math.round(distance(here, a) / NM);
-      const reward = 10 + Math.min(30, Math.floor(nm / 50));
+      const reward = charterRewards({ from: here.code, to: a.code, distanceNm: nm, seats: plane.seats, stars: 0, butter: false, newLanding: false })[0].wings;
       const firstVisit = !p.airportsVisited.includes(a.code);
+      const solo = p.chartersDone.includes(charterKey(here.code, a.code));
       const mission: Mission = { kind: "charter", from: here.code, to: a.code, passenger: pax };
       const card = h("button.charter-card", { type: "button" }, [
         h("div.charter-top", {}, [h("span.charter-pax", {}, pax.icon), h("span.charter-dest", {}, a.icon)]),
         h("div.charter-route", {}, [h("b", {}, here.code), h("span.charter-line"), h("b", {}, a.code)]),
         h("div.charter-name", {}, a.spoken),
         h("div.charter-blurb", {}, a.blurb),
-        h("div.charter-meta", {}, [h("span", {}, `${nm} nm`), h("span.reward", {}, [h("span.wing-icon", { html: ICONS.wing }), `+${reward}${firstVisit ? " +15" : ""}`])]),
+        h("div.charter-meta", {}, [h("span", {}, `${nm} nm`), h("span.reward", {}, [h("span.wing-icon", { html: ICONS.wing }), `+${reward}${firstVisit ? ` +${REWARDS.newLanding}` : ""}`])]),
+        solo ? h("div.charter-solo", { title: "You've flown this trip: no co-pilot help this time" }, "✈ Solo flight") : null,
         h("div.charter-go", {}, "Let's go!"),
       ]);
       let armed = false;

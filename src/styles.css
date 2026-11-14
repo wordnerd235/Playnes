@@ -549,3 +549,6 @@ svg { display: block; }
 }
 .meet-spot.found .meet-spot-label { opacity: 1; }
 @keyframes spot-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,215,64,.7); transform: scale(1); } 50% { box-shadow: 0 0 0 16px rgba(255,215,64,0); transform: scale(1.08); } }
+
+/* Charter card: route already flown -> solo */
+.charter-solo { align-self: flex-start; margin-top: 6px; padding: 4px 12px; border-radius: 999px; background: #1f2a37; color: #ffd34d; font-size: 14px; font-weight: 900; letter-spacing: .02em; }

@@ -9,7 +9,7 @@ import { airportByCode, type Airport } from "./data/airports.ts";
 import { LINES, type Line } from "./data/lines.ts";
 import { Audio } from "./audio/audio.ts";
 import { FlightSession, type FlightResult, type FreeLanding, type FreeSnapshot, type Mission } from "./game/flight.ts";
-import { charterPlaneId, charterRewards, freeLandingRewards, landingRewards, loadProgress, ringRewards, takeoffBonus, total, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
+import { charterKey, charterPlaneId, charterRewards, freeLandingRewards, landingRewards, loadProgress, ringRewards, takeoffBonus, total, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
 import { googleKey, ionToken, loadSettings, resolveWorld, saveSettings, type Settings } from "./game/settings.ts";
 import { Controls } from "./input/controls.ts";
 import { destination } from "./sim/geo.ts";
@@ -183,7 +183,7 @@ class Game implements ScreenHost {
     const planeId = m.kind === "lesson" ? "c172" : m.kind === "sandbox" ? (m.resume ? m.resume.aircraft : this.progress.selectedPlane) : charterPlaneId(this.progress);
     const ac = aircraftById(planeId);
     const flight = new FlightSession(
-      { world: this.world, audio: this.audio, controls: this.controls, hud: this.hud, aircraft: ac, assistLevel: this.settings.assistLevel, crashes: this.settings.crashes, autoSpeed: this.settings.freeAutoSpeed },
+      { world: this.world, audio: this.audio, controls: this.controls, hud: this.hud, aircraft: ac, assistLevel: this.settings.assistLevel, crashes: this.settings.crashes, autoSpeed: this.settings.freeAutoSpeed, solo: m.kind === "charter" && this.progress.chartersDone.includes(charterKey(m.from, m.to)) },
       m,
     );
     this.flight = flight;
@@ -249,6 +249,9 @@ class Game implements ScreenHost {
         newLanding: newStamp,
       });
       if (newStamp) p.airportsVisited.push(r.mission.to);
+      // Next time on this route: solo (no tips or co-pilot help).
+      const key = charterKey(r.mission.from, r.mission.to);
+      if (!p.chartersDone.includes(key)) p.chartersDone.push(key);
       p.currentAirport = r.mission.to;
       p.flights++;
       if (r.landing === "butter") p.butterLandings++;

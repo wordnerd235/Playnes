@@ -420,6 +420,12 @@
   "speak": "Our first takeoff from this airport! Bonus Wings!"
  },
  {
+  "id": "4ec53f05",
+  "who": "copilot",
+  "text": "You've flown this trip before, so you're flying solo! I'll stay quiet unless we really need help.",
+  "speak": "You've flown this trip before, so you're flying solo! I'll stay quiet unless we really need help."
+ },
+ {
   "id": "2125fef3",
   "who": "copilot",
   "text": "Let's learn the buttons and gauges! Tap Next to see each one.",

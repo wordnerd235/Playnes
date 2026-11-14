@@ -55,6 +55,16 @@ import type { World } from "../world/world.ts";
 import { frameMatrix, PlaneView } from "./planeView.ts";
 import { makeRunway, onRunwayArea, pickEnd, runwayCoords, runwayHeight, runwayPoint, type RunwayInUse } from "./runway.ts";
 
+/** Instruction lines the co-pilot keeps to itself on a solo charter. */
+const SOLO_QUIET = new Set<Line>([
+  LINES.lineup, LINES.radioPrompt, LINES.throttleUp, LINES.throttleHelp, LINES.airspeedAlive, LINES.eightyKnots,
+  LINES.rotate, LINES.rotateHelp, LINES.positiveRate, LINES.gearHelp, LINES.gearUpGood, LINES.hoops,
+  LINES.steerLeft, LINES.steerRight, LINES.approach, LINES.gearDownPrompt, LINES.gearDownGood, LINES.gearDownHelp,
+  LINES.flapsPrompt, LINES.flapsGood, LINES.flapsHelp, LINES.papi, LINES.flare, LINES.brakes, LINES.flapsUp,
+  LINES.tooFast, LINES.tooFastBrakes, LINES.tooFastFlaps, LINES.flapsRelief, LINES.reversers, LINES.brakesOn,
+  LINES.descend, LINES.intoClouds,
+]);
+
 /** Runway surfaces sit this far above the runway's slope (so wheels sit on the paint). */
 const RUNWAY_LIFT = 0.12;
 const RUNWAY_ASPHALT = Color.fromCssColorString("#44484f");
@@ -156,6 +166,8 @@ export interface FlightDeps {
   crashes: boolean;
   /** Free Flight only: the lever picks a speed and the co-pilot works the power. */
   autoSpeed: boolean;
+  /** Charter route already completed: no tips, no co-pilot assistance (silent last-resort help only). */
+  solo?: boolean;
 }
 
 export interface FreeLanding {
@@ -466,6 +478,7 @@ export class FlightSession {
   }
 
   private say(line: Line, interrupt = false): Promise<void> {
+    if (this.solo && SOLO_QUIET.has(line)) return Promise.resolve();
     return this.d.audio.say(line, { interrupt });
   }
 
@@ -476,8 +489,20 @@ export class FlightSession {
   }
 
   private ask(prompt: Prompt, timeout: number, done: () => boolean, help: () => void): void {
-    this.timed = { prompt, started: this.time, timeout, done, help };
-    this.d.hud.setPrompt(prompt);
+    // Solo: no prompt, and the co-pilot only steps in (silently) after a long wait.
+    this.timed = { prompt, started: this.time, timeout: this.solo ? Math.max(30, timeout * 4) : timeout, done, help };
+    this.hudPrompt(prompt);
+  }
+
+  /** Button highlights and steering arrows (none when flying solo). */
+  private hudPrompt(p: Prompt): void {
+    if (this.solo && p) return;
+    this.d.hud.setPrompt(p);
+  }
+
+  /** Solo charters: the co-pilot doesn't give tips. */
+  private get solo(): boolean {
+    return !!this.d.solo && this.mission.kind === "charter";
   }
 
   // ------------------------------------------------------------------ phases
@@ -498,6 +523,7 @@ export class FlightSession {
     }
     if (m.kind === "lesson" && m.lesson === "l3") void this.say(LINES.l3Intro);
     if (m.kind === "charter") void this.say(tpl.nextStop(airportByCode(m.to).spoken));
+    if (this.solo) void this.say(LINES.soloCharter);
     void this.say(LINES.lineup);
     this.ask("radio", 12, () => false, () => this.radioTakeoff());
     this.buildClimbHoops(m.kind === "lesson" ? 3 : 9);
@@ -509,7 +535,7 @@ export class FlightSession {
     if (this.radioDone) return;
     this.radioDone = true;
     this.timed = null;
-    this.d.hud.setPrompt(null);
+    this.hudPrompt(null);
     const tower = this.dep.airport.towerName;
     void this.say(tpl.readyForTakeoff(tower, this.dep.end.spoken));
     void this.say(tpl.clearedTakeoff(tower, this.dep.end.spoken)).then(() => {
@@ -669,7 +695,7 @@ export class FlightSession {
   private async enterCruise(): Promise<void> {
     if (["toCruise", "cruise", "toApproach", "approach", "rollout", "done"].includes(this.phase)) return;
     this.setPhase("toCruise");
-    this.d.hud.setPrompt(null);
+    this.hudPrompt(null);
     void this.say(LINES.intoClouds);
     this.d.audio.sfx("whoosh");
     await this.d.hud.whiteout(true, 1200);
@@ -851,7 +877,7 @@ export class FlightSession {
     this.airborneTime = 0;
     this.autopilot = null;
     this.setPhase("free");
-    this.d.hud.setPrompt(null);
+    this.hudPrompt(null);
   }
 
   /** After arriving: line up again at the start of the runway we landed on. */
@@ -981,9 +1007,9 @@ export class FlightSession {
       if (s.speed > p.vr && c.throttle > 0.5 && !this.said.has("pullHint")) {
         this.said.add("pullHint");
         void this.say(LINES.pullToTakeoff);
-        this.d.hud.setPrompt("pull");
+        this.hudPrompt("pull");
       }
-      if (c.throttle <= 0.5 || s.speed < p.vr * 0.8) this.d.hud.setPrompt(null);
+      if (c.throttle <= 0.5 || s.speed < p.vr * 0.8) this.hudPrompt(null);
       if (s.speed < 25 * KT) brake = Math.max(brake, c.throttle < 0.15 ? 0.4 : 0);
     } else {
       if (ap) {
@@ -1025,7 +1051,7 @@ export class FlightSession {
         this.said.delete("freeFlapsUp");
         if (!this.ac.shape.fixedGear) {
           void this.say(LINES.positiveRate, true);
-          this.d.hud.setPrompt("gear");
+          this.hudPrompt("gear");
         }
       }
       if (e.type === "touchdown") this.onFreeTouchdown(e.sinkFpm, overRunway, near);
@@ -1103,7 +1129,7 @@ export class FlightSession {
     const s = this.s;
     if (this.timed) return;
     if (s.gearDown && !this.ac.shape.fixedGear && agl > 15 && agl < 600 && s.vs > 0) {
-      this.d.hud.setPrompt("gear");
+      this.hudPrompt("gear");
       return;
     }
     if (s.flaps > 0 && agl > 250 && (!s.gearDown || this.ac.shape.fixedGear) && s.vs > -1) {
@@ -1111,10 +1137,10 @@ export class FlightSession {
         this.said.add("freeFlapsUp");
         void this.say(LINES.flapsUp);
       }
-      this.d.hud.setPrompt("flaps");
+      this.hudPrompt("flaps");
       return;
     }
-    this.d.hud.setPrompt(null);
+    this.hudPrompt(null);
   }
 
   /**
@@ -1226,11 +1252,11 @@ export class FlightSession {
         this.setGear(!this.s.gearDown);
         if (this.s.gearDown && this.timed?.prompt === "gear") {
           this.timed = null;
-          this.d.hud.setPrompt(null);
+          this.hudPrompt(null);
           void this.say(LINES.gearDownGood).then(() => this.afterGearDown());
         } else if (!this.s.gearDown && this.timed?.prompt === "gear") {
           this.timed = null;
-          this.d.hud.setPrompt(null);
+          this.hudPrompt(null);
           void this.say(LINES.gearUpGood).then(() => this.afterGearUp());
         }
         break;
@@ -1254,7 +1280,7 @@ export class FlightSession {
         this.s.flaps++;
         if (this.timed?.prompt === "flaps" && this.s.flaps >= 3) {
           this.timed = null;
-          this.d.hud.setPrompt(null);
+          this.hudPrompt(null);
           void this.say(LINES.flapsGood);
         }
         break;
@@ -1321,7 +1347,7 @@ export class FlightSession {
     this.landingCleared = true;
     if (this.timed?.prompt === "radio") {
       this.timed = null;
-      this.d.hud.setPrompt(null);
+      this.hudPrompt(null);
     }
     void this.say(tpl.onFinal(this.arr.airport.towerName, this.arr.end.spoken));
     void this.say(tpl.clearedLand(this.arr.end.spoken));
@@ -1364,11 +1390,11 @@ export class FlightSession {
     if (this.timed) {
       if (this.timed.done()) {
         this.timed = null;
-        this.d.hud.setPrompt(null);
+        this.hudPrompt(null);
       } else if (this.time - this.timed.started > this.timed.timeout) {
         const t = this.timed;
         this.timed = null;
-        this.d.hud.setPrompt(null);
+        this.hudPrompt(null);
         t.help();
       }
     }
@@ -1407,7 +1433,8 @@ export class FlightSession {
     const s = this.s;
     const c = this.d.controls.state;
     const p = this.p;
-    const level = this.d.assistLevel;
+    // Solo: the player flies up and down too (no co-pilot holding the climb or glide path).
+    const level = this.solo ? Math.max(2, this.d.assistLevel) : this.d.assistLevel;
     const ground = this.groundHeightAt(s);
     const agl = s.alt - ground;
     const landing = this.phase === "approach" || this.phase === "rollout";
@@ -1418,7 +1445,7 @@ export class FlightSession {
       agl,
       runwayAgl: null,
       landing,
-      autoFlare: level <= 3,
+      autoFlare: level <= 3 && !this.solo,
       groundHeading: null,
       wantRotate: false,
       autoRotate: false,
@@ -1519,6 +1546,12 @@ export class FlightSession {
         break;
     }
 
+    if (this.solo && !s.onGround) {
+      // No hands-off steering toward hoops or the runway, and letting go holds level flight.
+      g.targetHeading = null;
+      g.courseBank = undefined;
+      if (this.phase === "approach" || this.hoops.length) g.targetVs = 0;
+    }
     const cmd = computeCommands(level, { roll: c.roll, pitch: c.pitch, throttle, brake }, g, s, p, this.mem, dt);
     if (this.phase === "lineup") cmd.throttle = 0;
     if (this.phase !== "cruise" && this.phase !== "toCruise") this.flapRelief();
@@ -1674,12 +1707,12 @@ export class FlightSession {
     if (this.timed) return;
     const h = this.hoops[this.hoopIndex];
     if (!h || this.s.onGround) {
-      this.d.hud.setPrompt(null);
+      this.hudPrompt(null);
       return;
     }
     const err = angleDiff(bearing(this.s, h.pos), this.s.heading);
-    if (Math.abs(err) > 25) this.d.hud.setPrompt(err < 0 ? "steer-left" : "steer-right");
-    else this.d.hud.setPrompt(null);
+    if (Math.abs(err) > 25) this.hudPrompt(err < 0 ? "steer-left" : "steer-right");
+    else this.hudPrompt(null);
   }
 
   private updateCruise(dt: number): void {
@@ -1834,7 +1867,7 @@ export class FlightSession {
     if (this.phase === "done") return;
     this.setPhase("done");
     this.result.completed = completed;
-    this.d.hud.setPrompt(null);
+    this.hudPrompt(null);
     if (line) await this.say(line);
     if (this.mission.kind === "lesson") await this.say(LINES.lessonDone);
     if (!this.destroyed) this.onDone(this.result);
