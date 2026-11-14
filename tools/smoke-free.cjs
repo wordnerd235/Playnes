@@ -103,6 +103,14 @@ const path = require("path");
   await shot("6-landed");
   const prog = await page.evaluate(() => window.playnes.progress);
   check(prog.airportsVisited.includes("CLT") && prog.currentAirport === "CLT", "passport stamp + current airport saved");
+  // Full stop on the runway: welcome pop-up, then line up again on the same runway.
+  await page.waitForSelector(".pause-overlay.arrival", { timeout: 120000 });
+  check((await page.textContent(".pause-overlay.arrival h1")).includes("Charlotte"), "welcome pop-up after stopping on the runway");
+  await shot("6b-arrival");
+  await page.click(".pause-overlay.arrival [data-a=again]");
+  await page.waitForTimeout(800);
+  const again = await page.evaluate(() => { const f = window.playnes.flight; return { paused: f.paused, ground: f.s.onGround, spd: f.s.speed, dep: f.dep.airport.code }; });
+  check(!again.paused && again.ground && again.spd < 1 && again.dep === "CLT", "fly again from here: lined up on the CLT runway");
 
   // Crash: enable crashes, nose into the ground away from a runway.
   await page.evaluate(() => {

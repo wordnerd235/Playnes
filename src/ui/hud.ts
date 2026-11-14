@@ -30,6 +30,8 @@ export interface HudData {
   hoopsLeft: number | null;
   /** Speedbrakes: null = this playne has none, else whether they're out. */
   airbrake: boolean | null;
+  /** Fastest indicated airspeed (kt) allowed for flap notches 1, 2 and FULL. */
+  flapLimitsKt: number[];
 }
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, html?: string) => {
@@ -249,7 +251,7 @@ export class Hud {
     lever.innerHTML = `<div class="flap-title">FLAPS</div><div class="flap-track"></div>`;
     const track = lever.querySelector(".flap-track") as HTMLElement;
     ["UP", "1", "2", "FULL"].forEach((label, i) => {
-      const d = el("div", "flap-detent", `<span>${label}</span>`);
+      const d = el("div", "flap-detent", `<span>${label}</span><em></em>`);
       d.dataset.n = String(i);
       track.append(d);
     });
@@ -441,6 +443,17 @@ export class Hud {
     this.buttons.gear.classList.toggle("fixed", d.fixedGear);
     this.flapLevel = d.flaps;
     this.flapLever.dataset.level = String(d.flaps);
+    // Show which notches the current speed allows: too fast = red, with the speed to slow to.
+    const detents = this.flapLever.querySelectorAll<HTMLElement>(".flap-detent");
+    for (let n = 1; n <= 3; n++) {
+      const lim = d.flapLimitsKt[n - 1];
+      const blocked = !d.onGround && d.speedKt > lim;
+      const det = detents[n];
+      if (!det) continue;
+      det.classList.toggle("blocked", blocked);
+      const hint = det.querySelector("em");
+      if (hint) hint.textContent = blocked ? `slow to ${Math.floor(lim / 5) * 5}` : `${Math.floor(lim / 5) * 5} kt`;
+    }
     this.flapHandle.style.top = `${d.flaps * 25}%`;
     // The brakes button: wheel brakes on the ground, speedbrakes in the air (if the playne has
     // them). Fades out but keeps its spot otherwise, so the other buttons don't jump.

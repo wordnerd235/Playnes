@@ -47,7 +47,7 @@ import {
 } from "../sim/geo.ts";
 import { hoopGuidance, sTurnCourse } from "../sim/course.ts";
 import { Cockpit, PassengerWindow } from "../ui/cockpit.ts";
-import { createState, indicated, perfFor, speedOfSound, step, type Commands, type FlightState, type Perf } from "../sim/physics.ts";
+import { createState, densityRatio, indicated, perfFor, speedOfSound, step, type Commands, type FlightState, type Perf } from "../sim/physics.ts";
 import type { Hud, Prompt } from "../ui/hud.ts";
 import { CloudDeck } from "../world/clouds.ts";
 import { gfxOn } from "../world/safety.ts";
@@ -104,6 +104,9 @@ export interface FlightResult {
   centerline: boolean;
   zone: boolean;
   distanceNm: number;
+  /** Hoops flown through, and hoops judged (passed or missed). */
+  hoopsPassed: number;
+  hoopsTotal: number;
 }
 
 type Phase =
@@ -227,14 +230,21 @@ export class FlightSession {
   private runwayPrims: Primitive[] = [];
   // Free Flight
   onLanded: (l: FreeLanding) => void = () => {};
+  /** Free Flight: stopped safely on a runway after landing. */
+  onArrived: (a: Airport) => void = () => {};
   /** First takeoff from an airport earns a bonus: returns the Wings (0 if not new). */
   onTakeoff: (code: string) => number = () => 0;
   private allRunways: RunwayInUse[] = [];
   private autopilot: { heading: number; alt: number; ias: number } | null = null;
   /** Speedbrakes extended (jets). */
   private speedbrakeOut = false;
+  /** Turning lesson: the indicated airspeed the co-pilot holds. */
+  private lessonIas = 0;
   /** Free Flight: airport the current trip took off from. */
   private freeFrom: Airport | null = null;
+  /** Landed safely at an airport and still rolling: waiting for the full stop. */
+  private arrival: { airport: Airport; runway: RunwayInUse } | null = null;
+  private arrivedRunway: RunwayInUse | null = null;
   private lastMach = 0;
   private lastBoom = -100;
   private edgeTimer = 0;
@@ -270,6 +280,8 @@ export class FlightSession {
       centerline: false,
       zone: false,
       distanceNm: distance(from, to) / NM,
+      hoopsPassed: 0,
+      hoopsTotal: 0,
     };
   }
 
@@ -584,7 +596,10 @@ export class FlightSession {
     const r = this.dep;
     const startP = runwayPoint(r, r.length + 3000);
     const alt = runwayHeight(r, r.length) + 750;
-    this.s = createState({ lat: startP.lat, lon: startP.lon, alt, heading: r.heading, onGround: false, speed: Math.min(this.p.vclimb, this.p.speedLimit) * 0.9, gearDown: this.ac.shape.fixedGear, flaps: 0 });
+    // A slow, steady speed (a little above approach speed, flaps 1) so turns are tight.
+    this.lessonIas = this.p.vapp * 1.2;
+    const tas = this.lessonIas / Math.sqrt(densityRatio(alt));
+    this.s = createState({ lat: startP.lat, lon: startP.lon, alt, heading: r.heading, onGround: false, speed: tas, gearDown: this.ac.shape.fixedGear, flaps: 1 });
     this.view.resetCameraHeading(r.heading);
     this.d.controls.reset();
     this.d.controls.setThrottle(0.6, false);
@@ -816,16 +831,33 @@ export class FlightSession {
   private startFreeAt(ap: Airport): void {
     const base = this.allRunways.find((r) => r.airport.code === ap.code)!;
     const pref = base.end.id === ap.runway.preferred ? base : makeRunway(ap, base.other, base.end, base.hOther, base.hEnd);
-    this.dep = pref;
-    const pos = runwayPoint(pref, 60);
-    this.s = createState({ lat: pos.lat, lon: pos.lon, alt: runwayHeight(pref, 60), heading: pref.heading, flaps: 1, gearDown: true, onGround: true });
-    this.view.resetCameraHeading(pref.heading);
+    this.lineUp(pref);
+  }
+
+  /** Free Flight: lined up at the start of this runway, engine idling, ready to go. */
+  private lineUp(r: RunwayInUse): void {
+    const ap = r.airport;
+    this.dep = r;
+    const pos = runwayPoint(r, 60);
+    this.s = createState({ lat: pos.lat, lon: pos.lon, alt: this.groundHeightAt(pos), heading: r.heading, flaps: 1, gearDown: true, onGround: true });
+    this.view.resetCameraHeading(r.heading);
     this.d.controls.reset();
+    this.speedbrakeOut = false;
+    this.arrival = null;
+    this.freeFrom = null;
     this.landedAt = ap.code;
     this.airborneTime = 0;
     this.autopilot = null;
     this.setPhase("free");
     this.d.hud.setPrompt(null);
+  }
+
+  /** After arriving: line up again at the start of the runway we landed on. */
+  flyAgainFromHere(): void {
+    if (!this.arrivedRunway) return;
+    this.lineUp(this.arrivedRunway);
+    this.d.audio.startEngine(this.ac.kind);
+    this.paused = false;
   }
 
   setNavTarget(a: Airport | null): void {
@@ -997,6 +1029,15 @@ export class FlightSession {
       if (e.type === "touchdown") this.onFreeTouchdown(e.sinkFpm, overRunway, near);
     }
     if (!wasGround && !s.onGround) this.airborneTime += dt;
+    // Stopped safely after landing at an airport: welcome, and what next?
+    if (this.arrival && s.onGround && s.speed < 0.5 && this.phase === "free") {
+      const a = this.arrival;
+      this.arrival = null;
+      this.arrivedRunway = a.runway;
+      this.paused = true;
+      this.onArrived(a.airport);
+    }
+    if (this.arrival && !s.onGround) this.arrival = null;
     // Rolling over rough ground (steep, water, or into something) is a crash; a flat open field is fine.
     if (s.onGround && this.phase === "free" && crashes && !overRunway && s.speed > 20 * KT && this.frame % 4 === 0 && !this.fieldOk(s)) this.crash();
     // Bumping into trees, houses and airport buildings (crashes on; only near the ground).
@@ -1129,6 +1170,9 @@ export class FlightSession {
     if (this.navTarget?.code === near.r.airport.code) this.setNavTarget(null);
     const from = this.freeFrom;
     this.freeFrom = null;
+    // Which way did we land? Line up the same way for the next takeoff.
+    const landedHdg = Math.abs(angleDiff(s.heading, near.r.heading)) < 90;
+    this.arrival = { airport: near.r.airport, runway: landedHdg ? near.r : makeRunway(near.r.airport, near.r.other, near.r.end, near.r.hOther, near.r.hEnd) };
     this.onLanded({ airport: near.r.airport, stars, landing, from, distanceNm: from ? distance(from, near.r.airport) / NM : 0 });
   }
 
@@ -1366,7 +1410,7 @@ export class FlightSession {
       wantRotate: false,
       autoRotate: false,
       // Flight school keeps turns gentle; charters allow a normal steep turn.
-      maxBank: this.mission.kind === "lesson" ? 35 : 45,
+      maxBank: this.mission.kind === "lesson" ? 30 : 45,
     };
     let throttle: number | null = c.throttle;
     let brake = c.brake;
@@ -1419,7 +1463,8 @@ export class FlightSession {
         if (!hoop) g.targetVs = p.climbMax * 0.5;
         break;
       case "l4":
-        g.targetSpeed = s.speed;
+        // Hold one steady (slow) speed for the whole course.
+        g.targetSpeed = this.lessonIas;
         throttle = null;
         break;
       case "approach": {
@@ -1542,6 +1587,8 @@ export class FlightSession {
     const miss = Math.hypot(lateral, vertical);
     const passed = miss < h.radius * 1.2;
     h.state = passed ? "passed" : "missed";
+    this.result.hoopsTotal++;
+    if (passed) this.result.hoopsPassed++;
     if (h.model) {
       h.model.color = passed ? Color.fromCssColorString("#2ee66b") : Color.fromCssColorString("#ffffff").withAlpha(0.35);
       const model = h.model;
@@ -1755,6 +1802,7 @@ export class FlightSession {
       terrain: this.mem.terrainWarning,
       hoopsLeft: this.hoops.length ? this.hoops.length - this.hoopIndex : null,
       airbrake: this.p.speedbrakes ? this.speedbrakeOut : null,
+      flapLimitsKt: [1, 2, 3].map((n) => this.flapLimit(n) / KT),
     });
   }
 

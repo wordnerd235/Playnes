@@ -676,6 +676,39 @@ function buildShadow() {
   return { shadow: { parts: [{ geo: g, material: 8 }] } };
 }
 
+function buildVaporCone() {
+  // Transonic "vapor cone": a soft white bell around the fuselage, apex forward (+Z),
+  // unit radius at the back. Alpha in vertex colors, streaky so it looks like condensation.
+  const seg = 48;
+  const st = 12;
+  const pos = [], col = [], nor = [];
+  const ring = (i) => {
+    const u = i / (st - 1); // 0 front .. 1 back
+    const z = 0.35 - u * 0.95;
+    const r = 0.1 + 0.9 * u ** 0.55;
+    const alpha = Math.sin(Math.PI * Math.min(1, u * 1.15)) ** 1.4 * 0.75;
+    return { z, r, alpha };
+  };
+  for (let i = 0; i < st - 1; i++) {
+    const A = ring(i), B = ring(i + 1);
+    for (let j = 0; j < seg; j++) {
+      const a0 = (j / seg) * Math.PI * 2, a1 = ((j + 1) / seg) * Math.PI * 2;
+      const streak = (a) => 0.7 + 0.3 * Math.sin(a * 9 + i * 1.7) * Math.sin(a * 4 + 0.6);
+      const quad = [[A, a0], [B, a0], [B, a1], [A, a0], [B, a1], [A, a1]];
+      for (const [R, a] of quad) {
+        pos.push(Math.cos(a) * R.r, Math.sin(a) * R.r, R.z);
+        nor.push(Math.cos(a), Math.sin(a), 0.3);
+        col.push(1, 1, 1, Math.max(0, Math.min(1, R.alpha * streak(a))));
+      }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute("color", new THREE.Float32BufferAttribute(col, 4));
+  return { cone: { parts: [{ geo: g, material: 8 }] } };
+}
+
 // ---------------------------------------------------------------- GLB writer
 
 function writeGlb(nodes, file, extraMaterials = []) {
@@ -776,4 +809,7 @@ writeGlb(buildRing(), join(outDir, "ring.glb"));
 writeGlb(buildShadow(), join(outDir, "shadow.glb"), [
   { name: "shadow", pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: 1 }, alphaMode: "BLEND", doubleSided: true },
 ]);
-console.log("ring.glb, shadow.glb");
+writeGlb(buildVaporCone(), join(outDir, "vaporcone.glb"), [
+  { name: "vapor", pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: 1 }, emissiveFactor: [0.55, 0.55, 0.55], alphaMode: "BLEND", doubleSided: true },
+]);
+console.log("ring.glb, shadow.glb, vaporcone.glb");

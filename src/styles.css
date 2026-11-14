@@ -441,7 +441,13 @@ svg { display: block; }
 .flap-track { position: relative; flex: 1; width: 100%; border-radius: 20px; border: 4px solid rgba(255,255,255,.85); background: var(--glass); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); display: flex; flex-direction: column; overflow: hidden; }
 .flap-detent { flex: 1; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; border-top: 2px dashed rgba(255,255,255,.25); pointer-events: none; }
 .flap-detent:first-child { border-top: none; }
+.flap-detent { flex-direction: column; align-items: flex-end; justify-content: center; gap: 1px; }
 .flap-detent span { font-size: 13px; font-weight: 900; color: rgba(255,255,255,.85); }
+.flap-detent em { font-style: normal; font-size: 9px; font-weight: 800; color: rgba(255,255,255,.65); white-space: nowrap; }
+.flap-detent:first-child em { display: none; }
+.flap-detent.blocked { background: repeating-linear-gradient(135deg, rgba(255,80,80,.38) 0 6px, rgba(255,80,80,.18) 6px 12px); }
+.flap-detent.blocked span { color: rgba(255,255,255,.55); text-decoration: line-through; }
+.flap-detent.blocked em { color: #ffd0d0; }
 .flap-handle { position: absolute; left: 6px; width: 34px; height: 25%; display: flex; align-items: center; pointer-events: none; transition: top .25s ease; }
 .flap-handle::before { content: ""; width: 34px; height: 22px; border-radius: 8px; background: linear-gradient(180deg, #ffd34d, #e0a400); border: 3px solid #fff; box-shadow: 0 3px 6px rgba(0,0,0,.35); }
 .flap-lever[data-level="0"] .flap-detent:nth-child(1) span,
@@ -474,7 +480,8 @@ svg { display: block; }
 .stat-value { font-weight: 800; color: var(--ink); white-space: nowrap; }
 .plane-stats.big .stat { grid-template-columns: 96px 1fr 120px; font-size: 16px; }
 .plane-stats.big .stat-bar { height: 12px; border-radius: 6px; }
-.plane-sheet { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(16, 35, 58, .45); padding: 16px; }
+/* Fixed to the screen (not the scrolling hangar), so it opens where you are. */
+.screen-layer > .plane-sheet, .plane-sheet { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: rgba(16, 35, 58, .45); padding: 16px; flex: none; }
 .plane-sheet-card { width: min(560px, 100%); max-height: 100%; overflow: auto; background: var(--card); color: var(--ink); border-radius: 28px; padding: 22px 26px; box-shadow: 0 18px 50px rgba(0,0,0,.3); display: flex; flex-direction: column; gap: 6px; }
 .plane-swatch.big { height: 110px; border-radius: 20px; }
 .plane-sheet-title { margin: 0; font-size: 30px; font-weight: 900; }
@@ -482,3 +489,9 @@ svg { display: block; }
 .plane-note { margin: 4px 0 0; font-size: 16px; color: var(--ink-soft); }
 .plane-sheet-actions { display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; margin-top: 10px; }
 .plane-sheet-actions .btn[disabled] { opacity: .5; }
+
+/* Free Flight arrival pop-up */
+.arrival-icon { font-size: 56px; line-height: 1; margin-bottom: 4px; }
+.arrival-actions { flex-wrap: wrap; justify-content: center; }
+/* Keep the throttle's GO!/STOP labels clear of the flap lever. */
+.right-controls .lever { margin-left: 26px; }

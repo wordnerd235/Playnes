@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { AIRCRAFT } from "../src/data/aircraft.ts";
 import { AIRPORTS, airportByCode } from "../src/data/airports.ts";
 import { allLines, lineKey, speakable, LINES } from "../src/data/lines.ts";
-import { buy, canBuy, charterRewards, exportCode, freeLandingRewards, importCode, newProgress, takeoffBonus, total } from "../src/game/progress.ts";
+import { buy, canBuy, charterRewards, exportCode, freeLandingRewards, importCode, newProgress, ringRewards, takeoffBonus, total } from "../src/game/progress.ts";
 import { makeRunway, pickEnd, runwayCoords, runwayPoint } from "../src/game/runway.ts";
 import { bearing, distance, NM } from "../src/sim/geo.ts";
 
@@ -93,6 +93,12 @@ describe("progress", () => {
     expect(trip).toBe(8 + 4);
     expect(circuit).toBe(2 + 4);
     expect(total(freeLandingRewards({ from: null, to: "TRI", distanceNm: 0, stars: 0, butter: false, newLanding: true }))).toBe(2 + 20);
+  });
+
+  it("lesson rings pay per ring, plus a bonus for all of them", () => {
+    expect(total(ringRewards(12, 15))).toBe(12);
+    expect(total(ringRewards(15, 15))).toBe(15 + 5);
+    expect(ringRewards(0, 0)).toEqual([]);
   });
 
   it("first takeoff from an airport pays once", () => {

@@ -8,7 +8,7 @@ export interface CoursePoint {
 }
 
 /**
- * Hoops along a gentle 20-degree-bank S-turn path (right, left, right), rolling at half the
+ * Hoops along a gentle 18-degree-bank S-turn path (7 s apart) (right, left, right), rolling at half the
  * plane's roll rate. Full stick gives 45 degrees, so there is plenty of room to catch up.
  */
 export function sTurnCourse(start: LatLon, heading: number, speed: number, rollRate: number): CoursePoint[] {
@@ -20,8 +20,8 @@ export function sTurnCourse(start: LatLon, heading: number, speed: number, rollR
   let bank = 0;
   const rollStep = rollRate * 0.5 * 0.1;
   for (let i = 0; i < plan.length; i++) {
-    for (let k = 0; k < 55; k++) {
-      bank = clamp(plan[i] * 20, bank - rollStep, bank + rollStep);
+    for (let k = 0; k < 70; k++) {
+      bank = clamp(plan[i] * 18, bank - rollStep, bank + rollStep);
       hdg += ((9.81 * Math.tan(bank * DEG)) / speed / DEG) * 0.1;
       pos = destination(pos, hdg, speed * 0.1);
     }

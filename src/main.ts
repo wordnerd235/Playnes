@@ -5,11 +5,11 @@ import "./styles.css";
 
 import { Cartesian3, Math as CMath } from "cesium";
 import { aircraftById } from "./data/aircraft.ts";
-import { airportByCode } from "./data/airports.ts";
+import { airportByCode, type Airport } from "./data/airports.ts";
 import { LINES, type Line } from "./data/lines.ts";
 import { Audio } from "./audio/audio.ts";
 import { FlightSession, type FlightResult, type FreeLanding, type FreeSnapshot, type Mission } from "./game/flight.ts";
-import { charterPlaneId, charterRewards, freeLandingRewards, landingRewards, loadProgress, takeoffBonus, total, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
+import { charterPlaneId, charterRewards, freeLandingRewards, landingRewards, loadProgress, ringRewards, takeoffBonus, total, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
 import { googleKey, ionToken, loadSettings, resolveWorld, saveSettings, type Settings } from "./game/settings.ts";
 import { Controls } from "./input/controls.ts";
 import { destination } from "./sim/geo.ts";
@@ -170,6 +170,7 @@ class Game implements ScreenHost {
     flight.onDone = (r) => this.finishFlight(r);
     flight.onLanded = (l) => this.freeLanding(l);
     flight.onTakeoff = (code) => this.takeoff(code);
+    flight.onArrived = (a) => this.showArrival(a);
     this.flightPlane = ac.id;
     this.flightBonuses = [];
     flight
@@ -190,7 +191,7 @@ class Game implements ScreenHost {
 
   completeLesson1(): void {
     const reward = this.markLesson("l1");
-    this.screens.debrief({ mission: { kind: "lesson", lesson: "l2", airport: this.progress.currentAirport }, completed: true, stars: 0, landing: null, sinkFpm: null, centerline: false, zone: false, distanceNm: 0 }, reward, false, () => this.screens.school(), () => this.screens.home());
+    this.screens.debrief({ mission: { kind: "lesson", lesson: "l2", airport: this.progress.currentAirport }, completed: true, stars: 0, landing: null, sinkFpm: null, centerline: false, zone: false, distanceNm: 0, hoopsPassed: 0, hoopsTotal: 0 }, reward, false, () => this.screens.school(), () => this.screens.home());
   }
 
   // ----- flights -----
@@ -229,6 +230,12 @@ class Game implements ScreenHost {
       this.saveProgress();
     } else if (r.mission.kind === "lesson") {
       rewards = this.markLesson(r.mission.lesson);
+      const rings = ringRewards(r.hoopsPassed, r.hoopsTotal);
+      if (rings.length) {
+        rewards.push(...rings);
+        p.wings += total(rings);
+        this.saveProgress();
+      }
       if (r.landing) {
         // Good landings pay in lessons too (same as charters).
         const extra = landingRewards(r.stars, r.landing === "butter");
@@ -332,6 +339,7 @@ class Game implements ScreenHost {
 
   private togglePause(): void {
     if (!this.flight) return;
+    if (this.pauseEl?.classList.contains("arrival")) return;
     if (this.flight.paused) return this.hidePause();
     this.flight.setPaused(true);
     this.audio.stopVoice();
@@ -346,6 +354,34 @@ class Game implements ScreenHost {
         this.endFlight();
         this.screens.home();
       }
+    });
+    app.append(el);
+    this.pauseEl = el;
+  }
+
+  /** Free Flight: stopped safely on the runway. Welcome, and what next? */
+  private showArrival(a: Airport): void {
+    const flight = this.flight;
+    if (!flight) return;
+    this.pauseEl?.remove();
+    const el = document.createElement("div");
+    el.className = "pause-overlay arrival";
+    el.innerHTML = `<div class="pause-card"><div class="arrival-icon">${a.icon}</div><h1>Welcome to ${a.spoken}!</h1><p class="pause-note">You landed safely at ${a.name}. What would you like to do next?</p><div class="pause-actions arrival-actions"><button type="button" class="btn secondary" data-a="home">Go home</button><button type="button" class="btn secondary" data-a="pick">Pick another airport</button><button type="button" class="btn primary" data-a="again">Fly again from here</button></div></div>`;
+    el.addEventListener("click", (e) => {
+      const act = (e.target as HTMLElement).closest("button")?.dataset.a;
+      if (!act) return;
+      this.audio.sfx("click");
+      el.remove();
+      this.pauseEl = null;
+      if (act === "again") {
+        flight.flyAgainFromHere();
+        return;
+      }
+      // The trip is over: no "keep flying" save for it.
+      this.endFlight();
+      this.clearFreeSave();
+      if (act === "pick") this.screens.freeFlight();
+      else this.screens.home();
     });
     app.append(el);
     this.pauseEl = el;

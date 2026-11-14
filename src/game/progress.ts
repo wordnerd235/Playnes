@@ -141,7 +141,18 @@ export const REWARDS = {
   /** One-time bonuses per airport. */
   newLanding: 20,
   newTakeoff: 10,
+  /** Flight School hoops: per hoop flown through, and a bonus for getting every one. */
+  ring: 1,
+  allRings: 5,
 } as const;
+
+/** Wings for hoops flown through in a lesson. */
+export function ringRewards(passed: number, totalRings: number): Reward[] {
+  if (totalRings <= 0) return [];
+  const r: Reward[] = [{ label: `Rings: ${passed} of ${totalRings}`, wings: passed * REWARDS.ring }];
+  if (passed === totalRings) r.push({ label: "Every ring!", wings: REWARDS.allRings });
+  return r;
+}
 
 /** Landing stars and a butter-smooth touchdown bonus. */
 export function landingRewards(stars: number, butter: boolean, free = false): Reward[] {

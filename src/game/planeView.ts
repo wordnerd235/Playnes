@@ -4,7 +4,7 @@
 import { Cartesian3, Cartesian4, Cartographic, Color, Matrix3, Matrix4, Model, Transforms, type ModelNode } from "cesium";
 import type { AircraftDef } from "../data/aircraft.ts";
 import { angleDiff, clamp, DEG, destination, type LatLon } from "../sim/geo.ts";
-import type { FlightState } from "../sim/physics.ts";
+import { speedOfSound, type FlightState } from "../sim/physics.ts";
 import type { World } from "../world/world.ts";
 
 export type CameraMode = "chase" | "cockpit" | "window";
@@ -23,6 +23,7 @@ const FLAP_DEG = [0, 10, 20, 35];
 export class PlaneView {
   model: Model | null = null;
   private shadow: Model | null = null;
+  private vapor: Model | null = null;
   private nodes: Record<string, ModelNode | null> = {};
   private originals: Record<string, Matrix4> = {};
   private propT = new Cartesian3();
@@ -62,6 +63,45 @@ export class PlaneView {
     this.shadow = await Model.fromGltfAsync({ url: "./models/shadow.glb", color: Color.WHITE.withAlpha(0.8) });
     scene.primitives.add(this.shadow);
     this.world.exclude.push(this.shadow);
+    // Only playnes that can get close to the speed of sound need the vapor cone.
+    if (this.ac.mmo >= 0.95) {
+      this.vapor = await Model.fromGltfAsync({ url: "./models/vaporcone.glb", color: Color.WHITE.withAlpha(0) });
+      this.vapor.show = false;
+      scene.primitives.add(this.vapor);
+      this.world.exclude.push(this.vapor);
+    }
+  }
+
+  /**
+   * Vapor cone: near Mach 1 the air around the playne squeezes so hard that water vapor
+   * condenses into a white cone (like the famous photos of fighters at the sound barrier).
+   */
+  private updateVapor(s: FlightState): void {
+    const v = this.vapor;
+    if (!v || !this.model) return;
+    const mach = s.speed / speedOfSound(s.alt);
+    const strength = clamp(1 - Math.abs(mach - 0.995) / 0.06, 0, 1);
+    v.show = strength > 0.02 && this.model.show && !s.onGround;
+    if (!v.show) return;
+    const flicker = 0.8 + 0.2 * Math.random();
+    v.color = Color.WHITE.withAlpha(Math.min(1, strength * 1.3) * flicker);
+    const D = this.ac.shape.fuselageDiameter;
+    const L = this.ac.shape.length;
+    const f = frameVectors(s, s.alt, s.heading, s.pitch, s.bank);
+    const left = Cartesian3.negate(f.right, new Cartesian3());
+    const centre = Cartesian3.add(
+      f.pos,
+      Cartesian3.add(Cartesian3.multiplyByScalar(f.fwd, L * 0.04, new Cartesian3()), Cartesian3.multiplyByScalar(f.up, Math.max(0.6, D * 0.42) + D / 2, new Cartesian3()), new Cartesian3()),
+      new Cartesian3(),
+    );
+    const k = Math.max(this.ac.shape.span * 0.42, D * 2.2) * (0.97 + 0.06 * Math.random());
+    // prettier-ignore
+    v.modelMatrix = new Matrix4(
+      f.fwd.x * k, left.x * k, f.up.x * k, centre.x,
+      f.fwd.y * k, left.y * k, f.up.y * k, centre.y,
+      f.fwd.z * k, left.z * k, f.up.z * k, centre.z,
+      0, 0, 0, 1,
+    );
   }
 
   resetCameraHeading(h: number): void {
@@ -83,6 +123,7 @@ export class PlaneView {
     if (!this.model) return;
     this.time += dt;
     this.model.modelMatrix = frameMatrix(s, s.alt, s.heading, s.pitch, s.bank, 1);
+    this.updateVapor(s);
     const k = 1 - Math.exp(-dt * 8);
     this.flapDeg += (FLAP_DEG[s.flaps] - this.flapDeg) * (1 - Math.exp(-dt * 1.5));
     this.ail += (clamp(input.roll, -1, 1) * 18 - this.ail) * k;
@@ -217,6 +258,7 @@ export class PlaneView {
     const scene = this.world.widget.scene;
     if (this.model) scene.primitives.remove(this.model);
     if (this.shadow) scene.primitives.remove(this.shadow);
+    if (this.vapor) scene.primitives.remove(this.vapor);
   }
 }
 
