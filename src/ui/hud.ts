@@ -9,6 +9,12 @@ import type { Airport } from "../data/airports.ts";
 
 export type Prompt = "radio" | "throttle" | "throttle-back" | "pull" | "gear" | "flaps" | "brake" | "steer-left" | "steer-right" | null;
 
+export interface TourStep {
+  /** CSS selector inside the HUD (null = a message in the middle of the screen). */
+  target: string | null;
+  line: Line;
+}
+
 export interface HudData {
   speedKt: number;
   /** Ground speed (true airspeed over the ground, no wind). */
@@ -28,6 +34,8 @@ export interface HudData {
   warp: boolean;
   terrain: boolean;
   hoopsLeft: number | null;
+  /** Cruising altitude for this playne/flight (feet): the height bar fills toward it. */
+  cruiseAltFt: number;
   /** Speedbrakes: null = this playne has none, else whether they're out. */
   airbrake: boolean | null;
   /** Fastest indicated airspeed (kt) allowed for flap notches 1, 2 and FULL. */
@@ -60,6 +68,9 @@ export class Hud {
   private leverHandle: HTMLElement;
   private buttons: Record<string, HTMLElement> = {};
   private flapLever!: HTMLElement;
+  private altBox!: HTMLElement;
+  private altFill!: HTMLElement;
+  private altTarget!: HTMLElement;
   private flapHandle!: HTMLElement;
   private flapLevel = 0;
   private airMode = false;
@@ -100,7 +111,7 @@ export class Hud {
         <path d="M-30 4 L-10 4 L0 12 L10 4 L30 4" fill="none" stroke="#ffcc00" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`;
     this.ball = left.querySelector(".att-ball") as SVGGElement;
-    const speedBox = el("div", "gauge", `<div class="gauge-k">SPEED</div><div class="gauge-v">0</div><div class="gauge-u">knots</div><div class="gauge-sub">ground 0</div>`);
+    const speedBox = el("div", "gauge gauge-speed", `<div class="gauge-k">SPEED</div><div class="gauge-v">0</div><div class="gauge-u">knots</div><div class="gauge-sub">ground 0</div>`);
     this.speed = speedBox.querySelector(".gauge-v") as HTMLElement;
     this.groundSpeed = speedBox.querySelector(".gauge-sub") as HTMLElement;
     left.append(speedBox);
@@ -115,10 +126,14 @@ export class Hud {
     center.append(this.fromLabel, track, this.toLabel);
 
     const right = el("div", "hud-instruments right");
-    const altBox = el("div", "gauge", `<div class="gauge-k">HEIGHT</div><div class="gauge-v">0</div><div class="gauge-u">feet</div>`);
+    const altBox = el("div", "gauge gauge-alt", `<div class="gauge-k">HEIGHT</div><div class="gauge-v">0</div><div class="gauge-u">feet</div><div class="alt-bar"><div class="alt-fill"></div></div><div class="alt-target"></div>`);
     this.alt = altBox.querySelector(".gauge-v") as HTMLElement;
+    this.altBox = altBox;
+    this.altFill = altBox.querySelector(".alt-fill") as HTMLElement;
+    this.altTarget = altBox.querySelector(".alt-target") as HTMLElement;
     const pause = this.button("pause", ICONS.pause, "Pause", "small");
-    right.append(altBox, pause);
+    const help = this.button("help", `<svg viewBox="0 0 24 24" aria-hidden="true"><text x="12" y="18" text-anchor="middle" font-size="18" font-weight="900" fill="currentColor" font-family="system-ui, sans-serif">?</text></svg>`, "Help", "small");
+    right.append(altBox, help, pause);
     top.append(left, center, right);
 
     // Caption
@@ -283,6 +298,77 @@ export class Hud {
     return lever;
   }
 
+  /**
+   * Interface tour: a ring around each part of the screen with a bubble explaining it (the
+   * co-pilot reads it out). Steps whose element isn't on screen are skipped.
+   */
+  runTour(steps: TourStep[], say: (line: Line) => void): Promise<void> {
+    return new Promise((resolve) => {
+      const live = steps.filter((st) => {
+        if (!st.target) return true;
+        const e = this.root.querySelector<HTMLElement>(st.target);
+        return !!e && !e.closest("[hidden]") && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== "hidden";
+      });
+      const overlay = el("div", "tour");
+      const ring = el("div", "tour-ring");
+      const bubble = el("div", "tour-bubble");
+      overlay.append(ring, bubble);
+      document.body.append(overlay);
+      // The bubble already shows what the co-pilot says.
+      this.root.classList.add("touring");
+      let i = 0;
+      const finish = () => {
+        overlay.remove();
+        this.root.classList.remove("touring");
+        window.removeEventListener("resize", show);
+        resolve();
+      };
+      function place(): void {
+        const st = live[i];
+        const target = st.target ? document.querySelector<HTMLElement>(`.hud ${st.target}`) : null;
+        const W = innerWidth;
+        const H = innerHeight;
+        if (target) {
+          const r = target.getBoundingClientRect();
+          const pad = 8;
+          Object.assign(ring.style, { display: "block", left: `${r.left - pad}px`, top: `${r.top - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
+          const bw = Math.min(380, W - 32);
+          bubble.style.width = `${bw}px`;
+          const below = r.top + r.height / 2 < H / 2;
+          const bx = Math.max(16, Math.min(W - bw - 16, r.left + r.width / 2 - bw / 2));
+          bubble.style.left = `${bx}px`;
+          bubble.style.top = below ? `${Math.min(H - 200, r.bottom + 18)}px` : "";
+          bubble.style.bottom = below ? "" : `${Math.max(16, H - r.top + 18)}px`;
+        } else {
+          ring.style.display = "none";
+          const bw = Math.min(440, W - 32);
+          Object.assign(bubble.style, { width: `${bw}px`, left: `${(W - bw) / 2}px`, top: `${H * 0.32}px`, bottom: "" });
+        }
+      }
+      function show(): void {
+        const st = live[i];
+        bubble.innerHTML = `<div class="tour-text">${st.line.text}</div><div class="tour-foot"><span class="tour-count">${i + 1} / ${live.length}</span><span class="tour-btns">${i > 0 ? '<button type="button" class="btn secondary" data-t="back">Back</button>' : '<button type="button" class="btn link" data-t="skip">Skip</button>'}<button type="button" class="btn primary" data-t="next">${i === live.length - 1 ? "Let's fly!" : "Next"}</button></span></div>`;
+        place();
+        say(st.line);
+      }
+      overlay.addEventListener("click", (e) => {
+        const t = (e.target as HTMLElement).closest("button")?.dataset.t;
+        if (t === "next") {
+          if (i === live.length - 1) finish();
+          else {
+            i++;
+            show();
+          }
+        } else if (t === "back" && i > 0) {
+          i--;
+          show();
+        } else if (t === "skip") finish();
+      });
+      window.addEventListener("resize", show);
+      show();
+    });
+  }
+
   /** Briefly flash a control (e.g. the flap lever when the playne is too fast for more flaps). */
   flash(id: string): void {
     const b = this.buttons[id];
@@ -426,6 +512,12 @@ export class Hud {
     this.speed.textContent = String(Math.round(d.speedKt));
     this.groundSpeed.textContent = `ground ${Math.round(d.groundKt)}`;
     this.alt.textContent = d.altFt >= 18000 ? `FL${Math.round(d.altFt / 100)}` : String(Math.round(d.altFt / 10) * 10);
+    // Progress toward cruising height.
+    const frac = Math.max(0, Math.min(1, d.altFt / Math.max(1, d.cruiseAltFt)));
+    this.altFill.style.width = `${Math.round(frac * 100)}%`;
+    const cruising = frac >= 0.97;
+    this.altBox.classList.toggle("cruising", cruising);
+    this.altTarget.textContent = cruising ? "cruising!" : `cruise ${d.cruiseAltFt >= 18000 ? `FL${Math.round(d.cruiseAltFt / 100)}` : d.cruiseAltFt.toLocaleString()}`;
     this.ball.setAttribute("transform", `rotate(${-d.bank}) translate(0 ${Math.max(-40, Math.min(40, d.pitch * 1.6))})`);
     if (d.progress !== null) {
       const pct = Math.max(0, Math.min(1, d.progress)) * 100;

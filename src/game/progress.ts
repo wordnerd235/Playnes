@@ -17,6 +17,8 @@ export interface Progress {
   flights: number;
   butterLandings: number;
   unlockAll: boolean;
+  /** The interface tour has been shown once. */
+  tourDone: boolean;
 }
 
 const KEY = "playnes.progress.v1";
@@ -35,6 +37,7 @@ export function newProgress(): Progress {
     flights: 0,
     butterLandings: 0,
     unlockAll: false,
+    tourDone: false,
   };
 }
 

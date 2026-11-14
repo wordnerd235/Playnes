@@ -32,6 +32,8 @@ const path = require("path");
   await step("home", async () => {
     await page.click(".big-go");
     await page.waitForSelector(".home-grid", { timeout: 60000 });
+    // The interface tour is checked on its own; skip it here.
+    await page.evaluate(() => (window.playnes.progress.tourDone = true));
     await page.waitForTimeout(2500);
     await shot(page, "02-home");
   });

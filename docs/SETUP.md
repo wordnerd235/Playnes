@@ -46,6 +46,8 @@ All the numbers live in `REWARDS` in `src/game/progress.ts`.
 - **Slowing down, like real pilots:** pull the throttle back first (idle). Jets have **Air brake** (the Brakes button turns into it in the air) to slow down or come down faster; on final, if you're much too fast, the co-pilot puts them out for you. Lower the flaps as the speed drops. After touchdown with the throttle at idle, the **ground spoilers, thrust reversers and autobrakes** do the rest (a jet stops in about 300-500 m). Holding Brakes on the ground still works too.
 - **Emergency landings:** put the wheels down, pull the power back and slow to landing speed, and you can land on flat, open, dry ground (no trees, buildings or water), gently and with the wings level. With crashes on, a bad spot is a crash; with crashes off, the co-pilot bounces you back up.
 - **Camera button:** chase view → cockpit → passenger window → chase.
+- **? button** (next to Pause, or the H key): a quick tour of every gauge and control, read out by the co-pilot. It also runs once automatically on the very first flight.
+- The **HEIGHT** gauge has a bar that fills toward the playne's cruising altitude and turns green ("cruising!") when you get there.
 - The big map's **Clear route** button removes a destination you picked.
 - **F-16 Fighting Falcon** (900 Wings): about Mach 1.2 down low and Mach 1.8 up high, 40,000 ft in under two minutes, and a sonic boom when you pass the speed of sound. One seat, so it's Free Flight only (charters use your best playne with seats).
 

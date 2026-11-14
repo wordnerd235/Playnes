@@ -16,6 +16,8 @@ const path = require("path");
   await page.goto(base);
   await page.click(".big-go");
   await page.waitForSelector(".home-grid", { timeout: 60000 });
+  // The interface tour is checked on its own; skip it here.
+  await page.evaluate(() => (window.playnes.progress.tourDone = true));
   await page.evaluate(() => window.playnes.startMission({ kind: "lesson", lesson: "l2", airport: "TRI" }));
   await page.waitForFunction(() => window.playnes.flight && window.playnes.flight.phase === "l2go", null, { timeout: 60000 });
   await page.evaluate(() => (window.playnes.flight.timeScale = 4));

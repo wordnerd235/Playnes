@@ -230,6 +230,8 @@ export class FlightSession {
   private runwayPrims: Primitive[] = [];
   // Free Flight
   onLanded: (l: FreeLanding) => void = () => {};
+  /** The "?" button: show the interface tour. */
+  onHelp: () => void = () => {};
   /** Free Flight: stopped safely on a runway after landing. */
   onArrived: (a: Airport) => void = () => {};
   /** First takeoff from an airport earns a bonus: returns the Wings (0 if not new). */
@@ -1261,6 +1263,9 @@ export class FlightSession {
         this.view.mode = this.view.mode === "chase" ? "cockpit" : this.view.mode === "cockpit" && this.ac.seats > 1 ? "window" : "chase";
         this.view.resetLook();
         break;
+      case "help":
+        this.onHelp();
+        break;
       case "radio":
         if (this.phase === "lineup") this.radioTakeoff();
         else if (this.phase === "approach") this.radioLanding();
@@ -1810,6 +1815,7 @@ export class FlightSession {
       terrain: this.mem.terrainWarning,
       hoopsLeft: this.hoops.length ? this.hoops.length - this.hoopIndex : null,
       airbrake: this.p.speedbrakes ? this.speedbrakeOut : null,
+      cruiseAltFt: this.ac.cruiseAltFt,
       flapLimitsKt: [1, 2, 3].map((n) => this.flapLimit(n) / KT),
     });
   }

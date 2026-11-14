@@ -14,6 +14,7 @@ import { googleKey, ionToken, loadSettings, resolveWorld, saveSettings, type Set
 import { Controls } from "./input/controls.ts";
 import { destination } from "./sim/geo.ts";
 import { Hud } from "./ui/hud.ts";
+import { TOUR } from "./ui/tour.ts";
 import { LESSONS, Screens, type ScreenHost } from "./ui/screens.ts";
 import { createWorld, setGraphicsRecoveredHandler, type World } from "./world/world.ts";
 
@@ -171,6 +172,7 @@ class Game implements ScreenHost {
     flight.onLanded = (l) => this.freeLanding(l);
     flight.onTakeoff = (code) => this.takeoff(code);
     flight.onArrived = (a) => this.showArrival(a);
+    flight.onHelp = () => void this.showTour();
     this.flightPlane = ac.id;
     this.flightBonuses = [];
     flight
@@ -179,6 +181,11 @@ class Game implements ScreenHost {
       .then(() => {
         if (this.flight !== flight) return;
         this.screens.hide();
+        // First flight ever: show what everything on the screen does.
+        if (!this.progress.tourDone && !(m.kind === "sandbox" && m.resume)) {
+          void this.showTour();
+          return;
+        }
         // A resumed Free Flight starts paused, so the pilot can get ready.
         if (m.kind === "sandbox" && m.resume) this.togglePause();
       })
@@ -338,7 +345,7 @@ class Game implements ScreenHost {
   private pauseEl: HTMLElement | null = null;
 
   private togglePause(): void {
-    if (!this.flight) return;
+    if (!this.flight || this.touring) return;
     if (this.pauseEl?.classList.contains("arrival")) return;
     if (this.flight.paused) return this.hidePause();
     this.flight.setPaused(true);
@@ -357,6 +364,22 @@ class Game implements ScreenHost {
     });
     app.append(el);
     this.pauseEl = el;
+  }
+
+  /** Interface tour (paused while it runs). */
+  private touring = false;
+  private async showTour(): Promise<void> {
+    const flight = this.flight;
+    if (!flight || this.touring || this.pauseEl) return;
+    this.touring = true;
+    flight.setPaused(true);
+    this.audio.stopVoice();
+    await this.hud.runTour(TOUR, (line) => void this.audio.say(line, { interrupt: true }));
+    this.audio.stopVoice();
+    this.touring = false;
+    this.progress.tourDone = true;
+    this.saveProgress();
+    if (this.flight === flight && !this.pauseEl) flight.setPaused(false);
   }
 
   /** Free Flight: stopped safely on the runway. Welcome, and what next? */

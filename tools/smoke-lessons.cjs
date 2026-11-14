@@ -13,6 +13,8 @@ const path = require("path");
   await page.goto(base);
   await page.click(".big-go");
   await page.waitForSelector(".home-grid", { timeout: 60000 });
+  // The interface tour is checked on its own; skip it here.
+  await page.evaluate(() => (window.playnes.progress.tourDone = true));
   for (const lesson of ["l2", "l3", "l4", "l5"]) {
     const t = Date.now();
     try {

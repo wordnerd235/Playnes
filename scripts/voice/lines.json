@@ -420,6 +420,102 @@
   "speak": "Our first takeoff from this airport! Bonus Wings!"
  },
  {
+  "id": "2125fef3",
+  "who": "copilot",
+  "text": "Let's learn the buttons and gauges! Tap Next to see each one.",
+  "speak": "Let's learn the buttons and gauges! Tap Next to see each one."
+ },
+ {
+  "id": "faf82d1b",
+  "who": "copilot",
+  "text": "This is our speed, in knots. The small number underneath is how fast we cross the ground.",
+  "speak": "This is our speed, in knots. The small number underneath is how fast we cross the ground."
+ },
+ {
+  "id": "4f161199",
+  "who": "copilot",
+  "text": "This ball shows the sky and the ground. It tells us if our wings are level and if the nose is up or down.",
+  "speak": "This ball shows the sky and the ground. It tells us if our wings are level and if the nose is up or down."
+ },
+ {
+  "id": "346fbbdf",
+  "who": "copilot",
+  "text": "This is our height, in feet. The bar fills up as we climb to cruising height.",
+  "speak": "This is our height, in feet. The bar fills up as we climb to cruising height."
+ },
+ {
+  "id": "2ae26dea",
+  "who": "copilot",
+  "text": "This shows our trip. The little playne moves from where we started to where we're going.",
+  "speak": "This shows our trip. The little plane moves from where we started to where we're going."
+ },
+ {
+  "id": "5ba95c6f",
+  "who": "copilot",
+  "text": "The map shows airports and fun places nearby. Tap it to open the big map.",
+  "speak": "The map shows airports and fun places nearby. Tap it to open the big map."
+ },
+ {
+  "id": "b295449f",
+  "who": "copilot",
+  "text": "This is the yoke. Slide it left or right to turn. Pull it down to climb, push it up to go down.",
+  "speak": "This is the yoke. Slide it left or right to turn. Pull it down to climb, push it up to go down."
+ },
+ {
+  "id": "148f5597",
+  "who": "copilot",
+  "text": "This is the throttle. Push it up for more power. Pull it down to slow down.",
+  "speak": "This is the throttle. Push it up for more power. Pull it down to slow down."
+ },
+ {
+  "id": "ccfe3fb5",
+  "who": "copilot",
+  "text": "This is the flap lever. Flaps help us fly slowly for takeoff and landing. Red notches mean we're too fast for them.",
+  "speak": "This is the flap lever. Flaps help us fly slowly for takeoff and landing. Red notches mean we're too fast for them."
+ },
+ {
+  "id": "cb778de2",
+  "who": "copilot",
+  "text": "This button puts the wheels up after takeoff, and down before landing.",
+  "speak": "This button puts the wheels up after takeoff, and down before landing."
+ },
+ {
+  "id": "4ed6f58c",
+  "who": "copilot",
+  "text": "Hold the brakes to stop on the ground. In jets, it becomes the air brake when we're flying.",
+  "speak": "Hold the brakes to stop on the ground. In jets, it becomes the air brake when we're flying."
+ },
+ {
+  "id": "b35480a5",
+  "who": "copilot",
+  "text": "The radio lets us talk to the tower before takeoff and landing.",
+  "speak": "The radio lets us talk to the tower before takeoff and landing."
+ },
+ {
+  "id": "6f25a89e",
+  "who": "copilot",
+  "text": "The camera button changes the view. Behind the playne, the cockpit, or a passenger window.",
+  "speak": "The camera button changes the view. Behind the plane, the cockpit, or a passenger window."
+ },
+ {
+  "id": "85a7eee2",
+  "who": "copilot",
+  "text": "Drag the eye to look all around. The arrow button puts the view back.",
+  "speak": "Drag the eye to look all around. The arrow button puts the view back."
+ },
+ {
+  "id": "4276c245",
+  "who": "copilot",
+  "text": "Tap the question mark any time to see this again, and the pause button to take a break.",
+  "speak": "Tap the question mark any time to see this again, and the pause button to take a break."
+ },
+ {
+  "id": "da06688f",
+  "who": "copilot",
+  "text": "That's everything! Let's fly!",
+  "speak": "That's everything! Let's fly!"
+ },
+ {
   "id": "7d31956f",
   "who": "copilot",
   "text": "This is your playne! Tap each part to learn its name.",

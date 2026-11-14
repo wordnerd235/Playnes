@@ -4,7 +4,7 @@
 import { clamp } from "../sim/geo.ts";
 
 /** "flaps" lowers the flaps one notch, "flaps-up" raises them one notch. */
-export type ControlEvent = "gear" | "flaps" | "flaps-up" | "speedbrake" | "camera" | "radio" | "pause" | "throttle-full";
+export type ControlEvent = "gear" | "flaps" | "flaps-up" | "speedbrake" | "camera" | "radio" | "pause" | "help" | "throttle-full";
 
 export interface ControlState {
   roll: number;
@@ -121,6 +121,7 @@ export class Controls {
         if (k === "c") this.emit("camera");
         if (k === "r" || k === "t") this.emit("radio");
         if (k === "p" || k === "Escape") this.emit("pause");
+        if (k === "h" || k === "?") this.emit("help");
       }
       this.keys.add(k);
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " ", "PageUp", "PageDown"].includes(k)) e.preventDefault();
