@@ -4,7 +4,7 @@
 import { AIRCRAFT, aircraftById, type AircraftDef } from "../data/aircraft.ts";
 import { AIRPORTS, airportByCode } from "../data/airports.ts";
 import { LINES, PASSENGERS, tpl, type Line, type Passenger } from "../data/lines.ts";
-import type { FlightResult, LessonId, Mission } from "../game/flight.ts";
+import type { FlightResult, FreeSnapshot, LessonId, Mission } from "../game/flight.ts";
 import { buy, canBuy, exportCode, importCode, owns, type Progress, type Reward } from "../game/progress.ts";
 import type { Settings } from "../game/settings.ts";
 import { distance, NM } from "../sim/geo.ts";
@@ -22,6 +22,8 @@ export interface ScreenHost {
   saveProgress(): void;
   saveSettings(reloadWorld: boolean): void;
   startMission(m: Mission): void;
+  freeSave: FreeSnapshot | null;
+  clearFreeSave(): void;
   completeLesson1(): void;
 }
 
@@ -101,7 +103,7 @@ export class Screens {
         h("div.home-grid", {}, [
           card("school", ICONS.school, "Flight School", nextLesson ? `Next: ${nextLesson.title}` : "All done! ⭐", () => this.school()),
           card("charter", ICONS.map, "Charter Flights", p.graduated ? "Fly passengers" : "Fly passengers", () => this.charters()),
-          card("free", ICONS.compass, "Free Flight", "Explore the map", () => this.host.startMission({ kind: "sandbox", airport: p.currentAirport })),
+          card("free", ICONS.compass, "Free Flight", this.host.freeSave ? "Keep flying or pick an airport" : "Explore the map", () => this.freeFlight()),
           card("hangar", ICONS.plane, "Hangar", `${plane.maker} ${plane.model}`, () => this.hangar()),
         ]),
         this.host.worldKind === "basic"
@@ -222,6 +224,62 @@ export class Screens {
         this.topBar("Charter Flights", () => this.home()),
         h("p.hint", {}, `Flying the ${plane.maker} ${plane.model} from ${here.spoken}. Tap a card, then tap again to go!`),
         h("div.charter-row", {}, cards),
+      ]),
+    );
+  }
+
+  // ------------------------------------------------------------ free flight
+
+  freeFlight(): void {
+    const p = this.host.progress;
+    const save = this.host.freeSave;
+    let resume: HTMLElement | null = null;
+    if (save) {
+      let near = AIRPORTS[0];
+      for (const a of AIRPORTS) if (distance(save, a) < distance(save, near)) near = a;
+      const nm = Math.round(distance(save, near) / NM);
+      const plane = aircraftById(save.aircraft);
+      const where = save.onGround && nm < 2 ? `On the ground at ${near.spoken}` : `${nm} nm from ${near.spoken}, ${Math.round(save.alt / 0.3048 / 100) * 100} ft`;
+      resume = h("div.free-resume", {}, [
+        h("button.free-resume-go", {
+          type: "button",
+          onclick: () => {
+            this.host.sfx("click");
+            this.host.startMission({ kind: "sandbox", airport: save.airport, resume: save });
+          },
+        }, [
+          h("span.free-resume-icon", { html: ICONS.plane }),
+          h("span.free-resume-text", {}, [h("b", {}, "Keep flying"), h("span", {}, `${plane.maker} ${plane.model} · ${where}`)]),
+        ]),
+        h("button.btn.link.free-resume-clear", {
+          type: "button",
+          onclick: () => {
+            this.host.clearFreeSave();
+            this.freeFlight();
+          },
+        }, "Start over"),
+      ]);
+    }
+    const grid = h("div.airport-grid", {}, AIRPORTS.map((a) =>
+      h(`button.airport-card${a.code === p.currentAirport ? ".here" : ""}`, {
+        type: "button",
+        onclick: () => {
+          this.host.sfx("click");
+          this.host.startMission({ kind: "sandbox", airport: a.code });
+        },
+      }, [
+        h("span.airport-icon", {}, a.icon),
+        h("span.airport-code", {}, a.code),
+        h("span.airport-name", {}, a.spoken),
+        h("span.airport-blurb", {}, a.code === p.currentAirport ? "You are here" : a.home ? "Home base" : a.blurb),
+      ]),
+    ));
+    this.show(
+      h("div.free-pick", {}, [
+        this.topBar("Free Flight", () => this.home()),
+        resume,
+        h("p.hint", {}, "Pick an airport to take off from:"),
+        grid,
       ]),
     );
   }

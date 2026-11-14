@@ -52,7 +52,33 @@ export type LessonId = "l2" | "l3" | "l4" | "l5";
 export type Mission =
   | { kind: "charter"; from: string; to: string; passenger: Passenger }
   | { kind: "lesson"; lesson: LessonId; airport: string }
-  | { kind: "sandbox"; airport: string };
+  | { kind: "sandbox"; airport: string; resume?: FreeSnapshot };
+
+/** A saved Free Flight, so the player can leave to the menu and come back later. */
+export interface FreeSnapshot {
+  v: 1;
+  aircraft: string;
+  airport: string;
+  worldKind: string;
+  /** Runway height at `airport` in the world it was saved in (to re-anchor heights in another world). */
+  refHeight: number;
+  lat: number;
+  lon: number;
+  alt: number;
+  heading: number;
+  pitch: number;
+  bank: number;
+  gamma: number;
+  speed: number;
+  vs: number;
+  throttle: number;
+  flaps: number;
+  gearDown: boolean;
+  onGround: boolean;
+  navTarget: string | null;
+  landedAt: string | null;
+  savedAt: number;
+}
 
 export interface FlightResult {
   mission: Mission;
@@ -219,7 +245,7 @@ export class FlightSession {
 
   async start(): Promise<void> {
     const m = this.mission;
-    if (m.kind === "sandbox") return this.startSandbox(m.airport);
+    if (m.kind === "sandbox") return this.startSandbox(m.airport, m.resume);
     const fromAp = airportByCode(m.kind === "charter" ? m.from : m.airport);
     const toAp = airportByCode(m.kind === "charter" ? m.to : m.airport);
     const course = m.kind === "charter" ? bearing(fromAp, toAp) : 0;
@@ -618,7 +644,7 @@ export class FlightSession {
 
   // ------------------------------------------------------------------ free flight
 
-  private async startSandbox(code: string): Promise<void> {
+  private async startSandbox(code: string, resume?: FreeSnapshot): Promise<void> {
     const pts: LatLon[] = AIRPORTS.flatMap((a) => a.runway.ends);
     const hs = await this.d.world.sampleHeights(pts);
     if (this.destroyed) return;
@@ -631,7 +657,68 @@ export class FlightSession {
     this.d.hud.show("FREE", "—");
     this.d.hud.setSandbox(true);
     this.startFreeAt(airportByCode(code));
-    void this.say(LINES.freeIntro);
+    if (resume) this.applySnapshot(resume);
+    else void this.say(LINES.freeIntro);
+  }
+
+  /** Where the Free Flight is right now (null when not in a resumable state). */
+  snapshot(): FreeSnapshot | null {
+    if (this.mission.kind !== "sandbox" || this.phase !== "free" || !this.s) return null;
+    const s = this.s;
+    return {
+      v: 1,
+      aircraft: this.ac.id,
+      airport: this.dep.airport.code,
+      worldKind: this.d.world.kind,
+      refHeight: this.dep.hEnd,
+      lat: s.lat,
+      lon: s.lon,
+      alt: s.alt,
+      heading: s.heading,
+      pitch: s.pitch,
+      bank: s.bank,
+      gamma: s.gamma,
+      speed: s.speed,
+      vs: s.vs,
+      throttle: s.throttle,
+      flaps: s.flaps,
+      gearDown: s.gearDown,
+      onGround: s.onGround,
+      navTarget: this.navTarget?.code ?? null,
+      landedAt: this.landedAt,
+      savedAt: Date.now(),
+    };
+  }
+
+  private applySnapshot(r: FreeSnapshot): void {
+    const s = this.s;
+    // Different worlds measure height differently (sea level vs. the ellipsoid): re-anchor.
+    const shift = r.worldKind === this.d.world.kind ? 0 : this.dep.hEnd - r.refHeight;
+    Object.assign(s, {
+      lat: r.lat,
+      lon: r.lon,
+      alt: r.alt + shift,
+      heading: r.heading,
+      pitch: r.pitch,
+      bank: r.bank,
+      gamma: r.gamma,
+      speed: r.speed,
+      vs: r.vs,
+      throttle: r.throttle,
+      flaps: r.flaps,
+      gearDown: r.gearDown,
+      onGround: r.onGround,
+    });
+    if (s.onGround) s.alt = this.groundHeightAt(s);
+    else s.alt = Math.max(s.alt, this.groundHeightAt(s) + 30);
+    this.d.controls.setThrottle(r.throttle, false);
+    this.view.resetCameraHeading(r.heading);
+    this.landedAt = r.landedAt;
+    this.airborneTime = s.onGround ? 0 : 30;
+    if (r.navTarget) {
+      this.navTarget = AIRPORTS.find((a) => a.code === r.navTarget) ?? null;
+      this.d.hud.setRoute("FREE", this.navTarget ? this.navTarget.code : "—");
+    }
   }
 
   /** Line up on the airport's preferred runway, ready to go. */

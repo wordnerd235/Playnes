@@ -401,3 +401,28 @@ svg { display: block; }
 .bigmap-info { display: flex; align-items: center; justify-content: space-between; gap: 14px; color: #fff; font-size: 18px; font-weight: 700; min-height: 64px; }
 
 .version { position: fixed; left: 50%; bottom: calc(10px + var(--safe-b)); transform: translateX(-50%); margin: 0; color: rgba(255,255,255,.75); font-size: 13px; font-weight: 700; }
+
+/* Free Flight: resume + airport picker */
+.free-resume { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.free-resume-go {
+  flex: 1; min-width: 280px; display: flex; align-items: center; gap: 16px; padding: 16px 22px; border: none; border-radius: 24px;
+  background: linear-gradient(160deg, #b58cff, #7a4fe0); color: #fff; text-align: left; box-shadow: 0 7px 0 rgba(0,0,0,.22);
+}
+.free-resume-go:active { transform: translateY(5px); box-shadow: 0 2px 0 rgba(0,0,0,.22); }
+.free-resume-icon { width: 54px; height: 54px; transform: rotate(45deg); flex: none; }
+.free-resume-text { display: flex; flex-direction: column; gap: 2px; }
+.free-resume-text b { font-size: 30px; font-weight: 900; }
+.free-resume-text span { font-size: 17px; font-weight: 700; opacity: .92; }
+.free-resume-clear { font-size: 18px; }
+.airport-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
+.airport-card {
+  border: none; border-radius: 22px; background: var(--card); padding: 14px 12px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  box-shadow: 0 6px 0 rgba(0,0,0,.16); color: var(--ink); min-height: 150px;
+}
+.airport-card:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,.16); }
+.airport-card.here { outline: 5px solid var(--sun); }
+.airport-icon { font-size: 44px; line-height: 1; }
+.airport-code { font-size: 26px; font-weight: 900; letter-spacing: .04em; }
+.airport-name { font-size: 16px; font-weight: 800; text-align: center; }
+.airport-blurb { font-size: 13px; color: var(--ink-soft); text-align: center; }
+.pause-note { margin: -8px 0 18px; font-size: 17px; color: var(--ink-soft); max-width: 420px; }

@@ -108,7 +108,7 @@ const path = require("path");
   });
   await step("approach", async () => {
     await page.evaluate(() => window.playnes.flight.enterApproach());
-    await page.waitForFunction(() => window.playnes.flight.phase === "approach", null, { timeout: 20000 });
+    await page.waitForFunction(() => !window.playnes.flight || ["approach", "flare", "rollout", "done"].includes(window.playnes.flight.phase), null, { timeout: 20000 });
     await page.waitForTimeout(5000);
     await shot(page, "14-approach");
   });

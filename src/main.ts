@@ -8,7 +8,7 @@ import { aircraftById } from "./data/aircraft.ts";
 import { airportByCode } from "./data/airports.ts";
 import { LINES, type Line } from "./data/lines.ts";
 import { Audio } from "./audio/audio.ts";
-import { FlightSession, type FlightResult, type FreeLanding, type Mission } from "./game/flight.ts";
+import { FlightSession, type FlightResult, type FreeLanding, type FreeSnapshot, type Mission } from "./game/flight.ts";
 import { charterRewards, loadProgress, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
 import { googleKey, ionToken, loadSettings, resolveWorld, saveSettings, type Settings } from "./game/settings.ts";
 import { Controls } from "./input/controls.ts";
@@ -32,6 +32,8 @@ class Game implements ScreenHost {
   flight: FlightSession | null = null;
   lastMission: Mission | null = null;
   sessionStart = performance.now();
+  freeSave: FreeSnapshot | null = loadFreeSave();
+  private lastFreeSave = 0;
   private orbit = 0;
   private frameErrors = 0;
   private lastFrame = performance.now();
@@ -102,6 +104,11 @@ class Game implements ScreenHost {
     this.lastFrame = now;
     if (this.flight) {
       this.flight.update(dt);
+      // Keep a Free Flight saved every few seconds, so it survives leaving or closing the app.
+      if (now - this.lastFreeSave > 5000) {
+        this.lastFreeSave = now;
+        this.storeFreeSave(this.flight.snapshot());
+      }
       return;
     }
     // Menu background: slowly circle the current airport.
@@ -150,8 +157,8 @@ class Game implements ScreenHost {
     if (this.breakDue()) return;
     this.lastMission = m;
     this.screens.loading(m.kind === "charter" ? `Flying to ${airportByCode(m.to).spoken}...` : m.kind === "sandbox" ? "Getting ready for free flight..." : "Heading to the runway...");
-    const lessonPlane = m.kind === "lesson" ? "c172" : this.progress.selectedPlane;
-    const ac = aircraftById(m.kind === "lesson" ? lessonPlane : this.progress.selectedPlane);
+    const planeId = m.kind === "lesson" ? "c172" : m.kind === "sandbox" && m.resume ? m.resume.aircraft : this.progress.selectedPlane;
+    const ac = aircraftById(planeId);
     const flight = new FlightSession(
       { world: this.world, audio: this.audio, controls: this.controls, hud: this.hud, aircraft: ac, assistLevel: this.settings.assistLevel, crashes: this.settings.crashes, autoSpeed: this.settings.freeAutoSpeed },
       m,
@@ -161,7 +168,11 @@ class Game implements ScreenHost {
     flight.onLanded = (l) => this.freeLanding(l);
     flight
       .start()
-      .then(() => this.screens.hide())
+      .then(() => {
+        this.screens.hide();
+        // A resumed Free Flight starts paused, so the pilot can get ready.
+        if (m.kind === "sandbox" && m.resume) this.togglePause();
+      })
       .catch((err) => {
         console.error(err);
         this.endFlight();
@@ -235,7 +246,27 @@ class Game implements ScreenHost {
     setTimeout(() => this.hud.toast(`+${wings} Wings${first ? " · new stamp!" : ""}`, "good"), 2800);
   }
 
+  storeFreeSave(snap: FreeSnapshot | null): void {
+    if (!snap) return;
+    this.freeSave = snap;
+    try {
+      localStorage.setItem(FREE_SAVE_KEY, JSON.stringify(snap));
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  clearFreeSave(): void {
+    this.freeSave = null;
+    try {
+      localStorage.removeItem(FREE_SAVE_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
   private endFlight(): void {
+    if (this.flight) this.storeFreeSave(this.flight.snapshot());
     this.flight?.destroy();
     this.flight = null;
     this.hidePause();
@@ -263,7 +294,8 @@ class Game implements ScreenHost {
     this.audio.stopVoice();
     const el = document.createElement("div");
     el.className = "pause-overlay";
-    el.innerHTML = `<div class="pause-card"><h1>Paused</h1><div class="pause-actions"><button type="button" class="btn secondary" data-a="home">Go home</button><button type="button" class="btn primary" data-a="go">Keep flying</button></div></div>`;
+    const free = this.flight.mission.kind === "sandbox";
+    el.innerHTML = `<div class="pause-card"><h1>Paused</h1>${free ? '<p class="pause-note">Your free flight is saved. You can come back to it from the Free Flight menu.</p>' : ""}<div class="pause-actions"><button type="button" class="btn secondary" data-a="home">${free ? "Save &amp; go home" : "Go home"}</button><button type="button" class="btn primary" data-a="go">Keep flying</button></div></div>`;
     el.addEventListener("click", (e) => {
       const a = (e.target as HTMLElement).closest("button")?.dataset.a;
       if (a === "go") this.hidePause();
@@ -289,6 +321,18 @@ class Game implements ScreenHost {
       () => this.screens.parentCorner(() => this.screens.home()),
       () => this.screens.home(),
     );
+  }
+}
+
+const FREE_SAVE_KEY = "playnes.freeSave.v1";
+
+function loadFreeSave(): FreeSnapshot | null {
+  try {
+    const raw = localStorage.getItem(FREE_SAVE_KEY);
+    const snap = raw ? (JSON.parse(raw) as FreeSnapshot) : null;
+    return snap && snap.v === 1 && Number.isFinite(snap.lat) ? snap : null;
+  } catch {
+    return null;
   }
 }
 
