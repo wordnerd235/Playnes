@@ -45,7 +45,7 @@ const path = require("path");
   });
   await step("lesson 1", async () => {
     await page.click(".lesson >> nth=0");
-    await page.waitForSelector(".meet-svg");
+    await page.waitForSelector(".meet-stage");
     for (const part of ["wings", "tail", "prop", "wheels", "cockpit"]) {
       await page.dispatchEvent(`[data-part="${part}"]`, "pointerdown");
       await page.waitForTimeout(150);
