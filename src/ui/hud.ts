@@ -57,6 +57,10 @@ export class Hud {
   private hoopsEl: HTMLElement;
   private hintEl: HTMLElement;
   private prompt: Prompt = null;
+  private lookReset: HTMLButtonElement;
+  /** Look-around drag (degrees of yaw and pitch to add). */
+  onLook: (dYaw: number, dPitch: number) => void = () => {};
+  onLookReset: () => void = () => {};
   private leverDragging = false;
 
   constructor(parent: HTMLElement, private controls: Controls) {
@@ -145,7 +149,43 @@ export class Hud {
     this.hintEl = el("div", "hint-arrow");
     this.hintEl.hidden = true;
 
-    this.root.append(top, this.caption, this.yoke, rightCtl, this.toastEl, this.terrainEl, this.warpEl, this.hoopsEl, this.hintEl);
+    // Look-around bubble and reset-view button (bottom centre).
+    const look = el("div", "look");
+    const pad = el("div", "look-pad", ICONS.eye);
+    pad.setAttribute("aria-label", "Drag to look around");
+    this.lookReset = el("button", "look-reset", ICONS.reset) as HTMLButtonElement;
+    this.lookReset.type = "button";
+    this.lookReset.setAttribute("aria-label", "Reset view");
+    this.lookReset.hidden = true;
+    this.lookReset.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      this.onLookReset();
+      this.lookReset.hidden = true;
+    });
+    let last: { x: number; y: number; id: number } | null = null;
+    pad.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      pad.setPointerCapture(e.pointerId);
+      last = { x: e.clientX, y: e.clientY, id: e.pointerId };
+      pad.classList.add("active");
+    });
+    pad.addEventListener("pointermove", (e) => {
+      if (!last || last.id !== e.pointerId) return;
+      const dx = e.clientX - last.x;
+      const dy = e.clientY - last.y;
+      last = { x: e.clientX, y: e.clientY, id: e.pointerId };
+      this.onLook(dx * 0.5, -dy * 0.35);
+      this.lookReset.hidden = false;
+    });
+    const end = () => {
+      last = null;
+      pad.classList.remove("active");
+    };
+    pad.addEventListener("pointerup", end);
+    pad.addEventListener("pointercancel", end);
+    look.append(pad, this.lookReset);
+
+    this.root.append(top, this.caption, this.yoke, rightCtl, look, this.toastEl, this.terrainEl, this.warpEl, this.hoopsEl, this.hintEl);
     parent.append(this.root, this.whiteEl);
   }
 
@@ -233,6 +273,7 @@ export class Hud {
 
   show(from: string, to: string): void {
     this.root.hidden = false;
+    this.lookReset.hidden = true;
     this.fromLabel.textContent = from;
     this.toLabel.textContent = to;
     this.setPrompt(null);

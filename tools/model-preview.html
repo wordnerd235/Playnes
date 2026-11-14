@@ -31,11 +31,22 @@ ids.forEach((id, i) => loader.load(`../public/models/${id}.glb`, (g) => {
   const m = g.scene;
   m.position.set((i % cols) * 40 - cols * 20 + 20, 0, -Math.floor(i / cols) * 40);
   m.rotation.y = Number(params.get("yaw") ?? Math.PI * 0.75);
+  // Deflect control surfaces to check hinges: ?flaps=35&ail=20&elev=15&rud=20 (degrees)
+  const deg = (k) => (Number(params.get(k) || 0) * Math.PI) / 180;
+  m.traverse((o) => {
+    if (o.name === "flapL" || o.name === "flapR") o.rotateX(-deg("flaps"));
+    if (o.name === "ailL") o.rotateX(-deg("ail"));
+    if (o.name === "ailR") o.rotateX(deg("ail"));
+    if (o.name === "elevL" || o.name === "elevR") o.rotateX(deg("elev"));
+    if (o.name === "rudder") o.rotateX(deg("rud"));
+  });
   scene.add(m);
   if (++loaded === ids.length) document.title = "ready";
 }));
 const cam = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.5, 2000);
 if (params.get("view") === "close") { cam.position.set(25, 12, 25); cam.lookAt(0, 2, 0); }
+else if (params.get("view") === "hero") { const k = Number(params.get("k") || 1); cam.position.set(15 * k, 8 * k, 12 * k); cam.lookAt(0, 1.5 * k, 0); }
+else if (params.get("view") === "rear") { cam.position.set(-14, 9, -20); cam.lookAt(0, 2, 0); }
 else { cam.position.set(60, 90, 140); cam.lookAt(0, 0, -50); }
 renderer.setAnimationLoop(() => renderer.render(scene, cam));
 </script>
