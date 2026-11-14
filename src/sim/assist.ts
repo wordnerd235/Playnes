@@ -79,7 +79,8 @@ export function computeCommands(
   let targetBank = kidBank;
   if (g.targetHeading !== null && !s.onGround) {
     const err = angleDiff(g.targetHeading, s.heading);
-    const helperBank = clamp(err * 1.1, -22, 22);
+    // Hands off: a gentle nudge (following the hoop course's curve when there is one).
+    const helperBank = clamp((g.courseBank ?? 0) + err * 1.1, -25, 25);
     // Blend the helper in after the player lets go for a moment.
     const blend = clamp((mem.neutralTime - 0.8) / 1.0, 0, 1);
     targetBank = lerp(kidBank, helperBank, blend);
