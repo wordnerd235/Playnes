@@ -9,6 +9,7 @@ import { buy, canBuy, charterPlaneId, exportCode, importCode, owns, type Progres
 import type { Settings } from "../game/settings.ts";
 import { distance, NM } from "../sim/geo.ts";
 import { saveForOffline } from "../game/offline.ts";
+import { MEET_SPOTS } from "../data/meetSpots.ts";
 import { FEATURE_NAMES, resetSafety, safetyReport } from "../world/safety.ts";
 import { clear, h } from "./dom.ts";
 import { ICONS } from "./icons.ts";
@@ -153,8 +154,15 @@ export class Screens {
       { id: "cockpit", line: LINES.l1Cockpit, label: "Cockpit" },
     ];
     const found = new Set<string>();
-    const wrap = h("div.meet");
-    wrap.innerHTML = MEET_SVG;
+    // A picture rendered from the real Cessna model, with a glowing spot on each part to tap.
+    const stage = h("div.meet-stage", {}, [h("img.meet-pic", { src: "./models/thumbs/meet-c172.webp", alt: "A Cessna 172 with parts to tap", draggable: false })]);
+    for (const part of parts) {
+      const at = MEET_SPOTS[part.id];
+      if (!at) continue;
+      stage.append(h("button.meet-spot.hot", { type: "button", "aria-label": part.label, style: { left: `${at.x}%`, top: `${at.y}%` } }, [h("span.meet-spot-label", {}, part.label)]));
+      (stage.lastElementChild as HTMLElement).dataset.part = part.id;
+    }
+    const wrap = h("div.meet", {}, [stage]);
     const labels = h("div.meet-labels");
     for (const part of parts) {
       const hot = wrap.querySelector(`[data-part="${part.id}"]`);
@@ -315,6 +323,12 @@ export class Screens {
     ));
   }
 
+  /** A rendered picture of the playne (from its 3D model) on a sky-and-livery background. */
+  private planePicture(ac: AircraftDef, big = false): HTMLElement {
+    const img = h("img.plane-pic", { src: `./models/thumbs/${ac.id}.webp`, alt: `${ac.maker} ${ac.model}`, draggable: false, loading: "lazy" });
+    return h(`div.plane-swatch${big ? ".big" : ""}`, { style: { background: `linear-gradient(160deg, #d8ecfb 0%, #f4f9fd 60%, ${ac.livery.stripe}22 100%)` } }, [img]);
+  }
+
   private planeCard(ac: AircraftDef): HTMLElement {
     const p = this.host.progress;
     const mine = owns(p, ac);
@@ -325,7 +339,7 @@ export class Screens {
     else if (ac.unlock.type === "wings") status = h(`span.plane-status${canBuy(p, ac) ? ".buy" : ""}`, {}, [h("span.wing-icon", { html: ICONS.wing }), `${ac.unlock.price}`]);
     else status = h("span.plane-status", {}, "Special");
     const card = h(`button.plane-card${mine ? "" : ".locked"}${selected ? ".selected" : ""}`, { type: "button" }, [
-      h("div.plane-swatch", { style: { background: `linear-gradient(135deg, ${ac.livery.body} 55%, ${ac.livery.stripe} 55% 70%, ${ac.livery.accent} 70%)` } }, [h("span", { html: ICONS.plane })]),
+      this.planePicture(ac),
       h("div.plane-maker", {}, ac.maker),
       h("div.plane-model", {}, ac.model),
       h("div.plane-facts", {}, ac.category),
@@ -385,7 +399,7 @@ export class Screens {
     }
     const sheet = h("div.plane-sheet", { onclick: (e: Event) => e.target === sheet && close() }, [
       h("div.plane-sheet-card", {}, [
-        h("div.plane-swatch.big", { style: { background: `linear-gradient(135deg, ${ac.livery.body} 55%, ${ac.livery.stripe} 55% 70%, ${ac.livery.accent} 70%)` } }, [h("span", { html: ICONS.plane })]),
+        this.planePicture(ac, true),
         h("div.plane-maker", {}, ac.maker),
         h("h2.plane-sheet-title", {}, ac.model),
         h("div.plane-facts", {}, (() => {
@@ -700,31 +714,4 @@ function holdToOpen(btn: HTMLElement, fn: () => void): void {
 }
 
 // Side view of a Cessna-style trainer with tappable parts for Lesson 1.
-const MEET_SVG = `
-<svg viewBox="0 0 640 300" class="meet-svg" role="img" aria-label="A small airplayne with tappable parts">
-  <ellipse cx="330" cy="272" rx="250" ry="12" fill="rgba(0,0,0,.15)"/>
-  <g data-part="tail" class="hot">
-    <path d="M70 150 L40 60 L95 60 L150 150 Z" fill="#c8262e" stroke="#7a1218" stroke-width="3"/>
-    <path d="M40 150 L150 150 L150 165 L40 165 Z" fill="#e8e8e2" stroke="#9a9a92" stroke-width="3"/>
-  </g>
-  <path d="M90 150 Q120 128 230 125 L470 120 Q540 122 560 150 Q560 185 520 195 L240 196 Q140 190 90 165 Z" fill="#f7f7f2" stroke="#8b8f96" stroke-width="3"/>
-  <path d="M110 170 L540 172" stroke="#1d3f8f" stroke-width="7"/>
-  <g data-part="cockpit" class="hot">
-    <path d="M440 128 L500 128 Q530 135 540 150 L440 150 Z" fill="#26384d" stroke="#0f1b29" stroke-width="3"/>
-    <rect x="370" y="130" width="58" height="22" rx="6" fill="#26384d"/>
-  </g>
-  <g data-part="wings" class="hot">
-    <path d="M300 112 L520 108 L530 118 L300 122 Z" fill="#ececE6" stroke="#8b8f96" stroke-width="3"/>
-    <path d="M330 122 L420 175" stroke="#8b8f96" stroke-width="5"/>
-  </g>
-  <g data-part="prop" class="hot">
-    <path d="M560 150 Q590 150 595 158 Q590 166 560 166 Z" fill="#1d3f8f"/>
-    <rect x="590" y="88" width="12" height="140" rx="6" fill="#3b4048"/>
-  </g>
-  <g data-part="wheels" class="hot">
-    <path d="M400 195 L392 238" stroke="#9aa3ad" stroke-width="6"/>
-    <circle cx="390" cy="246" r="22" fill="#1b1b1b"/><circle cx="390" cy="246" r="8" fill="#9aa3ad"/>
-    <path d="M520 195 L522 238" stroke="#9aa3ad" stroke-width="6"/>
-    <circle cx="522" cy="250" r="17" fill="#1b1b1b"/><circle cx="522" cy="250" r="6" fill="#9aa3ad"/>
-  </g>
-</svg>`;
+

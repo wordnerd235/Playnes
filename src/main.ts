@@ -19,6 +19,25 @@ import { LESSONS, Screens, type ScreenHost } from "./ui/screens.ts";
 import { createWorld, setGraphicsRecoveredHandler, type World } from "./world/world.ts";
 
 const app = document.getElementById("app") as HTMLElement;
+
+// iPad Safari ignores "user-scalable=no" in the browser, so stop pinch and double-tap zoom
+// ourselves (quick taps on the yoke, throttle and buttons would otherwise zoom the page).
+for (const ev of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+document.addEventListener("dblclick", (e) => e.preventDefault(), { passive: false });
+let lastTouchEnd = 0;
+document.addEventListener(
+  "touchend",
+  (e) => {
+    const now = performance.now();
+    // A second tap within 300 ms is what Safari treats as "double-tap to zoom".
+    if (now - lastTouchEnd < 300 && e.touches.length === 0) e.preventDefault();
+    lastTouchEnd = now;
+  },
+  { passive: false },
+);
+document.addEventListener("touchmove", (e) => {
+  if (e.touches.length > 1) e.preventDefault();
+}, { passive: false });
 const worldEl = document.getElementById("world") as HTMLElement;
 
 class Game implements ScreenHost {

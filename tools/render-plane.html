@@ -1,0 +1,66 @@
+<!doctype html>
+<!-- Dev tool: render one playne model on a transparent background (used by tools/render-planes.cjs).
+     ?id=c172&view=hero|side&points=[{"id":"wings","p":[x,y,z]}...]  (glTF coords: nose +Z, up +Y, left +X) -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>render</title>
+<style>html,body{margin:0;background:transparent;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"../node_modules/three/build/three.module.js","three/addons/":"../node_modules/three/examples/jsm/"}}</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+const q = new URLSearchParams(location.search);
+const id = q.get("id") || "c172";
+const view = q.get("view") || "hero";
+const points = JSON.parse(q.get("points") || "[]");
+const W = innerWidth, H = innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H);
+renderer.setClearColor(0x000000, 0);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.1));
+const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+sun.position.set(-6, 12, 8);
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xdde8ff, 0.8);
+fill.position.set(8, 4, -6);
+scene.add(fill);
+new GLTFLoader().load(`../public/models/${id}.glb`, (g) => {
+  const m = g.scene;
+  scene.add(m);
+  const box = new THREE.Box3().setFromObject(m);
+  const size = box.getSize(new THREE.Vector3());
+  const centre = box.getCenter(new THREE.Vector3());
+  const cam = new THREE.PerspectiveCamera(view === "side" ? 24 : 28, W / H, 0.1, 2000);
+  // Camera on the playne's right side (−X) so the nose points to the right of the picture.
+  const dir = view === "side" ? new THREE.Vector3(-1, 0.24, 0.42) : new THREE.Vector3(-1, 0.5, 0.85);
+  dir.normalize();
+  const radius = Math.max(size.x, size.z) * 0.5 + size.y * 0.3;
+  const fov = (cam.fov * Math.PI) / 180;
+  const fit = Math.min(1, W / H);
+  const dist = (radius / Math.sin(fov / 2)) * (view === "side" ? 0.56 : 0.66) / fit;
+  cam.position.copy(centre).addScaledVector(dir, dist);
+  cam.lookAt(centre.x, centre.y - size.y * 0.05, centre.z);
+  renderer.render(scene, cam);
+  // Where each named 3D point lands in the picture (percent of width / height).
+  window.__points = points.map((pt) => {
+    const v = new THREE.Vector3(...pt.p).project(cam);
+    return { id: pt.id, x: ((v.x + 1) / 2) * 100, y: ((1 - v.y) / 2) * 100 };
+  });
+  window.__png = renderer.domElement.toDataURL("image/png");
+  document.title = "ready";
+});
+</script>
+</body>
+</html>

@@ -27,6 +27,7 @@ import type { Quality } from "../game/settings.ts";
 import { CartoonData } from "./cartoon.ts";
 import { Scenery } from "./scenery.ts";
 import { AirportBuildings } from "./buildings.ts";
+import { LandmarkMarkers } from "./landmarks.ts";
 import { degrade, FEATURE_NAMES, gfxOn, type GfxFeature } from "./safety.ts";
 
 /** "cartoon" = offline cartoon world; "basic" = bare globe if the offline data is missing. */
@@ -185,6 +186,8 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
   const scenery = new Scenery(w.widget.scene, w.kind === "cartoon" ? cartoon : null, q === "high" ? 1 : q === "medium" ? 0.75 : 0.4);
   // Real airport buildings for the offline world (Google's 3D world already has them).
   const buildings = w.kind === "cartoon" && cartoon ? new AirportBuildings(w.widget.scene, cartoon) : null;
+  // Star pins over the landmarks (every map type), standing on the ground below them.
+  const markers = new LandmarkMarkers(w.widget.scene, (lat, lon) => cartoon?.height(lat, lon) ?? 0);
   installRecovery(w.widget, scenery);
   installCommandGuard(w.widget);
   const setGround = w.setGroundVisible.bind(w);
@@ -196,6 +199,7 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
       setGround(v);
       scenery.setVisible(v);
       buildings?.setVisible(v);
+      markers.setVisible(v);
     },
     updateScenery(p, alt, agl) {
       scenery.update(p, alt, agl);
@@ -209,6 +213,7 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
     destroy() {
       scenery.destroy();
       buildings?.destroy();
+      markers.destroy();
       destroy();
     },
   };

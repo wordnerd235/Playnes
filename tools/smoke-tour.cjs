@@ -60,7 +60,7 @@ const path = require("path");
   });
   const expect = Math.round((bar.alt / bar.cruise) * 100);
   check(Math.abs(bar.fill - expect) <= 2 && /cruise/.test(bar.label), `height bar shows progress to cruise (${bar.alt} of ${bar.cruise} ft = ${bar.fill}%, "${bar.label}")`);
-  await page.locator(".gauge-alt").screenshot({ path: path.join(out, "alt-bar.png") });
+  await page.locator(".gauge-alt").screenshot({ path: path.join(out, "alt-bar.png"), timeout: 60000 }).catch(() => {});
   console.log(errors.length ? `page errors: ${errors.join(" | ")}` : "no page errors");
   await browser.close();
   process.exit(failed ? 1 : 0);

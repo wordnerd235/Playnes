@@ -47,6 +47,7 @@ All the numbers live in `REWARDS` in `src/game/progress.ts`.
 - **Emergency landings:** put the wheels down, pull the power back and slow to landing speed, and you can land on flat, open, dry ground (no trees, buildings or water), gently and with the wings level. With crashes on, a bad spot is a crash; with crashes off, the co-pilot bounces you back up.
 - **Camera button:** chase view → cockpit → passenger window → chase.
 - **? button** (next to Pause, or the H key): a quick tour of every gauge and control, read out by the co-pilot. It also runs once automatically on the very first flight.
+- **Landmarks** (the stars on the minimap) have a golden star pin and name floating over them when you're within about 30 km.
 - The **HEIGHT** gauge has a bar that fills toward the playne's cruising altitude and turns green ("cruising!") when you get there.
 - The big map's **Clear route** button removes a destination you picked.
 - **F-16 Fighting Falcon** (900 Wings): about Mach 1.2 down low and Mach 1.8 up high, 40,000 ft in under two minutes, and a sonic boom when you pass the speed of sound. One seat, so it's Free Flight only (charters use your best playne with seats).
@@ -145,6 +146,10 @@ Real airport buildings (terminals, hangars, parking decks...) come from [Overtur
 python3 -m venv ~/ovenv && ~/ovenv/bin/pip install pyarrow requests shapely
 ~/ovenv/bin/python scripts/world/airport_buildings.py ~/worldcache/data.json   # ~5 minutes, writes public/world/buildings.json
 ```
+
+### Regenerate the playne pictures (hangar tiles and "Meet your playne")
+
+After changing the models, serve the repo root on port 8765 and run `node tools/render-planes.cjs` (it renders each model with three.js in headless Chromium and writes `public/models/thumbs/` and the lesson's tap spots in `src/data/meetSpots.ts`), then convert the PNGs to WebP with the one-liner at the top of that script.
 
 ### Regenerate the 3D planes
 
