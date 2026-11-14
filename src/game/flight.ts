@@ -982,7 +982,7 @@ export class FlightSession {
         this.d.hud.setPrompt("pull");
       }
       if (c.throttle <= 0.5 || s.speed < p.vr * 0.8) this.d.hud.setPrompt(null);
-      if (s.speed < 25 * KT) brake = Math.max(brake, c.throttle < 0.05 ? 0.4 : 0);
+      if (s.speed < 25 * KT) brake = Math.max(brake, c.throttle < 0.15 ? 0.4 : 0);
     } else {
       if (ap) {
         throttle = null; // autopilot holds the speed it had when the map opened
@@ -1068,10 +1068,12 @@ export class FlightSession {
     const ias = indicated(s.speed, s.alt);
     if (s.onGround) {
       this.speedbrakeOut = false;
-      if (s.speed > 25 * KT && lever < 0.15 && !this.autopilot) {
-        cmd.brake = Math.max(cmd.brake, 0.6);
+      // After a landing the autobrakes hold on all the way to a stop (lever near idle).
+      if ((s.speed > 25 * KT || this.arrival) && lever < 0.15 && !this.autopilot) {
+        cmd.brake = Math.max(cmd.brake, s.speed > 25 * KT ? 0.6 : 0.45);
         cmd.spoilers = 1;
         cmd.reverse = s.speed > 40 * KT;
+        if (this.arrival) cmd.throttle = 0;
         if (!this.said.has("autobrake") && s.speed > 50 * KT) {
           this.said.add("autobrake");
           void this.say(p.reversers ? LINES.reversers : LINES.brakesOn);
