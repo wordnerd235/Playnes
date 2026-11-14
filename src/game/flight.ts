@@ -200,7 +200,7 @@ export class FlightSession {
   private timed: TimedPrompt | null = null;
   private said = new Set<string>();
   private unsub: () => void;
-  private groundCache = { h: 0, valid: false, frame: 0 };
+  private groundCache = { h: 0, valid: false, frame: 0, lat: 0, lon: 0 };
   private frame = 0;
   private result: FlightResult;
   private destroyed = false;
@@ -1379,9 +1379,15 @@ export class FlightSession {
     for (const r of [this.dep, this.arr, ...this.allRunways]) {
       if (r && onRunwayArea(r, p)) return runwayHeight(r, runwayCoords(r, p).s) + (this.runwayPrims.length ? RUNWAY_LIFT : 0);
     }
-    if (this.frame - this.groundCache.frame >= 6 || !this.groundCache.valid) {
+    // Re-read every few frames, or right away if the playne has jumped (resume, respawn, line-up):
+    // a stale height from somewhere else could put the ground above the playne.
+    const gc = this.groundCache;
+    const moved = gc.valid ? Math.abs(p.lat - gc.lat) * 111320 + Math.abs(p.lon - gc.lon) * 91000 : Infinity;
+    if (this.frame - gc.frame >= 6 || !gc.valid || moved > 200) {
       const h = this.d.world.groundHeight(p);
       this.groundCache.frame = this.frame;
+      gc.lat = p.lat;
+      gc.lon = p.lon;
       if (h !== undefined && Number.isFinite(h)) {
         this.groundCache.h = h;
         this.groundCache.valid = true;
