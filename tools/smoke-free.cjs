@@ -100,9 +100,9 @@ const path = require("path");
   const t0 = Date.now();
   const probe = setInterval(async () => {
     try {
-      console.log(`  [${Math.round((Date.now() - t0) / 1000)}s]`, await page.evaluate(() => { const f = window.playnes.flight; const s = f.s; const c = f.d.controls.state; return `phase=${f.phase} gnd=${s.onGround} agl=${(s.alt - f.groundHeightAt(s)).toFixed(1)} kt=${(s.speed / 0.5144).toFixed(0)} vs=${s.vs.toFixed(1)} pitchIn=${c.pitch.toFixed(2)} rollIn=${c.roll.toFixed(2)} lever=${c.throttle.toFixed(2)} paused=${f.paused} landedAt=${f.landedAt} ap=${!!f.autopilot}`; }));
+      console.log(`  [${Math.round((Date.now() - t0) / 1000)}s]`, await page.evaluate(() => { const f = window.playnes.flight; const s = f.s; const c = f.d.controls.state; const r = f.allRunways.find((x) => x.airport.code === "CLT"); const dx = (s.lon - r.end.lon) * 111320 * Math.cos(s.lat * Math.PI / 180), dy = (s.lat - r.end.lat) * 111320; return `dist=${Math.round(Math.hypot(dx, dy))}m alt=${s.alt.toFixed(1)} hEnd=${r.hEnd.toFixed(1)} phase=${f.phase} gnd=${s.onGround} agl=${(s.alt - f.groundHeightAt(s)).toFixed(1)} kt=${(s.speed / 0.5144).toFixed(0)} vs=${s.vs.toFixed(1)} pitchIn=${c.pitch.toFixed(2)} rollIn=${c.roll.toFixed(2)} lever=${c.throttle.toFixed(2)} paused=${f.paused} landedAt=${f.landedAt} ap=${!!f.autopilot}`; }));
     } catch {}
-  }, 30000);
+  }, 2000);
   await page.waitForFunction(() => window.playnes.flight.landedAt === "CLT" && window.playnes.flight.s.onGround, null, { timeout: 420000, polling: 500 }).finally(() => clearInterval(probe));
   check(true, "landing helper brought the plane down on the CLT runway");
   await page.waitForTimeout(1500);
