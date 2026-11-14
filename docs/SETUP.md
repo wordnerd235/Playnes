@@ -27,7 +27,13 @@ The purple **Free Flight** card on the home screen is an open sandbox:
 - Fly to the edge of the map and the co-pilot turns you around.
 - **Crashes** are off by default (the co-pilot always pulls up). Turn on "Free Flight: allow crashes" in grown-up settings for a challenge; after a crash you restart at the nearest airport.
 - The **eye bubble** just above the yoke: drag it to look around. The ⟲ button next to it resets the view. The camera button switches between the chase view and the **cockpit** (window frame and instrument panel: round dials in the Cessna, glass screens in the turboprops and jets).
-- Full stick banks up to 45 degrees (a steep turn). In hoop courses, steering toward the next hoop lets the co-pilot pick how much to bank, so every playne can make every hoop.
+- The stick is always yours. Full stick banks 35° in Flight School, 45° on charters and 60° in Free Flight (80° in the F-16). Slower = tighter turns, just like a real playne. Let go and the co-pilot gently follows the hoops or levels the wings.
+- **Flap lever** (next to the throttle): real detents UP, 1, 2, FULL. Tap a notch or drag the handle, any time in the flight. Each notch has a speed limit; too fast and the co-pilot says so and the lever won't move (and if you speed up a lot with flaps out, the co-pilot brings them up a notch).
+- **Slowing down, like real pilots:** pull the throttle back first (idle). Jets have **Air brake** (the Brakes button turns into it in the air) to slow down or come down faster; on final, if you're much too fast, the co-pilot puts them out for you. Lower the flaps as the speed drops. After touchdown with the throttle at idle, the **ground spoilers, thrust reversers and autobrakes** do the rest (a jet stops in about 300-500 m). Holding Brakes on the ground still works too.
+- **Emergency landings:** put the wheels down, pull the power back and slow to landing speed, and you can land on flat, open, dry ground (no trees, buildings or water), gently and with the wings level. With crashes on, a bad spot is a crash; with crashes off, the co-pilot bounces you back up.
+- **Camera button:** chase view → cockpit → passenger window → chase.
+- The big map's **Clear route** button removes a destination you picked.
+- **F-16 Fighting Falcon** (900 Wings): about Mach 1.2 down low and Mach 1.8 up high, 40,000 ft in under two minutes, and a sonic boom when you pass the speed of sound. One seat, so it's Free Flight only (charters use your best playne with seats).
 
 ### Grown-up settings
 

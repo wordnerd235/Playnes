@@ -45,6 +45,10 @@ export interface Commands {
   rotate: boolean;
   /** Ground steering: hold this heading (centerline assist). Null = steer with bank input. */
   groundHeading: number | null;
+  /** 0..1 speedbrakes in the air / ground spoilers on the runway (playnes that have them). */
+  spoilers?: number;
+  /** Thrust reversers (on the ground, playnes that have them). */
+  reverse?: boolean;
 }
 
 export type FlightEvent =
@@ -55,6 +59,8 @@ export type FlightEvent =
 export interface StepEnv {
   /** Ellipsoid height of the ground under the aircraft, meters. */
   groundHeight: number;
+  /** What the wheels roll on (grass slows you down more). Default runway. */
+  surface?: "runway" | "grass";
 }
 
 /** Derived per-aircraft constants. Speeds are m/s; vr/vapp/vclimb/vstall/vmo are indicated airspeeds. */
@@ -82,6 +88,12 @@ export interface Perf {
   glideRatio: number;
   fixedGear: boolean;
   rollRate: number;
+  /** Steepest flight path (sine of the angle) the playne will fly. */
+  maxPathSin: number;
+  /** Has speedbrakes / ground spoilers. */
+  speedbrakes: boolean;
+  /** Has thrust reversers (or reverse pitch props). */
+  reversers: boolean;
   climbMax: number;
   descentMax: number;
   gammaRate: number;
@@ -122,10 +134,10 @@ export function perfFor(ac: AircraftDef): Perf {
   const vclimb = ac.vclimb * KT;
   const climbMax = ac.climbFpm * FT_PER_MIN;
   const vc = ac.cruiseKt * KT;
-  const lapse = ac.kind === "piston" ? 1.0 : ac.kind === "turboprop" ? 0.8 : 0.7;
+  const lapse = ac.kind === "piston" ? 1.0 : ac.kind === "turboprop" ? 0.8 : ac.kind === "fighter" ? 0.55 : 0.7;
   const sigC = densityRatio(ac.cruiseAltFt * 0.3048);
   // Best glide ratio (lift / drag): about 9 for a Cessna, 13 for a turboprop, 14-18 for jets.
-  const glideRatio = ac.kind === "piston" ? 9 : ac.kind === "turboprop" ? 13 : 14 + clamp((ac.shape.length - 12) / 22, 0, 1) * 4;
+  const glideRatio = ac.kind === "piston" ? 9 : ac.kind === "turboprop" ? 13 : ac.kind === "fighter" ? 8 : 14 + clamp((ac.shape.length - 12) / 22, 0, 1) * 4;
   // Drag = Kp*EAS^2 + Ki/EAS^2 has its minimum 2*sqrt(Kp*Ki) = g / glideRatio.
   const kiFor = (kp: number) => (G / glideRatio) ** 2 / (4 * kp);
   // Cruise balance gives thrust for a given Kp; then find Kp so the sea-level climb matches the book.
@@ -173,10 +185,14 @@ export function perfFor(ac: AircraftDef): Perf {
     glideRatio,
     fixedGear: ac.shape.fixedGear,
     rollRate: ac.rollRate,
+    speedbrakes: ac.kind === "jet" || ac.kind === "fighter",
+    reversers: ac.kind === "jet" || ac.kind === "turboprop",
     climbMax,
     // Fast descents (jets use their speedbrakes for these).
-    descentMax: (ac.kind === "piston" ? 1500 : ac.kind === "turboprop" ? 3500 : 5000) * FT_PER_MIN,
-    gammaRate: ac.kind === "piston" ? 5 : 3.5,
+    descentMax: ({ piston: 2000, turboprop: 4000, jet: 6000, fighter: 40000 } as const)[ac.kind] * FT_PER_MIN,
+    // How quickly the nose comes up or down (deg/s) and the steepest climb/dive path (sine).
+    gammaRate: ({ piston: 7, turboprop: 6, jet: 5, fighter: 20 } as const)[ac.kind],
+    maxPathSin: ({ piston: 0.4, turboprop: 0.45, jet: 0.5, fighter: 0.98 } as const)[ac.kind],
   };
 }
 
@@ -192,6 +208,8 @@ function overspeed(p: Perf, ias: number, mach: number): number {
 
 /** Deceleration from fully extended speedbrakes, m/s². */
 const SPEEDBRAKE_DECEL = 0.16 * G;
+/** Deceleration from thrust reversers on the landing roll, m/s². */
+const REVERSER_DECEL = 0.12 * G;
 
 /** Aerodynamic drag as a deceleration (parasite + induced), m/s². */
 function dragAccel(s: FlightState, p: Perf): number {
@@ -249,11 +267,16 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
   // speedbrakes come out. It never climbs on its own (that would look like a runaway altimeter).
   const over = overspeed(p, ias, mach);
   const thrust = thrustAccel(p, s.throttle, s.speed, s.alt) * (1 - over);
-  const drag = dragAccel(s, p) + over * SPEEDBRAKE_DECEL;
+  const spoilers = p.speedbrakes ? clamp(cmd.spoilers ?? 0, 0, 1) : 0;
+  // Speedbrakes bite harder the faster you go (they work on the air rushing past).
+  const brakesOut = Math.max(over, spoilers * clamp((ias / p.vclimb) ** 2, 0.35, 1.2));
+  const drag = dragAccel(s, p) + brakesOut * SPEEDBRAKE_DECEL;
 
   if (s.onGround) {
-    const rolling = 0.015 * G + cmd.brake * 0.35 * G;
-    const a = thrust * GROUND_ACCEL_BOOST - drag - (s.speed > 0.1 ? rolling : 0);
+    // Ground spoilers dump the lift so the wheel brakes grip; reversers push the air forward.
+    const rolling = (env.surface === "grass" ? 0.05 : 0.015) * G + cmd.brake * (0.3 + 0.15 * spoilers) * G;
+    const reverser = cmd.reverse && p.reversers && s.speed > 12 ? REVERSER_DECEL : 0;
+    const a = thrust * GROUND_ACCEL_BOOST - drag - (s.speed > 0.1 ? rolling + reverser : 0);
     s.speed = Math.max(0, s.speed + a * dt);
     s.bank = approach(s.bank, 0, 20 * dt);
     s.gamma = 0;
@@ -281,7 +304,7 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
     }
   } else {
     // Roll toward the commanded bank at the aircraft's roll rate.
-    s.bank = approach(s.bank, clamp(cmd.targetBank, -45, 45), p.rollRate * dt);
+    s.bank = approach(s.bank, clamp(cmd.targetBank, -85, 85), p.rollRate * dt);
 
     // Envelope protection: never let the wing stall. Short of airspeed, the nose comes down
     // and the plane glides (trading height for speed), just like a real wing.
@@ -296,7 +319,7 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
     // Still too fast with the speedbrakes out: make the dive shallower (never a climb).
     if (over > 0.6 && targetVs < 0) targetVs *= 1 - (over - 0.6) / 0.4;
     const vsAvail = Math.max(s.speed, 1);
-    const targetGamma = Math.asin(clamp(targetVs / vsAvail, -0.3, 0.3)) / DEG;
+    const targetGamma = Math.asin(clamp(targetVs / vsAvail, -p.maxPathSin, p.maxPathSin)) / DEG;
     s.gamma = approach(s.gamma, targetGamma, p.gammaRate * dt);
 
     const a = thrust - drag - G * Math.sin(s.gamma * DEG);

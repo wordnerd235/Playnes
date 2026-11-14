@@ -286,9 +286,7 @@ svg { display: block; }
 .hud-btn.on { background: rgba(35, 168, 98, .85); }
 .hud-btn.fixed { opacity: .6; }
 .hud-btn.gone { visibility: hidden; opacity: 0; transition: opacity .4s, visibility 0s .4s; }
-#hud-flaps[data-level="1"] { box-shadow: inset 0 -6px 0 rgba(255,194,26,.6); }
-#hud-flaps[data-level="2"] { box-shadow: inset 0 -12px 0 rgba(255,194,26,.7); }
-#hud-flaps[data-level="3"] { box-shadow: inset 0 -20px 0 rgba(255,194,26,.8); }
+
 .pulse { animation: pulse-ring 1s ease-in-out infinite; border-color: var(--sun) !important; }
 @keyframes pulse-ring { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,194,26,.9); transform: scale(1); } 50% { box-shadow: 0 0 0 16px rgba(255,194,26,0); transform: scale(1.08); } }
 
@@ -311,7 +309,7 @@ svg { display: block; }
 .yoke-label.down { bottom: 8px; }
 .yoke.pulse { border-color: var(--sun); }
 
-.right-controls { position: absolute; right: max(18px, var(--safe-r)); bottom: calc(18px + var(--safe-b)); display: flex; align-items: flex-end; gap: 64px; }
+.right-controls { position: absolute; right: max(18px, var(--safe-r)); bottom: calc(18px + var(--safe-b)); display: flex; align-items: flex-end; gap: 22px; }
 .btn-col { display: grid; grid-template-columns: repeat(2, auto); gap: 10px; align-items: end; justify-items: center; }
 .lever { position: relative; width: 96px; height: 300px; touch-action: none; }
 .lever-track { position: absolute; left: 34px; top: 8px; bottom: 8px; width: 28px; border-radius: 14px; background: rgba(16,35,58,.6); border: 3px solid rgba(255,255,255,.8); overflow: hidden; }
@@ -436,3 +434,33 @@ svg { display: block; }
 /* Cockpit view overlay (under the HUD controls, over the 3D world) */
 .cockpit { position: absolute; inset: 0; pointer-events: none; }
 .cockpit svg { width: 100%; height: 100%; display: block; }
+
+/* Flap lever with detents */
+.flap-lever { position: relative; width: 78px; height: 230px; touch-action: none; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.flap-title { font-size: 13px; font-weight: 900; color: var(--paper); text-shadow: 0 1px 3px rgba(0,0,0,.6); letter-spacing: .06em; }
+.flap-track { position: relative; flex: 1; width: 100%; border-radius: 20px; border: 4px solid rgba(255,255,255,.85); background: var(--glass); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); display: flex; flex-direction: column; overflow: hidden; }
+.flap-detent { flex: 1; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; border-top: 2px dashed rgba(255,255,255,.25); pointer-events: none; }
+.flap-detent:first-child { border-top: none; }
+.flap-detent span { font-size: 13px; font-weight: 900; color: rgba(255,255,255,.85); }
+.flap-handle { position: absolute; left: 6px; width: 34px; height: 25%; display: flex; align-items: center; pointer-events: none; transition: top .25s ease; }
+.flap-handle::before { content: ""; width: 34px; height: 22px; border-radius: 8px; background: linear-gradient(180deg, #ffd34d, #e0a400); border: 3px solid #fff; box-shadow: 0 3px 6px rgba(0,0,0,.35); }
+.flap-lever[data-level="0"] .flap-detent:nth-child(1) span,
+.flap-lever[data-level="1"] .flap-detent:nth-child(2) span,
+.flap-lever[data-level="2"] .flap-detent:nth-child(3) span,
+.flap-lever[data-level="3"] .flap-detent:nth-child(4) span { color: var(--sun); }
+.flap-lever.pulse .flap-track { border-color: var(--sun); animation: pulse-ring 1.2s infinite; }
+.flap-lever.flash .flap-track, .hud-btn.flash { animation: flash-red .6s 2; }
+@keyframes flash-red { 50% { border-color: #ff5a5a; background: rgba(255,90,90,.45); } }
+@media (max-height: 700px) { .flap-lever { height: 190px; width: 70px; } }
+
+/* Passenger window view */
+.pax-window { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.pax-hole {
+  position: absolute; left: 50%; top: 46%; width: min(46vh, 42vw); height: min(66vh, 60vw); transform: translate(-50%, -50%);
+  border-radius: 45% / 38%; border: 14px solid #d9d4ca; outline: 6px solid #bdb6aa;
+  box-shadow: 0 0 0 200vmax #ece7de, inset 0 0 26px rgba(0,0,0,.35);
+}
+.pax-shade {
+  position: absolute; left: 50%; top: 46%; width: min(46vh, 42vw); height: min(66vh, 60vw); transform: translate(-50%, -50%);
+  border-radius: 45% / 38%; background: linear-gradient(180deg, rgba(240,236,228,.95) 0 8%, rgba(0,0,0,0) 8.5%);
+}

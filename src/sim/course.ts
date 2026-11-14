@@ -12,7 +12,8 @@ export interface CoursePoint {
  * plane's roll rate. Full stick gives 45 degrees, so there is plenty of room to catch up.
  */
 export function sTurnCourse(start: LatLon, heading: number, speed: number, rollRate: number): CoursePoint[] {
-  const plan = [0, 0, 1, 1, 1, 0, -1, -1, -1, -1, -1, 0, 1, 1, 1, 0];
+  // Starts turning right away (the first hoop is already a little to the right).
+  const plan = [0.5, 1, 1, 1, 0, -1, -1, -1, -1, -1, 0, 1, 1, 1, 0];
   const out: CoursePoint[] = [];
   let hdg = heading;
   let pos = { ...start };
@@ -24,7 +25,7 @@ export function sTurnCourse(start: LatLon, heading: number, speed: number, rollR
       hdg += ((9.81 * Math.tan(bank * DEG)) / speed / DEG) * 0.1;
       pos = destination(pos, hdg, speed * 0.1);
     }
-    if (i >= 1) out.push({ pos, heading: hdg });
+    out.push({ pos, heading: hdg });
   }
   return out;
 }

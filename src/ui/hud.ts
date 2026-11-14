@@ -28,6 +28,8 @@ export interface HudData {
   warp: boolean;
   terrain: boolean;
   hoopsLeft: number | null;
+  /** Speedbrakes: null = this playne has none, else whether they're out. */
+  airbrake: boolean | null;
 }
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, html?: string) => {
@@ -54,7 +56,11 @@ export class Hud {
   private knob: HTMLElement;
   private lever: HTMLElement;
   private leverHandle: HTMLElement;
-  private buttons: Record<string, HTMLButtonElement> = {};
+  private buttons: Record<string, HTMLElement> = {};
+  private flapLever!: HTMLElement;
+  private flapHandle!: HTMLElement;
+  private flapLevel = 0;
+  private airMode = false;
   private toastEl: HTMLElement;
   private whiteEl: HTMLElement;
   private terrainEl: HTMLElement;
@@ -136,16 +142,16 @@ export class Hud {
     btnCol.append(
       this.button("radio", ICONS.radio, "Radio"),
       this.button("gear", ICONS.gear, "Wheels"),
-      this.button("flaps", ICONS.flaps, "Flaps"),
       this.button("brake", ICONS.brake, "Brakes"),
-      this.button("camera", ICONS.camera, "Camera", "small"),
+      this.button("camera", ICONS.camera, "Camera"),
     );
+    const flaps = this.buildFlapLever();
     this.lever = el("div", "lever");
     this.lever.innerHTML = `<div class="lever-notches"><span>GO!</span><span></span><span></span><span>STOP</span></div><div class="lever-track"><div class="lever-fill"></div></div>`;
     this.leverHandle = el("div", "lever-handle");
     this.lever.append(this.leverHandle);
     this.setupLever();
-    rightCtl.append(btnCol, this.lever);
+    rightCtl.append(btnCol, flaps, this.lever);
 
     this.toastEl = el("div", "toast");
     this.whiteEl = el("div", "whiteout");
@@ -209,6 +215,11 @@ export class Hud {
     b.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       if (id === "brake") {
+        // On the ground: wheel brakes (hold). In the air: speedbrakes (tap to toggle).
+        if (this.airMode) {
+          this.controls.emit("speedbrake");
+          return;
+        }
         this.controls.state.brake = 1;
         this.brakeHeld = true;
         return;
@@ -226,6 +237,58 @@ export class Hud {
   }
 
   brakeHeld = false;
+
+  /**
+   * Flap lever with real detents (UP, 1, 2, FULL). Tap a notch or drag the handle; the lever
+   * moves one notch at a time, and the playne refuses a notch it's too fast for.
+   */
+  private buildFlapLever(): HTMLElement {
+    const lever = el("div", "flap-lever");
+    lever.id = "hud-flaps";
+    lever.setAttribute("aria-label", "Flap lever");
+    lever.innerHTML = `<div class="flap-title">FLAPS</div><div class="flap-track"></div>`;
+    const track = lever.querySelector(".flap-track") as HTMLElement;
+    ["UP", "1", "2", "FULL"].forEach((label, i) => {
+      const d = el("div", "flap-detent", `<span>${label}</span>`);
+      d.dataset.n = String(i);
+      track.append(d);
+    });
+    this.flapHandle = el("div", "flap-handle");
+    track.append(this.flapHandle);
+    const pick = (e: PointerEvent) => {
+      const r = track.getBoundingClientRect();
+      const f = (e.clientY - r.top) / r.height;
+      return Math.max(0, Math.min(3, Math.floor(f * 4)));
+    };
+    let want = -1;
+    const go = (n: number) => {
+      if (n === want) return;
+      want = n;
+      const steps = n - this.flapLevel;
+      for (let k = 0; k < Math.abs(steps); k++) this.controls.emit(steps > 0 ? "flaps" : "flaps-up");
+    };
+    lever.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      lever.setPointerCapture(e.pointerId);
+      want = -1;
+      go(pick(e));
+    });
+    lever.addEventListener("pointermove", (e) => {
+      if (lever.hasPointerCapture(e.pointerId)) go(pick(e));
+    });
+    this.flapLever = lever;
+    this.buttons.flaps = lever;
+    return lever;
+  }
+
+  /** Briefly flash a control (e.g. the flap lever when the playne is too fast for more flaps). */
+  flash(id: string): void {
+    const b = this.buttons[id];
+    if (!b) return;
+    b.classList.remove("flash");
+    void b.offsetWidth;
+    b.classList.add("flash");
+  }
 
   private setupYoke(): void {
     let active: number | null = null;
@@ -308,7 +371,7 @@ export class Hud {
     this.bigmap.update(s);
   }
 
-  openBigMap(s: MapState, onPick: (a: Airport) => void, onClose: () => void): void {
+  openBigMap(s: MapState, onPick: (a: Airport | null) => void, onClose: () => void): void {
     this.bigmap.onPick = onPick;
     this.bigmap.onClose = () => {
       this.bigmap.close();
@@ -376,10 +439,19 @@ export class Hud {
     }
     this.buttons.gear.classList.toggle("on", d.gearDown);
     this.buttons.gear.classList.toggle("fixed", d.fixedGear);
-    this.buttons.flaps.classList.toggle("on", d.flaps >= 2);
-    this.buttons.flaps.dataset.level = String(d.flaps);
-    // Fade the brakes out in the air but keep their spot, so the other buttons don't jump.
-    this.buttons.brake.classList.toggle("gone", !d.onGround);
+    this.flapLevel = d.flaps;
+    this.flapLever.dataset.level = String(d.flaps);
+    this.flapHandle.style.top = `${d.flaps * 25}%`;
+    // The brakes button: wheel brakes on the ground, speedbrakes in the air (if the playne has
+    // them). Fades out but keeps its spot otherwise, so the other buttons don't jump.
+    const air = !d.onGround;
+    if (air !== this.airMode) {
+      this.airMode = air;
+      const label = this.buttons.brake.querySelector("span");
+      if (label) label.textContent = air ? "Air brake" : "Brakes";
+    }
+    this.buttons.brake.classList.toggle("gone", air && d.airbrake === null);
+    this.buttons.brake.classList.toggle("on", air && d.airbrake === true);
     this.terrainEl.hidden = !d.terrain;
     this.warpEl.hidden = !d.warp;
     if (d.hoopsLeft !== null && d.hoopsLeft > 0) {

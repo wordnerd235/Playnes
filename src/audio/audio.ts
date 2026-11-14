@@ -197,7 +197,7 @@ export class Audio {
     src.start();
   }
 
-  sfx(name: "ding" | "hoop" | "thunk" | "chirp" | "star" | "click" | "cash" | "whoosh" | "crash"): void {
+  sfx(name: "ding" | "hoop" | "thunk" | "chirp" | "star" | "click" | "cash" | "whoosh" | "crash" | "boom"): void {
     switch (name) {
       case "ding":
         this.tone(880, 0, 0.6, "sine", 0.18);
@@ -229,6 +229,12 @@ export class Audio {
         this.noiseBurst(0.5, 2200, 0.5, "bandpass");
         this.tone(60, 0, 0.8, "sine", 0.4);
         break;
+      case "boom":
+        // Sonic boom: a double thump.
+        this.noiseBurst(0.5, 160, 1.3);
+        this.tone(45, 0, 0.5, "sine", 0.5);
+        this.tone(42, 0.16, 0.6, "sine", 0.45);
+        break;
       case "whoosh":
         this.noiseBurst(1.2, 900, 0.35);
         break;
@@ -237,10 +243,10 @@ export class Audio {
 
   // ----- Engine -----
 
-  startEngine(kind: "piston" | "turboprop" | "jet"): void {
+  startEngine(kind: "piston" | "turboprop" | "jet" | "fighter"): void {
     if (!this.ctx || !this.master) return;
     this.stopEngine();
-    this.engine = new EngineSound(this.ctx, this.master, kind);
+    this.engine = new EngineSound(this.ctx, this.master, kind === "fighter" ? "jet" : kind);
   }
 
   updateEngine(throttle: number, speed: number): void {

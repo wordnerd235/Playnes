@@ -1,7 +1,7 @@
 // The player's progress: Wings, planes, lessons, passport stamps. Saved on this device,
 // with a backup code parents can copy out and paste back (docs/GAME_PLAN.md §11).
 
-import { AIRCRAFT, type AircraftDef } from "../data/aircraft.ts";
+import { AIRCRAFT, carriesPassengers, type AircraftDef } from "../data/aircraft.ts";
 
 export interface Progress {
   v: 1;
@@ -131,4 +131,12 @@ export function charterRewards(distanceNm: number, stars: number, firstVisit: bo
   r.push(...landingRewards(stars, butter));
   if (firstVisit) r.push({ label: "New passport stamp", wings: 15 });
   return r;
+}
+
+/** The playne to fly a charter in: the chosen one, unless it has no passenger seats (fighter). */
+export function charterPlaneId(p: Progress): string {
+  const chosen = AIRCRAFT.find((a) => a.id === p.selectedPlane);
+  if (chosen && carriesPassengers(chosen)) return chosen.id;
+  const owned = AIRCRAFT.filter((a) => p.planes.includes(a.id) && carriesPassengers(a));
+  return (owned[owned.length - 1] ?? AIRCRAFT[0]).id;
 }

@@ -4,6 +4,7 @@
 
 import {
   Cartesian3,
+  Cartographic,
   Color,
   ColorBlendMode,
   Matrix4,
@@ -12,6 +13,12 @@ import {
   Cartesian4,
   Matrix3,
   PointPrimitiveCollection,
+  ColorGeometryInstanceAttribute,
+  GeometryInstance,
+  PerInstanceColorAppearance,
+  PolygonGeometry,
+  PolygonHierarchy,
+  Primitive,
   type Entity,
   type ModelNode,
   type PointPrimitive,
@@ -39,14 +46,19 @@ import {
   type LatLon,
 } from "../sim/geo.ts";
 import { hoopGuidance, sTurnCourse } from "../sim/course.ts";
-import { Cockpit } from "../ui/cockpit.ts";
-import { createState, indicated, perfFor, step, type FlightState, type Perf } from "../sim/physics.ts";
+import { Cockpit, PassengerWindow } from "../ui/cockpit.ts";
+import { createState, indicated, perfFor, speedOfSound, step, type Commands, type FlightState, type Perf } from "../sim/physics.ts";
 import type { Hud, Prompt } from "../ui/hud.ts";
 import { CloudDeck } from "../world/clouds.ts";
 import { gfxOn } from "../world/safety.ts";
 import type { World } from "../world/world.ts";
 import { frameMatrix, PlaneView } from "./planeView.ts";
 import { makeRunway, onRunwayArea, pickEnd, runwayCoords, runwayHeight, runwayPoint, type RunwayInUse } from "./runway.ts";
+
+/** Runway surfaces sit this far above the runway's slope (so wheels sit on the paint). */
+const RUNWAY_LIFT = 0.12;
+const RUNWAY_ASPHALT = Color.fromCssColorString("#44484f");
+const RUNWAY_PAINT = Color.fromCssColorString("#f4f4f0");
 
 export type LessonId = "l2" | "l3" | "l4" | "l5";
 
@@ -168,6 +180,7 @@ export class FlightSession {
   private time = 0;
   private view: PlaneView;
   private cockpit: Cockpit;
+  private paxWindow: PassengerWindow;
   private lastCmd = { targetBank: 0, targetVs: 0 };
   private hoops: Hoop[] = [];
   private hoopIndex = 0;
@@ -205,10 +218,15 @@ export class FlightSession {
   private papi: PointPrimitiveCollection | null = null;
   private papiLights: { light: PointPrimitive; pos: LatLon; setting: number }[] = [];
   private entities: Entity[] = [];
+  private runwayPrims: Primitive[] = [];
   // Free Flight
   onLanded: (l: FreeLanding) => void = () => {};
   private allRunways: RunwayInUse[] = [];
   private autopilot: { heading: number; alt: number; ias: number } | null = null;
+  /** Speedbrakes extended (jets). */
+  private speedbrakeOut = false;
+  private lastMach = 0;
+  private lastBoom = -100;
   private edgeTimer = 0;
   private navTarget: Airport | null = null;
   private landmarksSaid = new Set<string>();
@@ -223,6 +241,7 @@ export class FlightSession {
     this.clouds = new CloudDeck(deps.world.widget.scene);
     this.view = new PlaneView(deps.world, deps.aircraft);
     this.cockpit = new Cockpit(deps.hud.root, deps.aircraft);
+    this.paxWindow = new PassengerWindow(deps.hud.root);
     deps.hud.onLook = (dy, dp) => this.view.addLook(dy, dp);
     deps.hud.onLookReset = () => this.view.resetLook();
     this.unsub = deps.controls.on((e) => this.onControl(e));
@@ -283,13 +302,36 @@ export class FlightSession {
     else this.startLineup();
   }
 
+  /**
+   * Hold (paused, camera in place) until the detailed ground under the playne has loaded:
+   * the first terrain tiles are coarse and can sit metres above the runway, hiding the playne.
+   */
+  async settleGround(maxMs = 6000): Promise<void> {
+    if (!this.s) return;
+    const was = this.paused;
+    this.paused = true;
+    const t0 = performance.now();
+    const globe = this.d.world.widget.scene.globe;
+    await new Promise<void>((resolve) => {
+      const check = () => {
+        if (this.destroyed || performance.now() - t0 > maxMs) return resolve();
+        const s = this.s;
+        const gh = globe.show ? globe.getHeight(Cartographic.fromDegrees(s.lon, s.lat)) : undefined;
+        const settled = gh === undefined ? this.d.world.groundReady() : s.onGround ? Math.abs(gh - this.groundHeightAt(s)) < 1.5 : s.alt > gh + 10;
+        if (settled && performance.now() - t0 > 300) resolve();
+        else setTimeout(check, 100);
+      };
+      check();
+    });
+    if (!this.destroyed) this.paused = was;
+  }
+
   /** Resolves once the runway shapes are built (they are made in the background), max 8 s. */
   private groundShapesReady(): Promise<void> {
-    const display = this.d.world.widget.dataSourceDisplay;
     const t0 = performance.now();
     return new Promise((resolve) => {
       const check = () => {
-        if (this.destroyed || display.ready || performance.now() - t0 > 8000) resolve();
+        if (this.destroyed || this.runwayPrims.every((p) => p.ready) || performance.now() - t0 > 8000) resolve();
         else setTimeout(check, 100);
       };
       check();
@@ -298,41 +340,61 @@ export class FlightSession {
 
   /**
    * Crisp runway with markings for the offline worlds (the map tiles alone look blurry up close).
-   * Drawn as flat surfaces just above the runway's slope (the offline map flattens the ground
-   * along runways the same way). Not draped: a draped shape is a tall invisible volume, and a
-   * cockpit camera inside it smears the runway colour over the whole sky.
+   * Flat surfaces just above the runway's slope (the offline map flattens the ground along
+   * runways the same way), split into short pieces so they follow the Earth's curve, and drawn
+   * with a depth offset so the terrain never pokes through or smears them. Not draped: a draped
+   * shape is a tall invisible volume, and a cockpit camera inside it smears the whole sky.
    */
   private addRunwayVisuals(r: RunwayInUse): void {
     const kind = this.d.world.kind;
     if (kind !== "basic" && kind !== "cartoon") return;
     if (!gfxOn("groundPolys")) return;
-    const ents = this.d.world.widget.entities;
     const w = r.airport.runway.widthFt * FT;
-    const rect = (s0: number, s1: number, x0: number, x1: number, color: Color, lift = 0.45) => {
-      const corners: [number, number][] = [[s0, x0], [s1, x0], [s1, x1], [s0, x1]];
-      const pts = corners.map(([sa, xa]) => ({ ...runwayPoint(r, sa, xa), h: runwayHeight(r, sa) + lift }));
-      this.entities.push(
-        ents.add({
-          polygon: {
-            hierarchy: Cartesian3.fromDegreesArrayHeights(pts.flatMap((c) => [c.lon, c.lat, c.h])),
-            perPositionHeight: true,
-            material: color,
-          },
-        }),
-      );
+    const asphaltParts: GeometryInstance[] = [];
+    const paintParts: GeometryInstance[] = [];
+    const rect = (s0: number, s1: number, x0: number, x1: number, paint: boolean) => {
+      const lo = Math.min(s0, s1);
+      const hi = Math.max(s0, s1);
+      for (let a = lo; a < hi - 0.01; a += 300) {
+        const b = Math.min(hi, a + 300);
+        const lift = RUNWAY_LIFT + (paint ? 0.04 : 0);
+        const pts = ([[a, x0], [b, x0], [b, x1], [a, x1]] as const).map(([sa, xa]) => ({ ...runwayPoint(r, sa, xa), h: runwayHeight(r, sa) + lift }));
+        (paint ? paintParts : asphaltParts).push(
+          new GeometryInstance({
+            geometry: new PolygonGeometry({
+              polygonHierarchy: new PolygonHierarchy(Cartesian3.fromDegreesArrayHeights(pts.flatMap((c) => [c.lon, c.lat, c.h]))),
+              perPositionHeight: true,
+              vertexFormat: PerInstanceColorAppearance.FLAT_VERTEX_FORMAT,
+            }),
+            attributes: { color: ColorGeometryInstanceAttribute.fromColor(paint ? RUNWAY_PAINT : RUNWAY_ASPHALT) },
+          }),
+        );
+      }
     };
-    const asphalt = Color.fromCssColorString("#44484f");
-    const paint = Color.fromCssColorString("#f4f4f0");
-    rect(-40, r.length + 40, -w / 2, w / 2, asphalt, 0.35);
-    rect(0, r.length, -w / 2 + 1, -w / 2 + 2, paint);
-    rect(0, r.length, w / 2 - 2, w / 2 - 1, paint);
-    for (let s = 120; s < r.length - 120; s += 66) rect(s, s + 36, -0.5, 0.5, paint);
+    rect(-40, r.length + 40, -w / 2, w / 2, false);
+    rect(0, r.length, -w / 2 + 1, -w / 2 + 2, true);
+    rect(0, r.length, w / 2 - 2, w / 2 - 1, true);
+    for (let s = 120; s < r.length - 120; s += 66) rect(s, s + 36, -0.5, 0.5, true);
     for (const [s0, dir] of [[6, 1], [r.length - 6, -1]] as const) {
       for (let k = 0; k < 8; k++) {
         const x = -w / 2 + 4 + k * ((w - 8) / 8) + (k >= 4 ? 4 : 0);
-        rect(s0, s0 + dir * 45, x, x + 1.8, paint);
+        rect(s0, s0 + dir * 45, x, x + 1.8, true);
       }
-      for (const x of [-w / 4 - 3, w / 4 - 3]) rect(s0 + dir * 300, s0 + dir * 345, x, x + 6, paint);
+      for (const x of [-w / 4 - 3, w / 4 - 3]) rect(s0 + dir * 300, s0 + dir * 345, x, x + 6, true);
+    }
+    const scene = this.d.world.widget.scene;
+    for (const [parts, offset] of [[asphaltParts, -4], [paintParts, -8]] as const) {
+      const prim = new Primitive({
+        geometryInstances: parts,
+        appearance: new PerInstanceColorAppearance({
+          flat: true,
+          translucent: false,
+          renderState: { polygonOffset: { enabled: true, factor: offset, units: offset * 4 } },
+        }),
+        shadows: 0,
+      });
+      scene.primitives.add(prim);
+      this.runwayPrims.push(prim);
     }
   }
 
@@ -481,7 +543,7 @@ export class FlightSession {
 
   private hoopRadius(): number {
     // Flight school hoops are extra big.
-    if (this.mission.kind === "lesson") return clamp(this.ac.shape.span * 2.4, 30, 60);
+    if (this.mission.kind === "lesson") return clamp(this.ac.shape.span * 3, 40, 70);
     return clamp(this.ac.shape.span * 1.6, 22, 55);
   }
 
@@ -764,7 +826,10 @@ export class FlightSession {
     if (this.mission.kind !== "sandbox" || !this.s) return;
     this.autopilot = { heading: this.s.heading, alt: Math.max(this.s.alt, this.groundHeightAt(this.s) + 150), ias: Math.max(indicated(this.s.speed, this.s.alt), this.p.vapp * 1.1) };
     if (!this.s.onGround) void this.say(LINES.mapAutopilot, true);
-    this.d.hud.openBigMap({ pos: this.s, heading: this.s.heading, target: this.navTarget }, (a: Airport) => this.setNavTarget(a), () => {
+    this.d.hud.openBigMap({ pos: this.s, heading: this.s.heading, target: this.navTarget }, (a: Airport | null) => {
+      this.setNavTarget(a);
+      if (!a) void this.say(LINES.routeCleared, true);
+    }, () => {
       this.autopilot = null;
     });
   }
@@ -784,6 +849,16 @@ export class FlightSession {
 
   private updateFree(dt: number): void {
     const s = this.s;
+    // Breaking the sound barrier (the fighter can).
+    const mach = s.speed / speedOfSound(s.alt);
+    if (mach >= 1 && this.lastMach < 1 && this.time - this.lastBoom > 20) {
+      this.lastBoom = this.time;
+      this.d.audio.sfx("boom");
+      this.d.hud.toast("SONIC BOOM!", "big");
+      this.view.shake = 0.4;
+      void this.say(LINES.sonicBoom, true);
+    }
+    this.lastMach = mach;
     const c = this.d.controls.state;
     const p = this.p;
     const ground = this.groundHeightAt(s);
@@ -804,19 +879,24 @@ export class FlightSession {
     }
     const overRunway = !!near && Math.abs(near.x) < near.r.airport.runway.widthFt * FT * 0.5 + 30 && near.s > -100 && near.s < near.r.length + 100;
     const landingZone = !!near && aligned && !s.onGround && (rwyAgl ?? 999) < 700;
+    // Wheels down, power back, landing speed: the pilot means to land (maybe in a field), so
+    // Ground Buddy steps aside and the co-pilot flares over whatever ground is below.
+    const landingConfig = !s.onGround && !landingZone && (s.gearDown || this.ac.shape.fixedGear) && c.throttle < 0.25 && indicated(s.speed, s.alt) < p.vapp * 1.5;
 
     const g: Guidance = {
       targetHeading: null,
       targetVs: 0,
       targetSpeed: null,
       agl,
-      runwayAgl: landingZone ? rwyAgl : null,
-      landing: crashes || landingZone,
+      runwayAgl: landingZone ? rwyAgl : landingConfig ? agl : null,
+      landing: crashes || landingZone || landingConfig,
       autoFlare: this.d.assistLevel <= 3,
       groundHeading: null,
       wantRotate: true,
       autoRotate: false,
       powerGlide: !landingZone && !this.d.autoSpeed,
+      // Free Flight: full stick is a 60-degree steep turn (the fighter can roll much further).
+      maxBank: this.ac.kind === "fighter" ? 80 : 60,
     };
     let roll = c.roll;
     let pitch = c.pitch;
@@ -884,9 +964,11 @@ export class FlightSession {
     }
 
     const cmd = computeCommands(level, { roll, pitch, throttle, brake }, g, s, p, this.mem, dt);
+    this.slowingDown(cmd, landingZone, c.throttle);
+    this.flapRelief();
     this.lastCmd = { targetBank: cmd.targetBank, targetVs: cmd.targetVs };
     const wasGround = s.onGround;
-    const events = step(s, cmd, p, { groundHeight: ground }, dt);
+    const events = step(s, cmd, p, { groundHeight: ground, surface: overRunway || !s.onGround ? "runway" : "grass" }, dt);
     if (this.mem.terrainWarning) this.sayOnce(`terrain${Math.floor(this.time / 8)}`, LINES.terrain);
 
     for (const e of events) {
@@ -901,7 +983,8 @@ export class FlightSession {
       if (e.type === "touchdown") this.onFreeTouchdown(e.sinkFpm, overRunway, near);
     }
     if (!wasGround && !s.onGround) this.airborneTime += dt;
-    if (s.onGround && this.phase === "free" && crashes && !overRunway && s.speed > 35 * KT) this.crash();
+    // Rolling over rough ground (steep, water, or into something) is a crash; a flat open field is fine.
+    if (s.onGround && this.phase === "free" && crashes && !overRunway && s.speed > 20 * KT && this.frame % 4 === 0 && !this.fieldOk(s)) this.crash();
     // Bumping into trees, houses and airport buildings (crashes on; only near the ground).
     if (crashes && this.phase === "free" && s.speed > 20 * KT && agl < 90) {
       const top = this.d.world.obstacleTop(s, this.ac.shape.span * 0.4);
@@ -917,6 +1000,43 @@ export class FlightSession {
         }
       }
     }
+  }
+
+  /**
+   * How real playnes slow down. In the air: idle power, then speedbrakes (jets). On the runway
+   * with the power at idle: ground spoilers dump the lift, the reversers roar and the
+   * autobrakes squeeze, just like an airliner's landing roll (and a rejected takeoff).
+   */
+  private slowingDown(cmd: Commands, landingZone: boolean, lever: number): void {
+    const s = this.s;
+    const p = this.p;
+    const ias = indicated(s.speed, s.alt);
+    if (s.onGround) {
+      this.speedbrakeOut = false;
+      if (s.speed > 25 * KT && lever < 0.15 && !this.autopilot) {
+        cmd.brake = Math.max(cmd.brake, 0.6);
+        cmd.spoilers = 1;
+        cmd.reverse = s.speed > 40 * KT;
+        if (!this.said.has("autobrake") && s.speed > 50 * KT) {
+          this.said.add("autobrake");
+          void this.say(p.reversers ? LINES.reversers : LINES.brakesOn);
+        }
+      }
+      if (s.speed < 5 * KT) this.said.delete("autobrake");
+      return;
+    }
+    // Fast on final: the co-pilot helps with the speedbrakes (and says so).
+    if (landingZone && ias > p.vapp * 1.35) {
+      if (!this.said.has("tooFast")) {
+        this.said.add("tooFast");
+        void this.say(p.speedbrakes ? LINES.tooFastBrakes : LINES.tooFast);
+      }
+      if (p.speedbrakes) this.speedbrakeOut = true;
+    }
+    if (!landingZone) this.said.delete("tooFast");
+    // Pushing the power up puts the speedbrakes away, as on real jets.
+    if (this.speedbrakeOut && (lever > 0.7 || (landingZone && ias < p.vapp * 1.1))) this.speedbrakeOut = false;
+    cmd.spoilers = this.speedbrakeOut ? 1 : 0;
   }
 
   /** After takeoff: remind to raise the wheels and flaps (they add a lot of drag). */
@@ -938,21 +1058,46 @@ export class FlightSession {
     this.d.hud.setPrompt(null);
   }
 
+  /**
+   * Could a playne land here? Flat (under ~5 degrees), dry, and clear of trees and buildings.
+   */
+  private fieldOk(p: LatLon): boolean {
+    const data = this.d.world.cartoon;
+    if (data) {
+      if (data.landAt(p.lat, p.lon) === 1) return false;
+      const h = (dx: number, dy: number) => data.height(p.lat + dy / 111320, p.lon + dx / (111320 * Math.cos(p.lat * DEG)));
+      const c = h(0, 0);
+      const slope = Math.max(Math.abs(h(40, 0) - c), Math.abs(h(-40, 0) - c), Math.abs(h(0, 40) - c), Math.abs(h(0, -40) - c)) / 40;
+      if (slope > 0.09) return false;
+    }
+    const top = this.d.world.obstacleTop(p, this.ac.shape.span * 0.6);
+    return top === null || top < this.s.alt - 1;
+  }
+
   private onFreeTouchdown(sink: number, overRunway: boolean, near: { r: RunwayInUse; s: number; x: number } | null): void {
     const s = this.s;
-    const water = this.d.world.cartoon?.landAt(s.lat, s.lon) === 1;
-    if (this.d.crashes && (!overRunway || sink > 900 || Math.abs(s.bank) > 25 || water)) {
-      this.crash();
-      return;
-    }
+    const gentle = sink < 700 && Math.abs(s.bank) < 15;
     if (!overRunway || !near) {
-      if (!this.d.crashes) {
-        // Not a runway: the co-pilot bounces us back up.
+      // Off the runway: an emergency landing works on flat, open, dry ground.
+      if (gentle && this.fieldOk(s)) {
+        this.d.audio.sfx("thunk");
+        this.d.hud.toast("Safe landing!", "big");
+        void this.say(LINES.emergencyLanding, true);
+        this.airborneTime = 0;
+        return;
+      }
+      if (this.d.crashes) this.crash();
+      else {
+        // Not a safe place: the co-pilot bounces us back up.
         s.onGround = false;
         s.alt += 2;
         s.vs = 3;
         s.gamma = 4;
       }
+      return;
+    }
+    if (this.d.crashes && (sink > 900 || Math.abs(s.bank) > 25)) {
+      this.crash();
       return;
     }
     this.d.audio.sfx("chirp");
@@ -1024,11 +1169,24 @@ export class FlightSession {
           void this.say(LINES.gearUpGood).then(() => this.afterGearUp());
         }
         break;
+      case "flaps-up":
+        // Like a real flap lever: one notch up at a time, any time.
+        if (this.s.flaps > 0) this.s.flaps--;
+        break;
+      case "speedbrake":
+        if (!this.p.speedbrakes || this.s.onGround) return;
+        this.speedbrakeOut = !this.speedbrakeOut;
+        void this.say(this.speedbrakeOut ? LINES.speedbrakesOut : LINES.speedbrakesIn, true);
+        break;
       case "flaps":
-        // In flight above approach speed, one tap brings the flaps all the way up; otherwise
-        // each tap lowers one more notch (and wraps back to up on the ground).
-        if (!this.s.onGround && this.s.flaps > 0 && indicated(this.s.speed, this.s.alt) > this.p.vapp * 1.25) this.s.flaps = 0;
-        else this.s.flaps = (this.s.flaps + 1) % 4;
+        // One notch down, unless we're faster than that notch allows (real flaps have a speed limit).
+        if (this.s.flaps >= 3) return;
+        if (!this.s.onGround && indicated(this.s.speed, this.s.alt) > this.flapLimit(this.s.flaps + 1)) {
+          void this.say(LINES.tooFastFlaps, true);
+          this.d.hud.flash("flaps");
+          return;
+        }
+        this.s.flaps++;
         if (this.timed?.prompt === "flaps" && this.s.flaps >= 3) {
           this.timed = null;
           this.d.hud.setPrompt(null);
@@ -1036,7 +1194,8 @@ export class FlightSession {
         }
         break;
       case "camera":
-        this.view.mode = this.view.mode === "chase" ? "cockpit" : "chase";
+        // Chase → cockpit → passenger window → chase.
+        this.view.mode = this.view.mode === "chase" ? "cockpit" : this.view.mode === "cockpit" && this.ac.seats > 1 ? "window" : "chase";
         this.view.resetLook();
         break;
       case "radio":
@@ -1045,6 +1204,21 @@ export class FlightSession {
         break;
       default:
         break;
+    }
+  }
+
+  /** Fastest indicated airspeed (m/s) allowed with this flap notch out (like a real Vfe). */
+  private flapLimit(notch: number): number {
+    return this.p.vapp * ([Infinity, 1.7, 1.5, 1.33][notch] ?? Infinity);
+  }
+
+  /** Flaps out while going much too fast: bring them up a notch (flap load relief). */
+  private flapRelief(): void {
+    const s = this.s;
+    if (s.onGround || s.flaps === 0) return;
+    if (indicated(s.speed, s.alt) > this.flapLimit(s.flaps) * 1.08) {
+      s.flaps--;
+      this.sayOnce(`flapRelief${Math.floor(this.time / 20)}`, LINES.flapsRelief);
     }
   }
 
@@ -1129,7 +1303,7 @@ export class FlightSession {
 
   private groundHeightAt(p: LatLon): number {
     for (const r of [this.dep, this.arr, ...this.allRunways]) {
-      if (r && onRunwayArea(r, p)) return runwayHeight(r, runwayCoords(r, p).s);
+      if (r && onRunwayArea(r, p)) return runwayHeight(r, runwayCoords(r, p).s) + (this.runwayPrims.length ? RUNWAY_LIFT : 0);
     }
     if (this.frame - this.groundCache.frame >= 6 || !this.groundCache.valid) {
       const h = this.d.world.groundHeight(p);
@@ -1163,6 +1337,8 @@ export class FlightSession {
       groundHeading: null,
       wantRotate: false,
       autoRotate: false,
+      // Flight school keeps turns gentle; charters allow a normal steep turn.
+      maxBank: this.mission.kind === "lesson" ? 35 : 45,
     };
     let throttle: number | null = c.throttle;
     let brake = c.brake;
@@ -1174,7 +1350,6 @@ export class FlightSession {
       const hg = hoopGuidance(s, s.speed, hoop, prev);
       g.targetHeading = hg.heading;
       g.courseBank = hg.bank;
-      g.steerAssist = true;
       const tt = Math.max(1.5, dist / Math.max(s.speed, 20));
       g.targetVs = clamp((hoop.alt - s.alt) / tt, -p.descentMax, p.climbMax);
     }
@@ -1260,7 +1435,12 @@ export class FlightSession {
 
     const cmd = computeCommands(level, { roll: c.roll, pitch: c.pitch, throttle, brake }, g, s, p, this.mem, dt);
     if (this.phase === "lineup") cmd.throttle = 0;
-    if (this.phase === "rollout") cmd.throttle = 0;
+    if (this.phase !== "cruise" && this.phase !== "toCruise") this.flapRelief();
+    if (this.phase === "rollout") {
+      cmd.throttle = 0;
+      cmd.spoilers = 1;
+      cmd.reverse = s.speed > 40 * KT;
+    }
     this.lastCmd = { targetBank: cmd.targetBank, targetVs: cmd.targetVs };
     const events = step(s, cmd, p, { groundHeight: ground }, dt);
 
@@ -1501,6 +1681,8 @@ export class FlightSession {
     const s = this.s;
     const inside = this.view.mode === "cockpit";
     if (this.cockpit.visible !== inside) this.cockpit.show(inside);
+    const pax = this.view.mode === "window";
+    if (this.paxWindow.visible !== pax) this.paxWindow.show(pax);
     if (this.view.model) this.view.model.show = !inside;
     if (!inside) return;
     const ref = this.arr && this.cruiseProgressFraction() > 0.5 ? this.arr : this.dep;
@@ -1543,6 +1725,7 @@ export class FlightSession {
       warp: inCruise && this.cruise.moment === 0,
       terrain: this.mem.terrainWarning,
       hoopsLeft: this.hoops.length ? this.hoops.length - this.hoopIndex : null,
+      airbrake: this.p.speedbrakes ? this.speedbrakeOut : null,
     });
   }
 
@@ -1573,6 +1756,7 @@ export class FlightSession {
   destroy(): void {
     this.destroyed = true;
     this.cockpit.el.remove();
+    this.paxWindow.el.remove();
     this.unsub();
     this.d.audio.stopEngine();
     this.d.audio.stopVoice();
@@ -1584,6 +1768,7 @@ export class FlightSession {
     this.d.hud.onLookReset = () => {};
     if (this.papi) this.d.world.widget.scene.primitives.remove(this.papi);
     for (const e of this.entities) this.d.world.widget.entities.remove(e);
+    for (const p of this.runwayPrims) this.d.world.widget.scene.primitives.remove(p);
     this.d.world.exclude.length = 0;
     this.clouds.destroy();
     this.d.world.setGroundVisible(true);

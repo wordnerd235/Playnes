@@ -5,7 +5,7 @@ import { AIRCRAFT, aircraftById, type AircraftDef } from "../data/aircraft.ts";
 import { AIRPORTS, airportByCode } from "../data/airports.ts";
 import { LINES, PASSENGERS, tpl, type Line, type Passenger } from "../data/lines.ts";
 import type { FlightResult, FreeSnapshot, LessonId, Mission } from "../game/flight.ts";
-import { buy, canBuy, exportCode, importCode, owns, type Progress, type Reward } from "../game/progress.ts";
+import { buy, canBuy, charterPlaneId, exportCode, importCode, owns, type Progress, type Reward } from "../game/progress.ts";
 import type { Settings } from "../game/settings.ts";
 import { distance, NM } from "../sim/geo.ts";
 import { saveForOffline } from "../game/offline.ts";
@@ -185,7 +185,8 @@ export class Screens {
 
   charters(): void {
     const p = this.host.progress;
-    const plane = aircraftById(p.selectedPlane);
+    const plane = aircraftById(charterPlaneId(p));
+    if (plane.id !== p.selectedPlane) this.host.say(LINES.fighterFreeOnly);
     const here = airportByCode(p.currentAirport);
     const dests = AIRPORTS.filter((a) => a.code !== here.code && distance(here, a) / NM <= plane.rangeNm);
     const fits = PASSENGERS.filter((x) => x.count <= plane.seats);
@@ -308,7 +309,7 @@ export class Screens {
       h("div.plane-swatch", { style: { background: `linear-gradient(135deg, ${ac.livery.body} 55%, ${ac.livery.stripe} 55% 70%, ${ac.livery.accent} 70%)` } }, [h("span", { html: ICONS.plane })]),
       h("div.plane-maker", {}, ac.maker),
       h("div.plane-model", {}, ac.model),
-      h("div.plane-facts", {}, `${ac.category} · ${ac.seats} seats · ${ac.rangeNm.toLocaleString()} nm`),
+      h("div.plane-facts", {}, `${ac.category} · ${ac.seats} seat${ac.seats === 1 ? "" : "s"} · ${ac.rangeNm.toLocaleString()} nm`),
       status,
     ]);
     card.addEventListener("click", () => {

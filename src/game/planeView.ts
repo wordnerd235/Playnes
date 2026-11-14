@@ -7,7 +7,7 @@ import { angleDiff, clamp, DEG, destination, type LatLon } from "../sim/geo.ts";
 import type { FlightState } from "../sim/physics.ts";
 import type { World } from "../world/world.ts";
 
-export type CameraMode = "chase" | "cockpit";
+export type CameraMode = "chase" | "cockpit" | "window";
 
 export interface SurfaceInputs {
   /** -1..1: roll command (positive = rolling right). */
@@ -142,6 +142,28 @@ export class PlaneView {
     const L = this.ac.shape.length;
     const k = dt === 0 ? 1 : 1 - Math.exp(-dt * 2.5);
     this.camHeading += angleDiff(s.heading, this.camHeading) * k;
+
+    if (this.mode === "window") {
+      // A passenger's seat: left side of the cabin, ahead of the wing, looking out and back.
+      const base = frameVectors(s, s.alt, s.heading, s.pitch, s.bank);
+      const D = this.ac.shape.fuselageDiameter;
+      const left = Cartesian3.negate(base.right, new Cartesian3());
+      const eye = Cartesian3.add(
+        base.pos,
+        Cartesian3.add(
+          Cartesian3.add(Cartesian3.multiplyByScalar(base.fwd, L * 0.12, new Cartesian3()), Cartesian3.multiplyByScalar(left, D * 0.5 + 0.12, new Cartesian3()), new Cartesian3()),
+          Cartesian3.multiplyByScalar(base.up, D * 0.75 + 0.75, new Cartesian3()),
+          new Cartesian3(),
+        ),
+        new Cartesian3(),
+      );
+      const f = frameVectors(s, s.alt, s.heading - 112 + this.lookYaw, s.pitch - 10 + this.lookPitch, s.bank);
+      const ec = Cartographic.fromCartesian(eye);
+      const safe = this.aboveTerrain(ec.latitude / DEG, ec.longitude / DEG, ec.height);
+      const dest = safe === ec.height ? eye : Cartesian3.fromRadians(ec.longitude, ec.latitude, safe);
+      scene.camera.setView({ destination: dest, orientation: { direction: f.fwd, up: f.up } });
+      return { lat: ec.latitude / DEG, lon: ec.longitude / DEG, height: safe };
+    }
 
     if (this.mode === "cockpit") {
       const f = frameVectors(s, s.alt, s.heading + this.lookYaw, s.pitch + this.lookPitch - (lookDown ? 35 : 0), s.bank);

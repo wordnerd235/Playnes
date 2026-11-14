@@ -98,7 +98,8 @@ export class Cockpit {
       s("path", { d: `M0 0 H${W} V70 Q${W / 2} 120 0 70 Z` }, frame);
       s("path", { d: `M0 0 H90 L330 620 H0 Z` }, frame);
       s("path", { d: `M${W} 0 H${W - 90} L${W - 330} 620 H${W} Z` }, frame);
-      s("path", { d: `M${W / 2 - 16} 90 L${W / 2 + 16} 90 L${W / 2 + 26} 610 L${W / 2 - 26} 610 Z` }, frame);
+      // Jets have a centre post between the windshields; a fighter's bubble canopy doesn't.
+      if (this.ac.kind !== "fighter") s("path", { d: `M${W / 2 - 16} 90 L${W / 2 + 16} 90 L${W / 2 + 26} 610 L${W / 2 - 26} 610 Z` }, frame);
     }
 
     // --- Glareshield and panel.
@@ -289,5 +290,26 @@ export class Cockpit {
       bar.setAttribute("height", String(h));
       bar.setAttribute("y", String(y0 - h));
     }
+  }
+}
+
+/** Passenger window view: an oval cabin window with the cabin wall around it. */
+export class PassengerWindow {
+  readonly el: HTMLElement;
+
+  constructor(parent: HTMLElement) {
+    this.el = document.createElement("div");
+    this.el.className = "pax-window";
+    this.el.hidden = true;
+    this.el.innerHTML = `<div class="pax-hole"></div><div class="pax-shade"></div>`;
+    parent.prepend(this.el);
+  }
+
+  show(on: boolean): void {
+    this.el.hidden = !on;
+  }
+
+  get visible(): boolean {
+    return !this.el.hidden;
   }
 }

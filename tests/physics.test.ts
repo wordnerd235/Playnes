@@ -261,4 +261,22 @@ describe("real-world performance", () => {
       expect(r.maxVs, id).toBeGreaterThan(ac.climbFpm * 1.2);
     }
   });
+
+  it("landing roll: autobrakes, spoilers and reversers stop every playne well within a runway", () => {
+    const rows: string[] = [];
+    for (const ac of AIRCRAFT) {
+      const p = perfFor(ac);
+      const s = createState({ lat: 35, lon: -81, alt: 0, heading: 0, onGround: true, speed: p.vapp, gearDown: true, flaps: 3 });
+      let dist = 0;
+      for (let i = 0; i < 120 / DT && s.speed > 0.5; i++) {
+        const before = s.speed;
+        step(s, { targetBank: 0, targetVs: 0, throttle: 0, brake: 0.6, rotate: false, groundHeading: 0, spoilers: 1, reverse: s.speed > 40 * KT_ }, p, { groundHeight: 0 }, DT);
+        dist += ((before + s.speed) / 2) * DT;
+      }
+      rows.push(`${ac.id} ${Math.round(dist)} m`);
+      // Shortest runway in the game is about 1,800 m; touchdown is ~300 m in.
+      expect(dist, ac.id).toBeLessThan(1100);
+    }
+    console.log(rows.join("  "));
+  });
 });

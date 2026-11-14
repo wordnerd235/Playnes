@@ -32,9 +32,10 @@ The game is playable at the GitHub Pages site. See `docs/SETUP.md`.
 - Three map sources behind one switch: Google Photorealistic 3D Tiles, Cesium ion, and a bundled **offline cartoon world** (default) built from AWS Terrain Tiles + Natural Earth, with terrain, fields, forests, rivers, lakes, towns, trees, clouds and crisp runways
 - 12 airports (TRI, CLT, AVL, MYR, ATL, TYS, CHA, GSP, CAE, GSO, RDU, ROA) and 19 landmarks; about 4,300 real airport buildings (terminals, hangars, parking decks) from Overture Maps / OpenStreetMap footprints
 - Flight model with a standard atmosphere (thrust and drag change with altitude), induced and parasite drag, real Vmo/Mmo limits; every plane calibrated to its book climb rate, cruise speed and glide ratio and unit-tested; co-pilot assists, Ground Buddy, envelope protection
-- 13 procedural "toy-real" planes with moving flaps, ailerons, elevators and rudder, blinking beacons and strobes, and a ground shadow
+- 14 procedural "toy-real" playnes (13 business/training aircraft plus an F-16 for Free Flight), each with PLAYNE123 painted on the side, with moving flaps, ailerons, elevators and rudder, blinking beacons and strobes, and a ground shadow
 - Controls: touch yoke + throttle lever, tilt, keyboard, game controller; drag-to-look bubble above the yoke, with reset; full stick = 45° steep turn, and a hoop helper that flies the curve when you steer toward the next hoop
-- Cockpit view: window frame and panel (round dials in the Cessna, glass screens in turboprops and jets)
+- Cockpit view (round dials in the Cessna, glass screens elsewhere) and a passenger window view
+- Real slowing down: flap lever with detents and speed limits, speedbrakes, ground spoilers, reversers, autobrakes; emergency landings on flat open ground
 - Charters (radio call → takeoff → hoops → cloud cruise with landmarks → approach with live PAPI lights → landing score), Flight School 1–5 with graduation, hangar with Wings prices
 - **Free Flight** sandbox: pick any departure airport, save and resume, minimap, big map with autopilot while open, fly-to target line, landing helper on any runway, passport stamps, edge-of-map turnaround, optional crashes
 - 321 voice lines generated with free Kokoro TTS (callsign "Playne one two three")

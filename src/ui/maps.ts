@@ -194,11 +194,12 @@ export class BigMap {
   private layer: HTMLElement;
   private info: HTMLElement;
   private goBtn: HTMLButtonElement;
+  private clearBtn!: HTMLButtonElement;
   private picked: Airport | null = null;
   private state: MapState | null = null;
   private raf = 0;
   onClose: () => void = () => {};
-  onPick: (a: Airport) => void = () => {};
+  onPick: (a: Airport | null) => void = () => {};
   onSelect: (a: Airport) => void = () => {};
 
   constructor(parent: HTMLElement) {
@@ -211,7 +212,7 @@ export class BigMap {
         <button type="button" class="btn primary bigmap-close">Back to flying</button>
       </div>
       <div class="bigmap-stage"><canvas></canvas><div class="bigmap-layer"></div></div>
-      <div class="bigmap-info"><span class="bigmap-info-text">Tap an airport to plan a trip.</span><button type="button" class="btn secondary bigmap-go" hidden>Fly there</button></div>`;
+      <div class="bigmap-info"><span class="bigmap-info-text">Tap an airport to plan a trip.</span><button type="button" class="btn secondary bigmap-clear" hidden>Clear route</button><button type="button" class="btn secondary bigmap-go" hidden>Fly there</button></div>`;
     this.canvas = this.el.querySelector("canvas")!;
     this.ctx = this.canvas.getContext("2d")!;
     this.layer = this.el.querySelector(".bigmap-layer")!;
@@ -221,6 +222,14 @@ export class BigMap {
     this.goBtn.addEventListener("click", () => {
       if (this.picked) this.onPick(this.picked);
       this.onClose();
+    });
+    this.clearBtn = this.el.querySelector(".bigmap-clear")!;
+    this.clearBtn.addEventListener("click", () => {
+      this.picked = null;
+      if (this.state) this.state = { ...this.state, target: null };
+      this.onPick(null);
+      this.drawBase();
+      this.updateInfo();
     });
     parent.append(this.el);
     window.addEventListener("resize", () => !this.el.hidden && this.layout());
@@ -346,6 +355,7 @@ export class BigMap {
 
   private updateInfo(): void {
     const s = this.state;
+    this.clearBtn.hidden = !s?.target;
     if (!this.picked || !s) {
       this.info.textContent = "Tap an airport to plan a trip. The dashed line is the edge of the map.";
       this.goBtn.hidden = true;

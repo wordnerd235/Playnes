@@ -198,10 +198,10 @@
   "speak": "I'll put the wheels down."
  },
  {
-  "id": "a5a43e01",
+  "id": "dcc63a71",
   "who": "copilot",
-  "text": "Flaps down! Tap the flaps button. Flaps help us fly slow.",
-  "speak": "Flaps down! Tap the flaps button. Flaps help us fly slow."
+  "text": "Flaps down! Move the flap lever all the way down. Flaps help us fly slow.",
+  "speak": "Flaps down! Move the flap lever all the way down. Flaps help us fly slow."
  },
  {
   "id": "afe204f0",
@@ -330,16 +330,88 @@
   "speak": "The autopilot will fly while you look at the map."
  },
  {
-  "id": "bb7c26f2",
+  "id": "928bf8ee",
   "who": "copilot",
-  "text": "Flaps up! Tap the flaps button so we can fly fast.",
-  "speak": "Flaps up! Tap the flaps button so we can fly fast."
+  "text": "Flaps up! Move the flap lever up so we can fly fast.",
+  "speak": "Flaps up! Move the flap lever up so we can fly fast."
  },
  {
   "id": "fae0050c",
   "who": "copilot",
   "text": "You're lined up with the runway. I'll help you land!",
   "speak": "You're lined up with the runway. I'll help you land!"
+ },
+ {
+  "id": "76b0ba54",
+  "who": "copilot",
+  "text": "Spoilers up, reversers, brakes! That's how big jets stop.",
+  "speak": "Spoilers up, reversers, brakes! That's how big jets stop."
+ },
+ {
+  "id": "c1bd76b4",
+  "who": "copilot",
+  "text": "Brakes on! We're slowing down.",
+  "speak": "Brakes on! We're slowing down."
+ },
+ {
+  "id": "f7a3aa19",
+  "who": "copilot",
+  "text": "We're too fast to land! Pull the throttle back.",
+  "speak": "We're too fast to land! Pull the throttle back."
+ },
+ {
+  "id": "0342382a",
+  "who": "copilot",
+  "text": "Too fast! Throttle back. I'll put out the speed brakes.",
+  "speak": "Too fast! Throttle back. I'll put out the speed brakes."
+ },
+ {
+  "id": "8b49510f",
+  "who": "copilot",
+  "text": "Too fast for more flaps! Slow down first.",
+  "speak": "Too fast for more flaps! Slow down first."
+ },
+ {
+  "id": "e2be9d2a",
+  "who": "copilot",
+  "text": "We're going too fast for the flaps, so I'm bringing them up a notch.",
+  "speak": "We're going too fast for the flaps, so I'm bringing them up a notch."
+ },
+ {
+  "id": "bb1e5644",
+  "who": "copilot",
+  "text": "Speed brakes out. They help us slow down.",
+  "speak": "Speed brakes out. They help us slow down."
+ },
+ {
+  "id": "97defd6b",
+  "who": "copilot",
+  "text": "Speed brakes in.",
+  "speak": "Speed brakes in."
+ },
+ {
+  "id": "440b16d8",
+  "who": "copilot",
+  "text": "Boom! We just broke the sound barrier!",
+  "speak": "Boom! We just broke the sound barrier!"
+ },
+ {
+  "id": "d99ee910",
+  "who": "copilot",
+  "text": "Fighter jets only have one seat, so we'll fly a playne with seats for charters.",
+  "speak": "Fighter jets only have one seat, so we'll fly a plane with seats for charters."
+ },
+ {
+  "id": "7eefa15f",
+  "who": "copilot",
+  "text": "We made it down safely! Great emergency landing.",
+  "speak": "We made it down safely! Great emergency landing."
+ },
+ {
+  "id": "d79182ca",
+  "who": "copilot",
+  "text": "Okay, no destination. Fly wherever you like!",
+  "speak": "Okay, no destination. Fly wherever you like!"
  },
  {
   "id": "7d31956f",
@@ -1924,5 +1996,17 @@
   "who": "copilot",
   "text": "The Global eight thousand is the fastest business jet in the world!",
   "speak": "The Global eight thousand is the fastest business jet in the world!"
+ },
+ {
+  "id": "e3bfaadc",
+  "who": "copilot",
+  "text": "This is the F sixteen Fighting Falcon!",
+  "speak": "This is the F sixteen Fighting Falcon!"
+ },
+ {
+  "id": "28aba070",
+  "who": "copilot",
+  "text": "The F sixteen can fly faster than sound and climb straight up like a rocket!",
+  "speak": "The F sixteen can fly faster than sound and climb straight up like a rocket!"
  }
 ]

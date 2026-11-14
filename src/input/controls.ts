@@ -3,7 +3,8 @@
 
 import { clamp } from "../sim/geo.ts";
 
-export type ControlEvent = "gear" | "flaps" | "camera" | "radio" | "pause" | "throttle-full";
+/** "flaps" lowers the flaps one notch, "flaps-up" raises them one notch. */
+export type ControlEvent = "gear" | "flaps" | "flaps-up" | "speedbrake" | "camera" | "radio" | "pause" | "throttle-full";
 
 export interface ControlState {
   roll: number;
@@ -115,6 +116,8 @@ export class Controls {
       if (!this.keys.has(k)) {
         if (k === "g") this.emit("gear");
         if (k === "f") this.emit("flaps");
+        if (k === "v") this.emit("flaps-up");
+        if (k === "b") this.emit("speedbrake");
         if (k === "c") this.emit("camera");
         if (k === "r" || k === "t") this.emit("radio");
         if (k === "p" || k === "Escape") this.emit("pause");
@@ -152,7 +155,7 @@ export class Controls {
       if (rt > 0.05) this.setThrottle(this.state.throttle + rt * dt * 0.7);
       if (lt > 0.05) this.setThrottle(this.state.throttle - lt * dt * 0.7);
       if (pad.buttons[1]?.pressed && pad.buttons[5]?.pressed) brake = 1;
-      const map: [number, ControlEvent][] = [[0, "gear"], [1, "flaps"], [3, "camera"], [2, "radio"], [9, "pause"]];
+      const map: [number, ControlEvent][] = [[0, "gear"], [1, "flaps"], [4, "flaps-up"], [3, "camera"], [2, "radio"], [9, "pause"], [8, "speedbrake"]];
       for (const [i, ev] of map) {
         const pressed = !!pad.buttons[i]?.pressed;
         if (pressed && !this.padPrev[i]) this.emit(ev);

@@ -232,6 +232,46 @@ function cylinderBetween(p0, p1, r, seg = 10) {
 
 // ---------------------------------------------------------------- aircraft
 
+// 5x7 pixel font for the registration painted on the fuselage.
+const FONT = {
+  P: ["11110", "10001", "10001", "11110", "10000", "10000", "10000"],
+  L: ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
+  A: ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
+  Y: ["10001", "10001", "01010", "00100", "00100", "00100", "00100"],
+  N: ["10001", "11001", "10101", "10011", "10001", "10001", "10001"],
+  E: ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
+  1: ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
+  2: ["01110", "10001", "00001", "00010", "00100", "01000", "11111"],
+  3: ["11110", "00001", "00001", "01110", "00001", "00001", "11110"],
+};
+export const REGISTRATION = "PLAYNE123";
+
+/**
+ * Raised pixel letters on one side of the fuselage. `side` +1 = left (+X), -1 = right.
+ * Text reads left-to-right for someone looking at that side.
+ */
+function registration(text, side, xAt, y0, zMid, h) {
+  const px = h / 7;
+  const cols = text.length * 6 - 1;
+  const dir = side > 0 ? -1 : 1; // reading direction along Z
+  const boxes = [];
+  [...text].forEach((ch, i) => {
+    const g = FONT[ch];
+    if (!g) return;
+    for (let r = 0; r < 7; r++) for (let c = 0; c < 5; c++) {
+      if (g[r][c] !== "1") continue;
+      const u = i * 6 + c - cols / 2;
+      const z = zMid + dir * u * px;
+      const y = y0 + (3 - r) * px;
+      const x = side * (xAt(z) + 0.012);
+      const b = new THREE.BoxGeometry(0.02, px * 0.92, px * 0.92);
+      b.applyMatrix4(T(x, y, z));
+      boxes.push(b);
+    }
+  });
+  return boxes;
+}
+
 function buildAircraft(ac) {
   const s = ac.shape;
   const L = s.length;
@@ -245,6 +285,7 @@ function buildAircraft(ac) {
   const belly = body.clone().lerp(C("#9aa3ad"), 0.25);
   const isProp = s.engines === "prop-nose";
   const highWing = s.wing === "high";
+  const fighter = s.engines === "fighter";
 
   const gearH = highWing ? 0.95 : Math.max(0.6, D * 0.42);
   const cy = gearH + R;
@@ -264,7 +305,16 @@ function buildAircraft(ac) {
     const z = lerp(tailZ, noseZ, t);
     let k; // size factor
     let yOff = 0;
-    if (t < 0.32) {
+    if (fighter) {
+      // Fighter: straight tube to the engine nozzle, long pointed radome.
+      if (t < 0.1) k = 0.72 + 0.28 * (t / 0.1);
+      else if (t < 0.6) k = 1;
+      else {
+        const u = (t - 0.6) / 0.4;
+        k = Math.max(0.03, (1 - u) ** 0.8);
+        yOff = -R * 0.1 * u;
+      }
+    } else if (t < 0.32) {
       const u = t / 0.32;
       k = 0.16 + 0.84 * Math.sin((u * Math.PI) / 2) ** 0.85;
       yOff = R * 0.5 * (1 - u) ** 1.6; // upswept tail cone
@@ -335,7 +385,7 @@ function buildAircraft(ac) {
       const ang = rowAngle(m);
       const sa = Math.sin(ang);
       const ca = Math.abs(Math.cos(ang));
-      const glass = zt >= 0 && zt <= 1 && sa > 0.18 && (sa < 0.93 || zt < 0.35) && ca > 0.02 + zt * 0.1;
+      const glass = !fighter && zt >= 0 && zt <= 1 && sa > 0.18 && (sa < 0.93 || zt < 0.35) && ca > 0.02 + zt * 0.1;
       (glass ? fusGlass : fusPaint).push(i);
     }
     const pick = (list) => {
@@ -357,7 +407,20 @@ function buildAircraft(ac) {
 
   // Cabin windows and door outline.
   const oval = ac.maker === "Gulfstream";
-  const nWin = Math.max(2, Math.round((L * 0.36) / (oval ? 1.25 : 0.95)));
+  const nWin = fighter ? 0 : Math.max(2, Math.round((L * 0.36) / (oval ? 1.25 : 0.95)));
+  if (fighter) {
+    // Bubble canopy (gold-tinted) and its frame.
+    const cz = noseZ - L * 0.3;
+    add("body", finish(new THREE.SphereGeometry(1, 28, 16, 0, Math.PI * 2, 0, Math.PI / 2), MAT.glass, C("#f0d78a"), chain(T(0, cy + R * 0.62, cz), S(R * 0.55, R * 0.72, L * 0.13))));
+    add("body", finish(new THREE.TorusGeometry(1, 0.06, 6, 24, Math.PI), MAT.dark, C("#2a2f35"), chain(T(0, cy + R * 0.62, cz - L * 0.04), S(R * 0.56, R * 0.74, 1), RZ(0))));
+    // Belly air intake under the cockpit.
+    const iz = noseZ - L * 0.42;
+    add("body", finish(new THREE.CylinderGeometry(R * 0.5, R * 0.42, L * 0.2, 20, 1, true), MAT.paint, body, chain(T(0, cy - R * 0.95, iz - L * 0.06), RX(Math.PI / 2), S(1.1, 1, 0.75))));
+    add("body", finish(new THREE.CircleGeometry(R * 0.44, 20), MAT.dark, C("#15191d"), chain(T(0, cy - R * 0.95, iz + L * 0.04), S(1.1, 0.75, 1))));
+    // Engine nozzle.
+    add("body", finish(lathe([[R * 0.7, 0], [R * 0.66, -0.25], [R * 0.6, -0.75], [R * 0.52, -0.8]], 24), MAT.metal, C("#5d646c"), T(0, cy, tailZ + 0.05)));
+    add("body", finish(new THREE.CircleGeometry(R * 0.5, 20), MAT.dark, C("#1b1f23"), chain(T(0, cy, tailZ - 0.7), RY(Math.PI))));
+  }
   const winStart = wsStart - D * 0.75;
   const winSpacing = oval ? 1.25 : 0.95;
   for (let i = 0; i < nWin; i++) {
@@ -370,13 +433,32 @@ function buildAircraft(ac) {
     }
   }
 
+  // Registration (callsign) on both sides of the rear fuselage.
+  {
+    let h = Math.min(0.42, Math.max(0.24, D * 0.24));
+    let zMid = fighter ? tailZ + L * 0.36 : tailZ + L * (isProp ? 0.27 : 0.34);
+    if (s.engines === "rear-twin" || s.engines === "rear-tri") {
+      // Between the last cabin window and the engines (which would hide it).
+      const winEnd = winStart - (nWin - 1) * winSpacing - 0.35;
+      const nacFront = tailZ + L * 0.24 + Math.max(1.7, L * 0.17) / 2 + 0.2;
+      h = Math.max(0.16, Math.min(h, (winEnd - nacFront) / 7.8));
+      zMid = (winEnd + nacFront) / 2;
+    }
+    const y0 = fighter ? cy - R * 0.25 : cy - R * 0.12;
+    const lum = (c) => 0.3 * c.r + 0.59 * c.g + 0.11 * c.b;
+    const ink = lum(body) > 0.55 ? C("#1d2733") : C("#f4f6f8");
+    for (const side of [1, -1]) {
+      for (const b of registration(REGISTRATION, side, (z) => stationAt(z).hw, y0, zMid, h)) add("body", finish(b, MAT.paint, ink));
+    }
+  }
+
   // ---------------- wing
-  const rootChord = Math.max(1.5, L * (highWing ? 0.17 : 0.2));
-  const tipChord = rootChord * (highWing ? 0.92 : 0.38);
-  const wingZ = highWing ? L * 0.13 : L * 0.08; // leading edge at root
-  const wingY = highWing ? cy + R * 0.98 : cy - R * 0.62;
-  const dihedral = highWing ? 0.025 : 0.07;
-  const thick = 0.13;
+  const rootChord = Math.max(1.5, L * (fighter ? 0.34 : highWing ? 0.17 : 0.2));
+  const tipChord = rootChord * (fighter ? 0.22 : highWing ? 0.92 : 0.38);
+  const wingZ = fighter ? L * 0.1 : highWing ? L * 0.13 : L * 0.08; // leading edge at root
+  const wingY = highWing ? cy + R * 0.98 : s.wing === "mid" ? cy - R * 0.1 : cy - R * 0.62;
+  const dihedral = highWing ? 0.025 : fighter ? 0 : 0.07;
+  const thick = fighter ? 0.05 : 0.13;
   const flapEnd = isProp && highWing ? 0.55 : 0.62; // fraction of semi-span
   const ailEnd = 0.93;
   const cf = highWing ? 0.28 : 0.27; // control surface chord fraction
@@ -420,6 +502,8 @@ function buildAircraft(ac) {
       const wl = surface({ rootLE: base, tipLE: top, rootChord: tipChord * 0.95, tipChord: tipChord * 0.4, thickness: 0.1, up: V(-side, 0.25, 0).normalize(), stations: [{ t: 0 }, { t: 1 }], camber: 0 });
       add("body", finish(wl, MAT.paint, accent));
     }
+    // Fighter wingtip launch rails.
+    if (fighter) add("body", finish(cylinderBetween(V(side * (semi + 0.05), wingY, wingZ - Math.tan(sweep) * semi + 0.4), V(side * (semi + 0.05), wingY, wingZ - Math.tan(sweep) * semi - tipChord - 0.6), 0.07), MAT.paint, C("#e8ebee")));
     // Nav light (red left/port, green right/starboard) and strobe.
     const lightPos = tipLE.clone().add(V(side * 0.05, 0, -tipChord * 0.15));
     add("body", finish(new THREE.SphereGeometry(Math.max(0.07, D * 0.04), 10, 8), side > 0 ? MAT.navRed : MAT.navGreen, C("#ffffff"), T(lightPos.x, lightPos.y, lightPos.z)));
@@ -430,15 +514,15 @@ function buildAircraft(ac) {
     }
   }
   // Wing-to-body fairing for low wings
-  if (!highWing) {
+  if (!highWing && !fighter) {
     add("body", finish(new THREE.SphereGeometry(1, 20, 10), MAT.paint, belly, chain(T(0, wingY + R * 0.1, wingZ - rootChord * 0.45), S(R * 1.02, R * 0.42, rootChord * 0.75))));
   }
 
   // ---------------- tail
-  const finRoot = L * 0.19;
+  const finRoot = L * (fighter ? 0.2 : 0.19);
   const finTip = finRoot * (s.tail === "t-tail" ? 0.65 : 0.55);
   const finH = L * (s.tail === "t-tail" ? 0.18 : 0.16) + 0.35;
-  const finSweep = ((isProp ? 28 : 40) * Math.PI) / 180;
+  const finSweep = ((isProp ? 28 : fighter ? 47 : 40) * Math.PI) / 180;
   const finLEz = tailZ + finRoot * 1.05;
   const finBaseY = st[2][3] + st[2][2] * 0.7;
   const finRootLE = V(0, finBaseY, finLEz);

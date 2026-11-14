@@ -3,14 +3,14 @@
 // Shape values (meters) drive the procedural "toy-real" 3D models built by scripts/build-models.mjs.
 // This file must stay free of DOM/browser imports: Node scripts import it too.
 
-export type EngineLayout = "prop-nose" | "rear-twin" | "over-wing" | "rear-tri";
+export type EngineLayout = "prop-nose" | "rear-twin" | "over-wing" | "rear-tri" | "fighter";
 export type TailType = "conventional" | "t-tail" | "cruciform";
 
 export interface AircraftShape {
   length: number;
   span: number;
   fuselageDiameter: number;
-  wing: "high" | "low";
+  wing: "high" | "low" | "mid";
   sweepDeg: number;
   tail: TailType;
   engines: EngineLayout;
@@ -31,7 +31,7 @@ export interface AircraftDef {
   model: string;
   /** How the co-pilot says it. */
   spoken: string;
-  kind: "piston" | "turboprop" | "jet";
+  kind: "piston" | "turboprop" | "jet" | "fighter";
   category: string;
   seats: number;
   rangeNm: number;
@@ -265,7 +265,29 @@ export const AIRCRAFT: AircraftDef[] = [
     shape: { length: 33.8, span: 32.4, fuselageDiameter: 3.0, wing: "low", sweepDeg: 35, tail: "t-tail", engines: "rear-twin", winglets: true, fixedGear: false },
     livery: { body: "#fafafa", stripe: "#a8102a", accent: "#2f2f2f" },
   },
+  {
+    id: "f16",
+    maker: "Lockheed Martin",
+    model: "F-16 Fighting Falcon",
+    spoken: "F sixteen Fighting Falcon",
+    kind: "fighter",
+    category: "Fighter jet",
+    seats: 1,
+    rangeNm: 2000,
+    // Supersonic dash high up (about Mach 1.7); a fighter has no passengers, so Free Flight only.
+    cruiseKt: 1000,
+    unlock: { type: "wings", price: 900 },
+    wow: "The F sixteen can fly faster than sound and climb straight up like a rocket!",
+    vr: 150, vapp: 150, vclimb: 350, vstall: 115, vmo: 800, mmo: 2.0, climbFpm: 40000, rollRate: 180, cruiseAltFt: 40000,
+    shape: { length: 15.0, span: 9.96, fuselageDiameter: 1.35, wing: "mid", sweepDeg: 40, tail: "conventional", engines: "fighter", winglets: false, fixedGear: false },
+    livery: { body: "#9aa4ae", stripe: "#5c6772", accent: "#1f6fd1" },
+  },
 ];
+
+/** Fighters have one seat: Free Flight only (no charter passengers). */
+export function carriesPassengers(ac: AircraftDef): boolean {
+  return ac.kind !== "fighter";
+}
 
 export function aircraftById(id: string): AircraftDef {
   const a = AIRCRAFT.find((x) => x.id === id);

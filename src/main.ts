@@ -9,7 +9,7 @@ import { airportByCode } from "./data/airports.ts";
 import { LINES, type Line } from "./data/lines.ts";
 import { Audio } from "./audio/audio.ts";
 import { FlightSession, type FlightResult, type FreeLanding, type FreeSnapshot, type Mission } from "./game/flight.ts";
-import { charterRewards, landingRewards, loadProgress, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
+import { charterPlaneId, charterRewards, landingRewards, loadProgress, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
 import { googleKey, ionToken, loadSettings, resolveWorld, saveSettings, type Settings } from "./game/settings.ts";
 import { Controls } from "./input/controls.ts";
 import { destination } from "./sim/geo.ts";
@@ -157,7 +157,7 @@ class Game implements ScreenHost {
     if (this.breakDue()) return;
     this.lastMission = m;
     this.screens.loading(m.kind === "charter" ? `Flying to ${airportByCode(m.to).spoken}...` : m.kind === "sandbox" ? "Getting ready for free flight..." : "Heading to the runway...");
-    const planeId = m.kind === "lesson" ? "c172" : m.kind === "sandbox" && m.resume ? m.resume.aircraft : this.progress.selectedPlane;
+    const planeId = m.kind === "lesson" ? "c172" : m.kind === "sandbox" ? (m.resume ? m.resume.aircraft : this.progress.selectedPlane) : charterPlaneId(this.progress);
     const ac = aircraftById(planeId);
     const flight = new FlightSession(
       { world: this.world, audio: this.audio, controls: this.controls, hud: this.hud, aircraft: ac, assistLevel: this.settings.assistLevel, crashes: this.settings.crashes, autoSpeed: this.settings.freeAutoSpeed },
@@ -168,7 +168,9 @@ class Game implements ScreenHost {
     flight.onLanded = (l) => this.freeLanding(l);
     flight
       .start()
+      .then(() => flight.settleGround())
       .then(() => {
+        if (this.flight !== flight) return;
         this.screens.hide();
         // A resumed Free Flight starts paused, so the pilot can get ready.
         if (m.kind === "sandbox" && m.resume) this.togglePause();

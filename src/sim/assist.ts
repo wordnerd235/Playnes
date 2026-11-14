@@ -36,13 +36,10 @@ export interface Guidance {
   wantRotate: boolean;
   /** Co-pilot rotates if the player hasn't. */
   autoRotate: boolean;
-  /**
-   * Hoop helper: when the player steers toward `targetHeading`, the co-pilot picks how much
-   * to bank, so the turn always fits (the player still chooses left or right).
-   */
-  steerAssist?: boolean;
-  /** Bank the hoop course's curve needs here, degrees (hoop helper feed-forward). */
+  /** Bank the hoop course's curve needs here, degrees (hands-off nudge feed-forward). */
   courseBank?: number;
+  /** Bank at full stick, degrees (default 45). */
+  maxBank?: number;
   /**
    * Free Flight: with the stick centred and the lever pulled back, glide down at the rate the
    * missing power dictates (keeping the speed), like a real trimmed playne.
@@ -73,7 +70,9 @@ export function computeCommands(
   dt: number,
 ): Commands {
   // ----- Lateral -----
-  const kidBank = input.roll * MAX_BANK_ASSISTED;
+  // The stick is always the player's: full stick = full bank. The co-pilot only helps when
+  // the stick is let go.
+  const kidBank = input.roll * (g.maxBank ?? MAX_BANK_ASSISTED);
   const neutral = Math.abs(input.roll) < 0.08;
   mem.neutralTime = neutral ? mem.neutralTime + dt : 0;
   let targetBank = kidBank;
@@ -84,10 +83,6 @@ export function computeCommands(
     // Blend the helper in after the player lets go for a moment.
     const blend = clamp((mem.neutralTime - 0.8) / 1.0, 0, 1);
     targetBank = lerp(kidBank, helperBank, blend);
-    // Steering the right way: fly the ideal curve to the hoop (no overshooting).
-    if (g.steerAssist && !neutral && (Math.sign(input.roll) === Math.sign(err) || Math.abs(err) < 4)) {
-      targetBank = clamp((g.courseBank ?? 0) + clamp(err * 1.5, -30, 30), -MAX_BANK_ASSISTED, MAX_BANK_ASSISTED);
-    }
   }
 
   // ----- Vertical -----
