@@ -378,7 +378,8 @@ export class Hud {
     this.buttons.gear.classList.toggle("fixed", d.fixedGear);
     this.buttons.flaps.classList.toggle("on", d.flaps >= 2);
     this.buttons.flaps.dataset.level = String(d.flaps);
-    this.buttons.brake.hidden = !d.onGround;
+    // Fade the brakes out in the air but keep their spot, so the other buttons don't jump.
+    this.buttons.brake.classList.toggle("gone", !d.onGround);
     this.terrainEl.hidden = !d.terrain;
     this.warpEl.hidden = !d.warp;
     if (d.hoopsLeft !== null && d.hoopsLeft > 0) {

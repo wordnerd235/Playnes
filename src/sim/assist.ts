@@ -36,6 +36,13 @@ export interface Guidance {
   wantRotate: boolean;
   /** Co-pilot rotates if the player hasn't. */
   autoRotate: boolean;
+  /**
+   * Hoop helper: when the player steers toward `targetHeading`, the co-pilot picks how much
+   * to bank, so the turn always fits (the player still chooses left or right).
+   */
+  steerAssist?: boolean;
+  /** Bank the hoop course's curve needs here, degrees (hoop helper feed-forward). */
+  courseBank?: number;
 }
 
 export interface AssistMemory {
@@ -48,7 +55,8 @@ export function createMemory(): AssistMemory {
   return { neutralTime: 0, throttleI: 0, terrainWarning: false };
 }
 
-export const MAX_BANK_ASSISTED = 30;
+/** Full stick = 45 degrees of bank: a "steep turn", the most a pilot normally uses. */
+export const MAX_BANK_ASSISTED = 45;
 
 export function computeCommands(
   level: number,
@@ -70,6 +78,10 @@ export function computeCommands(
     // Blend the helper in after the player lets go for a moment.
     const blend = clamp((mem.neutralTime - 0.8) / 1.0, 0, 1);
     targetBank = lerp(kidBank, helperBank, blend);
+    // Steering the right way: fly the ideal curve to the hoop (no overshooting).
+    if (g.steerAssist && !neutral && (Math.sign(input.roll) === Math.sign(err) || Math.abs(err) < 4)) {
+      targetBank = clamp((g.courseBank ?? 0) + clamp(err * 1.5, -30, 30), -MAX_BANK_ASSISTED, MAX_BANK_ASSISTED);
+    }
   }
 
   // ----- Vertical -----

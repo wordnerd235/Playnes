@@ -29,6 +29,7 @@ export async function saveForOffline(onProgress: (done: number, total: number) =
     "./world/world.json",
     "./world/dem.bin.gz",
     "./world/landcover.bin.gz",
+    "./world/buildings.json",
     ...tileUrls(meta),
     ...AIRCRAFT.map((a) => `./models/${a.id}.glb`),
     "./models/ring.glb",

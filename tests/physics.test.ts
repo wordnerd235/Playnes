@@ -79,9 +79,9 @@ describe("flight model", () => {
       const cmd = computeCommands(1, { ...noInput, roll: 1 }, baseGuidance({ targetSpeed: 100 * KT, groundHeading: null }), s, p, mem, DT);
       step(s, cmd, p, { groundHeight: 0 }, DT);
     }
-    // 30 degrees of bank at ~100 kt is roughly 6 deg/s, so ~50 deg in 10 s after roll-in.
-    expect(s.heading).toBeGreaterThan(35);
-    expect(s.heading).toBeLessThan(75);
+    // Full stick = 45 degrees of bank: at ~100 kt that is about 11 deg/s, so ~95 deg in 10 s after roll-in.
+    expect(s.heading).toBeGreaterThan(80);
+    expect(s.heading).toBeLessThan(115);
     expect(Math.abs(s.alt - 1000)).toBeLessThan(30);
   });
 

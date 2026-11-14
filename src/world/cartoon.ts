@@ -132,7 +132,7 @@ export class CartoonData {
       rectangle: Rectangle.fromDegrees(m.bounds.west, m.bounds.south, m.bounds.east, m.bounds.north),
       minimumLevel: zMin,
       maximumLevel: 15,
-      credit: m.attribution,
+      credit: `${m.attribution} Airport buildings: © OpenStreetMap contributors, via Overture Maps.`,
     });
     provider.errorEvent.addEventListener(() => {
       /* missing detail tiles fall back to the coarser ones */

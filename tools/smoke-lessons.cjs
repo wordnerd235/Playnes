@@ -18,13 +18,22 @@ const path = require("path");
     try {
       await page.evaluate((l) => window.playnes.startMission({ kind: "lesson", lesson: l, airport: "TRI" }), lesson);
       await page.waitForFunction(() => window.playnes.flight && window.playnes.flight.phase !== "loading", null, { timeout: 60000 });
-      await page.evaluate(() => (window.playnes.flight.timeScale = 12));
+      await page.evaluate(() => {
+        window.playnes.flight.timeScale = 12;
+        window.__hoops = "";
+        clearInterval(window.__hoopTimer);
+        window.__hoopTimer = setInterval(() => {
+          const f = window.playnes.flight;
+          if (f && f.hoops && f.hoops.length) window.__hoops = `${f.hoops.filter((h) => h.state === "passed").length}/${f.hoops.length} hoops`;
+        }, 250);
+      });
       await page.waitForTimeout(4000);
       await page.screenshot({ path: path.join(out, `lesson-${lesson}.png`) });
       await page.waitForSelector(".debrief", { timeout: 300000 });
       await page.waitForTimeout(1200);
       await page.screenshot({ path: path.join(out, `lesson-${lesson}-done.png`) });
-      console.log(`ok   ${lesson} (${((Date.now() - t) / 1000).toFixed(0)}s)`);
+      const info = await page.evaluate(() => `${window.__hoops || ""} | ${document.querySelector(".debrief").innerText.replace(/\s+/g, " ").slice(0, 220)}`);
+      console.log(`ok   ${lesson} (${((Date.now() - t) / 1000).toFixed(0)}s) ${info}`);
     } catch (e) {
       const phase = await page.evaluate(() => window.playnes.flight?.phase);
       console.log(`FAIL ${lesson}: ${e.message.split("\n")[0]} (phase ${phase})`);

@@ -19,13 +19,15 @@ Without a map key the game runs in the **cartoon world**: a bundled, offline map
 ### Free Flight
 
 The purple **Free Flight** card on the home screen is an open sandbox:
-- Take off from the airport you're at and fly anywhere in the region. The lever is a **real throttle**: pull it back and the plane slows, then glides down. Raise the wheels and flaps after takeoff (the co-pilot reminds you) and climb high to go fast. Thin air up high means a jet flies much faster there, just like the real thing: a Phenom 100 cruises around 400 knots at 30,000 ft, so Charlotte to Tri-Cities takes about 20-25 minutes, the same as a real flight. Grown-up settings can switch to "co-pilot holds the speed" for little pilots.
+- Pick any of the 12 airports to take off from (the one you're at is outlined in yellow), and fly anywhere in the region. Going home from the pause menu saves the flight (it also saves itself every few seconds); the **Keep flying** card on the Free Flight page picks it up right where you left it.
+- Fly anywhere in the region. The lever is a **real throttle**: pull it back and the plane slows, then glides down. Raise the wheels and flaps after takeoff (the co-pilot reminds you) and climb high to go fast. Thin air up high means a jet flies much faster there, just like the real thing: a Phenom 100 cruises around 400 knots at 30,000 ft, so Charlotte to Tri-Cities takes about 20-25 minutes, the same as a real flight. Grown-up settings can switch to "co-pilot holds the speed" for little pilots.
 - The speed gauge shows **airspeed** (what pilots read in the cockpit); the small "ground" number underneath is how fast you're actually covering the map.
 - The **minimap** (top right) shows nearby airports (✈) and landmarks (⭐). Tap it for the **big map**: the autopilot keeps flying your last heading and height while it's open. Tap an airport to see how far it is, then **Fly to** draws a pink line to it on the minimap.
 - Line up with any runway and let go of the stick: the co-pilot helps you down the glide path. Landing at a new airport stamps the passport and earns Wings.
 - Fly to the edge of the map and the co-pilot turns you around.
 - **Crashes** are off by default (the co-pilot always pulls up). Turn on "Free Flight: allow crashes" in grown-up settings for a challenge; after a crash you restart at the nearest airport.
-- The **eye bubble** at the bottom of the screen: drag it to look around. The ⟲ button next to it resets the view. The camera button switches between chase and cockpit views.
+- The **eye bubble** just above the yoke: drag it to look around. The ⟲ button next to it resets the view. The camera button switches between the chase view and the **cockpit** (window frame and instrument panel: round dials in the Cessna, glass screens in the turboprops and jets).
+- Full stick banks up to 45 degrees (a steep turn). In hoop courses, steering toward the next hoop lets the co-pilot pick how much to bank, so every playne can make every hoop.
 
 ### Grown-up settings
 
@@ -113,6 +115,13 @@ The cartoon world is built from public data: [AWS Terrain Tiles](https://registr
 python3 -m venv ~/mapenv && ~/mapenv/bin/pip install numpy pillow
 node scripts/world/export-data.mjs ~/worldcache/data.json
 ~/mapenv/bin/python scripts/world/build_world.py --cache ~/worldcache    # ~5 minutes, writes public/world/
+```
+
+Real airport buildings (terminals, hangars, parking decks...) come from [Overture Maps](https://overturemaps.org/) (OpenStreetMap and other open footprints, ODbL). Only the parts of the dataset around the airports are downloaded:
+
+```bash
+python3 -m venv ~/ovenv && ~/ovenv/bin/pip install pyarrow requests shapely
+~/ovenv/bin/python scripts/world/airport_buildings.py ~/worldcache/data.json   # ~5 minutes, writes public/world/buildings.json
 ```
 
 ### Regenerate the 3D planes

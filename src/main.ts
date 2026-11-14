@@ -9,7 +9,7 @@ import { airportByCode } from "./data/airports.ts";
 import { LINES, type Line } from "./data/lines.ts";
 import { Audio } from "./audio/audio.ts";
 import { FlightSession, type FlightResult, type FreeLanding, type FreeSnapshot, type Mission } from "./game/flight.ts";
-import { charterRewards, loadProgress, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
+import { charterRewards, landingRewards, loadProgress, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
 import { googleKey, ionToken, loadSettings, resolveWorld, saveSettings, type Settings } from "./game/settings.ts";
 import { Controls } from "./input/controls.ts";
 import { destination } from "./sim/geo.ts";
@@ -204,7 +204,7 @@ class Game implements ScreenHost {
     let newStamp = false;
     if (r.mission.kind === "charter") {
       newStamp = !p.airportsVisited.includes(r.mission.to);
-      rewards = charterRewards(r.distanceNm, r.stars, newStamp);
+      rewards = charterRewards(r.distanceNm, r.stars, newStamp, r.landing === "butter");
       if (newStamp) p.airportsVisited.push(r.mission.to);
       p.currentAirport = r.mission.to;
       p.flights++;
@@ -213,7 +213,14 @@ class Game implements ScreenHost {
       this.saveProgress();
     } else if (r.mission.kind === "lesson") {
       rewards = this.markLesson(r.mission.lesson);
-      if (r.landing) rewards.push({ label: `${r.stars} landing star${r.stars === 1 ? "" : "s"}`, wings: 0 });
+      if (r.landing) {
+        // Good landings pay in lessons too (same as charters).
+        const extra = landingRewards(r.stars, r.landing === "butter");
+        rewards.push(...extra);
+        p.wings += extra.reduce((a, b) => a + b.wings, 0);
+        if (r.landing === "butter") p.butterLandings++;
+        this.saveProgress();
+      }
     }
     this.endFlight();
     const graduatedNow = !p.graduated && LESSONS.every((l) => p.lessonsDone.includes(l.id));
@@ -232,7 +239,7 @@ class Game implements ScreenHost {
   /** Free Flight: landing at an airport stamps the passport and pays a little. */
   private freeLanding(l: FreeLanding): void {
     const p = this.progress;
-    let wings = 3 + l.stars * 2;
+    let wings = 3 + l.stars * 2 + (l.landing === "butter" ? 5 : 0);
     const first = !p.airportsVisited.includes(l.airport.code);
     if (first) {
       p.airportsVisited.push(l.airport.code);

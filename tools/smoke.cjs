@@ -101,10 +101,10 @@ const path = require("path");
     await page.waitForFunction(() => window.playnes.flight.phase === "cruise", null, { timeout: 20000 });
     await page.waitForTimeout(4000);
     await shot(page, "12-cruise");
-    await page.evaluate(() => (window.playnes.flight.cameraMode = "cockpit"));
+    await page.evaluate(() => (window.playnes.flight.view.mode = "cockpit"));
     await page.waitForTimeout(1500);
     await shot(page, "13-cruise-cockpit");
-    await page.evaluate(() => (window.playnes.flight.cameraMode = "chase"));
+    await page.evaluate(() => (window.playnes.flight.view.mode = "chase"));
   });
   await step("approach", async () => {
     await page.evaluate(() => window.playnes.flight.enterApproach());

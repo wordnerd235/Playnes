@@ -207,8 +207,10 @@ export class Audio {
         [660, 880, 1320].forEach((f, i) => this.tone(f, i * 0.06, 0.3, "triangle", 0.12));
         break;
       case "thunk":
-        this.noiseBurst(0.25, 300, 0.9);
-        this.tone(90, 0, 0.2, "sine", 0.3);
+        // Gear motor hum, then a soft clunk as the wheels lock.
+        this.tone(160, 0, 0.5, "triangle", 0.05);
+        this.tone(110, 0.45, 0.18, "sine", 0.16);
+        this.noiseBurst(0.08, 260, 0.18);
         break;
       case "chirp":
         this.noiseBurst(0.18, 2500, 0.5, "bandpass");

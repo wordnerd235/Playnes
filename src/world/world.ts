@@ -26,6 +26,7 @@ import type { LatLon } from "../sim/geo.ts";
 import type { Quality } from "../game/settings.ts";
 import { CartoonData } from "./cartoon.ts";
 import { Scenery } from "./scenery.ts";
+import { AirportBuildings } from "./buildings.ts";
 import { degrade, FEATURE_NAMES, gfxOn, type GfxFeature } from "./safety.ts";
 
 /** "cartoon" = offline cartoon world; "basic" = bare globe if the offline data is missing. */
@@ -155,6 +156,16 @@ function baseWidget(container: HTMLElement, kind: WorldKind, q: "high" | "medium
   scene.fog.density = kind === "google" ? 1.2e-4 : kind === "cartoon" ? 1.4e-4 : 2.0e-4;
   scene.postProcessStages.fxaa.enabled = q !== "high";
   scene.screenSpaceCameraController.enableInputs = false;
+  // The real Moon is drawn where it really is; near new moon it shows as a black disc in the
+  // daytime sky. Leave it out.
+  if (scene.moon) scene.moon.show = false;
+  // Cesium decides "camera underground" (black sky, see-through ground) from a ground height it
+  // only re-measures when the camera moves; while the camera sits still it keeps whatever the
+  // last-loaded tile said, which can be a coarse tile a few meters too high. Re-measure every
+  // frame so a cockpit camera near the runway is never mistaken for one underground.
+  scene.preUpdate.addEventListener(() => {
+    (scene as unknown as { _globeHeightDirty: boolean })._globeHeightDirty = true;
+  });
   // A pleasant midday sun over the eastern US.
   const now = new Date();
   widget.clock.currentTime = JulianDate.fromDate(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 17, 0, 0)));
@@ -170,6 +181,8 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
   else if (kind === "ion") w = await createIonWorld(container, opts.ionToken ?? "", q);
   else w = await createBasicWorld(container, q, cartoon);
   const scenery = new Scenery(w.widget.scene, w.kind === "cartoon" ? cartoon : null, q === "high" ? 1 : q === "medium" ? 0.75 : 0.4);
+  // Real airport buildings for the offline world (Google's 3D world already has them).
+  const buildings = w.kind === "cartoon" && cartoon ? new AirportBuildings(w.widget.scene, cartoon) : null;
   installRecovery(w.widget, scenery);
   installCommandGuard(w.widget);
   const setGround = w.setGroundVisible.bind(w);
@@ -180,12 +193,15 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
     setGroundVisible(v: boolean) {
       setGround(v);
       scenery.setVisible(v);
+      buildings?.setVisible(v);
     },
     updateScenery(p, alt, agl) {
       scenery.update(p, alt, agl);
+      buildings?.update(p);
     },
     destroy() {
       scenery.destroy();
+      buildings?.destroy();
       destroy();
     },
   };

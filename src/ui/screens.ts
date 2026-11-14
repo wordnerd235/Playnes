@@ -28,7 +28,7 @@ export interface ScreenHost {
 }
 
 export const LESSONS: { id: string; title: string; icon: string }[] = [
-  { id: "l1", title: "Meet your plane", icon: "✈️" },
+  { id: "l1", title: "Meet your playne", icon: "✈️" },
   { id: "l2", title: "Go fast, go slow", icon: "🏁" },
   { id: "l3", title: "Takeoff!", icon: "🛫" },
   { id: "l4", title: "Turning", icon: "↪️" },
@@ -72,7 +72,7 @@ export class Screens {
     this.show(
       h("div.title-screen", {}, [
         h("div.logo", {}, [h("span.logo-word", {}, "Playnes")]),
-        h("p.tagline", {}, "Fly real planes across North America"),
+        h("p.tagline", {}, "Fly real playnes across North America"),
         btn,
         h("p.version", {}, `Version ${__BUILD__}`),
       ]),
@@ -178,7 +178,7 @@ export class Screens {
       });
     }
     this.host.say(LINES.l1Intro, true);
-    this.show(h("div.lesson-meet", {}, [this.topBar("Meet your plane", () => this.school()), wrap, labels]));
+    this.show(h("div.lesson-meet", {}, [this.topBar("Meet your playne", () => this.school()), wrap, labels]));
   }
 
   // ------------------------------------------------------------ charters
@@ -444,7 +444,7 @@ export class Screens {
     const minutes = sel("set-minutes", String(s.sessionMinutes), [["0", "Off"], ["15", "15 minutes"], ["20", "20 minutes"], ["30", "30 minutes"], ["45", "45 minutes"]]);
     const code = h("textarea", { id: "set-code", rows: 3, spellcheck: false, placeholder: "Backup code" });
     const msg = h("p.field-msg", { role: "status" });
-    const offlineMsg = h("p.field-msg", { role: "status" }, "Downloads about 25 MB so the cartoon world works in the car or on a plane. Install to the Home Screen first.");
+    const offlineMsg = h("p.field-msg", { role: "status" }, "Downloads about 25 MB so the cartoon world works in the car or on a playne. Install to the Home Screen first.");
 
     const save = () => {
       const worldChanged = world.value !== s.world || gkey.value !== s.googleKey || ion.value !== s.ionToken || quality.value !== s.quality;
@@ -496,7 +496,7 @@ export class Screens {
                 onclick: async (e: Event) => {
                   const btn = e.currentTarget as HTMLButtonElement;
                   btn.disabled = true;
-                  offlineMsg.textContent = "Downloading the map, planes and voices...";
+                  offlineMsg.textContent = "Downloading the map, playnes and voices...";
                   const r = await saveForOffline((d, t) => (offlineMsg.textContent = `Saving for offline: ${d} of ${t}...`));
                   offlineMsg.textContent = r.failed ? `Saved ${r.ok} files; ${r.failed} failed. Try again on Wi-Fi.` : `All set! The cartoon world now works with no internet (${r.ok} files).`;
                   btn.disabled = false;
@@ -539,15 +539,15 @@ export class Screens {
             h("label.check", {}, [tilt, "Tilt the iPad to steer"]),
             h("label.check", {}, [flip, "Tilt: flip up and down (if it feels backwards)"]),
             h("label.check", {}, [invert, "Invert up/down on the yoke"]),
-            h("label.check", {}, [crashes, "Free Flight: allow crashes (off = the co-pilot always saves the plane)"]),
+            h("label.check", {}, [crashes, "Free Flight: allow crashes (off = the co-pilot always saves the playne)"]),
             h("label.check", {}, [autoSpeed, "Free Flight: co-pilot holds the speed (off = the lever is a real throttle)"]),
             field("Volume", volume),
             field("Break reminder", minutes),
           ]),
           h("section", {}, [
             h("h2", {}, "Progress"),
-            h("p.field-help", {}, `${p.wings} Wings · ${p.planes.length} planes · ${p.flights} flights · ${p.lessonsDone.length}/5 lessons`),
-            h("label.check", {}, [unlock, "Unlock all planes (special days)"]),
+            h("p.field-help", {}, `${p.wings} Wings · ${p.planes.length} playnes · ${p.flights} flights · ${p.lessonsDone.length}/5 lessons`),
+            h("label.check", {}, [unlock, "Unlock all playnes (special days)"]),
             h("div.code-row", {}, [
               h("button.btn.secondary", {
                 type: "button",
@@ -581,7 +581,7 @@ export class Screens {
             resetBtn,
           ]),
           h("div.parent-actions", {}, [h("button.btn.primary", { type: "button", onclick: save }, "Save")]),
-          h("p.field-help", {}, `Playnes is a private family game. Map data © Google or Cesium as credited on screen. Version ${__BUILD__}.`),
+          h("p.field-help", {}, `Playnes is a private family game. Map data © Google or Cesium as credited on screen; offline map from AWS Terrain Tiles and Natural Earth; airport buildings © OpenStreetMap contributors via Overture Maps. Version ${__BUILD__}.`),
         ]),
       ]),
     );
@@ -623,7 +623,7 @@ function holdToOpen(btn: HTMLElement, fn: () => void): void {
 
 // Side view of a Cessna-style trainer with tappable parts for Lesson 1.
 const MEET_SVG = `
-<svg viewBox="0 0 640 300" class="meet-svg" role="img" aria-label="A small airplane with tappable parts">
+<svg viewBox="0 0 640 300" class="meet-svg" role="img" aria-label="A small airplayne with tappable parts">
   <ellipse cx="330" cy="272" rx="250" ry="12" fill="rgba(0,0,0,.15)"/>
   <g data-part="tail" class="hot">
     <path d="M70 150 L40 60 L95 60 L150 150 Z" fill="#c8262e" stroke="#7a1218" stroke-width="3"/>

@@ -118,9 +118,17 @@ export interface Reward {
   wings: number;
 }
 
-export function charterRewards(distanceNm: number, stars: number, firstVisit: boolean): Reward[] {
-  const r: Reward[] = [{ label: "Charter flight", wings: 10 + Math.min(30, Math.floor(distanceNm / 50)) }];
+/** Landing stars pay 5 Wings each; a butter-smooth touchdown earns a bonus. */
+export function landingRewards(stars: number, butter: boolean): Reward[] {
+  const r: Reward[] = [];
   if (stars > 0) r.push({ label: `${stars} landing star${stars > 1 ? "s" : ""}`, wings: stars * 5 });
+  if (butter) r.push({ label: "Butter landing bonus", wings: 5 });
+  return r;
+}
+
+export function charterRewards(distanceNm: number, stars: number, firstVisit: boolean, butter = false): Reward[] {
+  const r: Reward[] = [{ label: "Charter flight", wings: 10 + Math.min(30, Math.floor(distanceNm / 50)) }];
+  r.push(...landingRewards(stars, butter));
   if (firstVisit) r.push({ label: "New passport stamp", wings: 15 });
   return r;
 }

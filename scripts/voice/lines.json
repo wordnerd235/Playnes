@@ -12,21 +12,21 @@
   "speak": "Where should we fly today?"
  },
  {
-  "id": "9cb593c2",
+  "id": "72d9c971",
   "who": "copilot",
-  "text": "Welcome to the hangar! Tap a plane to pick it.",
+  "text": "Welcome to the hangar! Tap a playne to pick it.",
   "speak": "Welcome to the hangar! Tap a plane to pick it."
  },
  {
-  "id": "a45367d9",
+  "id": "2d9ff958",
   "who": "copilot",
-  "text": "We need more Wings for this plane. Let's fly some charters to earn them!",
+  "text": "We need more Wings for this playne. Let's fly some charters to earn them!",
   "speak": "We need more Wings for this plane. Let's fly some charters to earn them!"
  },
  {
-  "id": "df5c3bc6",
+  "id": "8d5f2e8b",
   "who": "copilot",
-  "text": "Wow! This plane is yours, Captain!",
+  "text": "Wow! This playne is yours, Captain!",
   "speak": "Wow! This plane is yours, Captain!"
  },
  {
@@ -96,9 +96,9 @@
   "speak": "Positive rate! Gear up!"
  },
  {
-  "id": "b0974c71",
+  "id": "f035ebc3",
   "who": "copilot",
-  "text": "Our wheels stay down on this plane. Some planes keep their wheels out all the time!",
+  "text": "Our wheels stay down on this playne. Some playnes keep their wheels out all the time!",
   "speak": "Our wheels stay down on this plane. Some planes keep their wheels out all the time!"
  },
  {
@@ -342,9 +342,9 @@
   "speak": "You're lined up with the runway. I'll help you land!"
  },
  {
-  "id": "2b76c2d6",
+  "id": "7d31956f",
   "who": "copilot",
-  "text": "This is your plane! Tap each part to learn its name.",
+  "text": "This is your playne! Tap each part to learn its name.",
   "speak": "This is your plane! Tap each part to learn its name."
  },
  {
@@ -378,9 +378,9 @@
   "speak": "This is the cockpit. That's where the pilots sit!"
  },
  {
-  "id": "e6c3bb56",
+  "id": "0b52952b",
   "who": "copilot",
-  "text": "You know all the parts of your plane!",
+  "text": "You know all the parts of your playne!",
   "speak": "You know all the parts of your plane!"
  },
  {
@@ -438,64 +438,64 @@
   "speak": "Now the most important part: landing! Steer toward the hoops."
  },
  {
-  "id": "fddd590a",
+  "id": "64d6a259",
   "who": "copilot",
-  "text": "You landed the plane! Amazing!",
+  "text": "You landed the playne! Amazing!",
   "speak": "You landed the plane! Amazing!"
  },
  {
-  "id": "908d1787",
+  "id": "195b72fc",
   "who": "copilot",
-  "text": "Tri-Cities Tower, Playnes one two three, ready for takeoff, runway five.",
-  "speak": "Tri Cities Tower, Planes one two three, ready for takeoff, runway five."
+  "text": "Tri-Cities Tower, Playne one two three, ready for takeoff, runway five.",
+  "speak": "Tri Cities Tower, Plane one two three, ready for takeoff, runway five."
  },
  {
-  "id": "40a5df5d",
+  "id": "43273c2c",
   "who": "tower",
-  "text": "Playnes one two three, Tri-Cities Tower, runway five, cleared for takeoff.",
-  "speak": "Planes one two three, Tri Cities Tower, runway five, cleared for takeoff."
+  "text": "Playne one two three, Tri-Cities Tower, runway five, cleared for takeoff.",
+  "speak": "Plane one two three, Tri Cities Tower, runway five, cleared for takeoff."
  },
  {
-  "id": "bcd56e80",
+  "id": "24eac705",
   "who": "copilot",
-  "text": "Tri-Cities Tower, Playnes one two three, on final, runway five.",
-  "speak": "Tri Cities Tower, Planes one two three, on final, runway five."
+  "text": "Tri-Cities Tower, Playne one two three, on final, runway five.",
+  "speak": "Tri Cities Tower, Plane one two three, on final, runway five."
  },
  {
-  "id": "3c1c61dc",
+  "id": "f4ff97d1",
   "who": "tower",
-  "text": "Playnes one two three, runway five, cleared to land.",
-  "speak": "Planes one two three, runway five, cleared to land."
+  "text": "Playne one two three, runway five, cleared to land.",
+  "speak": "Plane one two three, runway five, cleared to land."
  },
  {
-  "id": "8d88b6fb",
+  "id": "d1ee4782",
   "who": "copilot",
-  "text": "Tri-Cities Tower, Playnes one two three, ready for takeoff, runway two three.",
-  "speak": "Tri Cities Tower, Planes one two three, ready for takeoff, runway two three."
+  "text": "Tri-Cities Tower, Playne one two three, ready for takeoff, runway two three.",
+  "speak": "Tri Cities Tower, Plane one two three, ready for takeoff, runway two three."
  },
  {
-  "id": "8eca9f3b",
+  "id": "bd962e78",
   "who": "tower",
-  "text": "Playnes one two three, Tri-Cities Tower, runway two three, cleared for takeoff.",
-  "speak": "Planes one two three, Tri Cities Tower, runway two three, cleared for takeoff."
+  "text": "Playne one two three, Tri-Cities Tower, runway two three, cleared for takeoff.",
+  "speak": "Plane one two three, Tri Cities Tower, runway two three, cleared for takeoff."
  },
  {
-  "id": "6e7c0096",
+  "id": "ef4a6769",
   "who": "copilot",
-  "text": "Tri-Cities Tower, Playnes one two three, on final, runway two three.",
-  "speak": "Tri Cities Tower, Planes one two three, on final, runway two three."
+  "text": "Tri-Cities Tower, Playne one two three, on final, runway two three.",
+  "speak": "Tri Cities Tower, Plane one two three, on final, runway two three."
  },
  {
-  "id": "1c20db0e",
+  "id": "a2c121ed",
   "who": "tower",
-  "text": "Playnes one two three, runway two three, cleared to land.",
-  "speak": "Planes one two three, runway two three, cleared to land."
+  "text": "Playne one two three, runway two three, cleared to land.",
+  "speak": "Plane one two three, runway two three, cleared to land."
  },
  {
-  "id": "98dd5667",
+  "id": "811dc1b8",
   "who": "tower",
-  "text": "Playnes one two three, welcome to Tri-Cities!",
-  "speak": "Planes one two three, welcome to Tri Cities!"
+  "text": "Playne one two three, welcome to Tri-Cities!",
+  "speak": "Plane one two three, welcome to Tri Cities!"
  },
  {
   "id": "48b6d762",
@@ -546,58 +546,58 @@
   "speak": "A birthday party wants to fly to Tri Cities!"
  },
  {
-  "id": "76a988a6",
+  "id": "22286cc3",
   "who": "copilot",
-  "text": "Charlotte Tower, Playnes one two three, ready for takeoff, runway one eight center.",
-  "speak": "Charlotte Tower, Planes one two three, ready for takeoff, runway one eight center."
+  "text": "Charlotte Tower, Playne one two three, ready for takeoff, runway one eight center.",
+  "speak": "Charlotte Tower, Plane one two three, ready for takeoff, runway one eight center."
  },
  {
-  "id": "0c4a6450",
+  "id": "d9ce8723",
   "who": "tower",
-  "text": "Playnes one two three, Charlotte Tower, runway one eight center, cleared for takeoff.",
-  "speak": "Planes one two three, Charlotte Tower, runway one eight center, cleared for takeoff."
+  "text": "Playne one two three, Charlotte Tower, runway one eight center, cleared for takeoff.",
+  "speak": "Plane one two three, Charlotte Tower, runway one eight center, cleared for takeoff."
  },
  {
-  "id": "25a2345b",
+  "id": "e75ab19c",
   "who": "copilot",
-  "text": "Charlotte Tower, Playnes one two three, on final, runway one eight center.",
-  "speak": "Charlotte Tower, Planes one two three, on final, runway one eight center."
+  "text": "Charlotte Tower, Playne one two three, on final, runway one eight center.",
+  "speak": "Charlotte Tower, Plane one two three, on final, runway one eight center."
  },
  {
-  "id": "27bcb6e8",
+  "id": "5cdb8efd",
   "who": "tower",
-  "text": "Playnes one two three, runway one eight center, cleared to land.",
-  "speak": "Planes one two three, runway one eight center, cleared to land."
+  "text": "Playne one two three, runway one eight center, cleared to land.",
+  "speak": "Plane one two three, runway one eight center, cleared to land."
  },
  {
-  "id": "04b9ff05",
+  "id": "cf8fbca0",
   "who": "copilot",
-  "text": "Charlotte Tower, Playnes one two three, ready for takeoff, runway three six center.",
-  "speak": "Charlotte Tower, Planes one two three, ready for takeoff, runway three six center."
+  "text": "Charlotte Tower, Playne one two three, ready for takeoff, runway three six center.",
+  "speak": "Charlotte Tower, Plane one two three, ready for takeoff, runway three six center."
  },
  {
-  "id": "b6edb7a9",
+  "id": "111cea9e",
   "who": "tower",
-  "text": "Playnes one two three, Charlotte Tower, runway three six center, cleared for takeoff.",
-  "speak": "Planes one two three, Charlotte Tower, runway three six center, cleared for takeoff."
+  "text": "Playne one two three, Charlotte Tower, runway three six center, cleared for takeoff.",
+  "speak": "Plane one two three, Charlotte Tower, runway three six center, cleared for takeoff."
  },
  {
-  "id": "ac503ba8",
+  "id": "c865e39f",
   "who": "copilot",
-  "text": "Charlotte Tower, Playnes one two three, on final, runway three six center.",
-  "speak": "Charlotte Tower, Planes one two three, on final, runway three six center."
+  "text": "Charlotte Tower, Playne one two three, on final, runway three six center.",
+  "speak": "Charlotte Tower, Plane one two three, on final, runway three six center."
  },
  {
-  "id": "9283511d",
+  "id": "ab26bc08",
   "who": "tower",
-  "text": "Playnes one two three, runway three six center, cleared to land.",
-  "speak": "Planes one two three, runway three six center, cleared to land."
+  "text": "Playne one two three, runway three six center, cleared to land.",
+  "speak": "Plane one two three, runway three six center, cleared to land."
  },
  {
-  "id": "6702a074",
+  "id": "49786409",
   "who": "tower",
-  "text": "Playnes one two three, welcome to Charlotte!",
-  "speak": "Planes one two three, welcome to Charlotte!"
+  "text": "Playne one two three, welcome to Charlotte!",
+  "speak": "Plane one two three, welcome to Charlotte!"
  },
  {
   "id": "96a185f7",
@@ -648,58 +648,58 @@
   "speak": "A birthday party wants to fly to Charlotte!"
  },
  {
-  "id": "07da25aa",
+  "id": "3c5f209b",
   "who": "copilot",
-  "text": "Asheville Tower, Playnes one two three, ready for takeoff, runway one seven.",
-  "speak": "Asheville Tower, Planes one two three, ready for takeoff, runway one seven."
+  "text": "Asheville Tower, Playne one two three, ready for takeoff, runway one seven.",
+  "speak": "Asheville Tower, Plane one two three, ready for takeoff, runway one seven."
  },
  {
-  "id": "9aa5c036",
+  "id": "3170a4bb",
   "who": "tower",
-  "text": "Playnes one two three, Asheville Tower, runway one seven, cleared for takeoff.",
-  "speak": "Planes one two three, Asheville Tower, runway one seven, cleared for takeoff."
+  "text": "Playne one two three, Asheville Tower, runway one seven, cleared for takeoff.",
+  "speak": "Plane one two three, Asheville Tower, runway one seven, cleared for takeoff."
  },
  {
-  "id": "c72975f7",
+  "id": "5b03f260",
   "who": "copilot",
-  "text": "Asheville Tower, Playnes one two three, on final, runway one seven.",
-  "speak": "Asheville Tower, Planes one two three, on final, runway one seven."
+  "text": "Asheville Tower, Playne one two three, on final, runway one seven.",
+  "speak": "Asheville Tower, Plane one two three, on final, runway one seven."
  },
  {
-  "id": "52fdf355",
+  "id": "32e492de",
   "who": "tower",
-  "text": "Playnes one two three, runway one seven, cleared to land.",
-  "speak": "Planes one two three, runway one seven, cleared to land."
+  "text": "Playne one two three, runway one seven, cleared to land.",
+  "speak": "Plane one two three, runway one seven, cleared to land."
  },
  {
-  "id": "b52e79a3",
+  "id": "edac962c",
   "who": "copilot",
-  "text": "Asheville Tower, Playnes one two three, ready for takeoff, runway three five.",
-  "speak": "Asheville Tower, Planes one two three, ready for takeoff, runway three five."
+  "text": "Asheville Tower, Playne one two three, ready for takeoff, runway three five.",
+  "speak": "Asheville Tower, Plane one two three, ready for takeoff, runway three five."
  },
  {
-  "id": "6685bd5f",
+  "id": "3f599470",
   "who": "tower",
-  "text": "Playnes one two three, Asheville Tower, runway three five, cleared for takeoff.",
-  "speak": "Planes one two three, Asheville Tower, runway three five, cleared for takeoff."
+  "text": "Playne one two three, Asheville Tower, runway three five, cleared for takeoff.",
+  "speak": "Plane one two three, Asheville Tower, runway three five, cleared for takeoff."
  },
  {
-  "id": "08e37a88",
+  "id": "c0bf8925",
   "who": "copilot",
-  "text": "Asheville Tower, Playnes one two three, on final, runway three five.",
-  "speak": "Asheville Tower, Planes one two three, on final, runway three five."
+  "text": "Asheville Tower, Playne one two three, on final, runway three five.",
+  "speak": "Asheville Tower, Plane one two three, on final, runway three five."
  },
  {
-  "id": "7194db1c",
+  "id": "bd6530ad",
   "who": "tower",
-  "text": "Playnes one two three, runway three five, cleared to land.",
-  "speak": "Planes one two three, runway three five, cleared to land."
+  "text": "Playne one two three, runway three five, cleared to land.",
+  "speak": "Plane one two three, runway three five, cleared to land."
  },
  {
-  "id": "961d3f7b",
+  "id": "dd423b12",
   "who": "tower",
-  "text": "Playnes one two three, welcome to Asheville!",
-  "speak": "Planes one two three, welcome to Asheville!"
+  "text": "Playne one two three, welcome to Asheville!",
+  "speak": "Plane one two three, welcome to Asheville!"
  },
  {
   "id": "5e9b05fc",
@@ -750,58 +750,58 @@
   "speak": "A birthday party wants to fly to Asheville!"
  },
  {
-  "id": "e740c91d",
+  "id": "3cbfa432",
   "who": "copilot",
-  "text": "Myrtle Beach Tower, Playnes one two three, ready for takeoff, runway one eight.",
-  "speak": "Myrtle Beach Tower, Planes one two three, ready for takeoff, runway one eight."
+  "text": "Myrtle Beach Tower, Playne one two three, ready for takeoff, runway one eight.",
+  "speak": "Myrtle Beach Tower, Plane one two three, ready for takeoff, runway one eight."
  },
  {
-  "id": "96a294f9",
+  "id": "62fdb99e",
   "who": "tower",
-  "text": "Playnes one two three, Myrtle Beach Tower, runway one eight, cleared for takeoff.",
-  "speak": "Planes one two three, Myrtle Beach Tower, runway one eight, cleared for takeoff."
+  "text": "Playne one two three, Myrtle Beach Tower, runway one eight, cleared for takeoff.",
+  "speak": "Plane one two three, Myrtle Beach Tower, runway one eight, cleared for takeoff."
  },
  {
-  "id": "ea772756",
+  "id": "924976df",
   "who": "copilot",
-  "text": "Myrtle Beach Tower, Playnes one two three, on final, runway one eight.",
-  "speak": "Myrtle Beach Tower, Planes one two three, on final, runway one eight."
+  "text": "Myrtle Beach Tower, Playne one two three, on final, runway one eight.",
+  "speak": "Myrtle Beach Tower, Plane one two three, on final, runway one eight."
  },
  {
-  "id": "447ee00f",
+  "id": "be1c7ac4",
   "who": "tower",
-  "text": "Playnes one two three, runway one eight, cleared to land.",
-  "speak": "Planes one two three, runway one eight, cleared to land."
+  "text": "Playne one two three, runway one eight, cleared to land.",
+  "speak": "Plane one two three, runway one eight, cleared to land."
  },
  {
-  "id": "e442b670",
+  "id": "0675d52b",
   "who": "copilot",
-  "text": "Myrtle Beach Tower, Playnes one two three, ready for takeoff, runway three six.",
-  "speak": "Myrtle Beach Tower, Planes one two three, ready for takeoff, runway three six."
+  "text": "Myrtle Beach Tower, Playne one two three, ready for takeoff, runway three six.",
+  "speak": "Myrtle Beach Tower, Plane one two three, ready for takeoff, runway three six."
  },
  {
-  "id": "ed340a0a",
+  "id": "ac96f7bd",
   "who": "tower",
-  "text": "Playnes one two three, Myrtle Beach Tower, runway three six, cleared for takeoff.",
-  "speak": "Planes one two three, Myrtle Beach Tower, runway three six, cleared for takeoff."
+  "text": "Playne one two three, Myrtle Beach Tower, runway three six, cleared for takeoff.",
+  "speak": "Plane one two three, Myrtle Beach Tower, runway three six, cleared for takeoff."
  },
  {
-  "id": "812c6837",
+  "id": "0ab11d2e",
   "who": "copilot",
-  "text": "Myrtle Beach Tower, Playnes one two three, on final, runway three six.",
-  "speak": "Myrtle Beach Tower, Planes one two three, on final, runway three six."
+  "text": "Myrtle Beach Tower, Playne one two three, on final, runway three six.",
+  "speak": "Myrtle Beach Tower, Plane one two three, on final, runway three six."
  },
  {
-  "id": "b8864ce4",
+  "id": "6ea1a6af",
   "who": "tower",
-  "text": "Playnes one two three, runway three six, cleared to land.",
-  "speak": "Planes one two three, runway three six, cleared to land."
+  "text": "Playne one two three, runway three six, cleared to land.",
+  "speak": "Plane one two three, runway three six, cleared to land."
  },
  {
-  "id": "27eeeb5e",
+  "id": "70fdfa0d",
   "who": "tower",
-  "text": "Playnes one two three, welcome to Myrtle Beach!",
-  "speak": "Planes one two three, welcome to Myrtle Beach!"
+  "text": "Playne one two three, welcome to Myrtle Beach!",
+  "speak": "Plane one two three, welcome to Myrtle Beach!"
  },
  {
   "id": "c177b2ef",
@@ -852,58 +852,58 @@
   "speak": "A birthday party wants to fly to Myrtle Beach!"
  },
  {
-  "id": "608d5094",
+  "id": "51f6bcb3",
   "who": "copilot",
-  "text": "Atlanta Tower, Playnes one two three, ready for takeoff, runway niner left.",
-  "speak": "Atlanta Tower, Planes one two three, ready for takeoff, runway niner left."
+  "text": "Atlanta Tower, Playne one two three, ready for takeoff, runway niner left.",
+  "speak": "Atlanta Tower, Plane one two three, ready for takeoff, runway niner left."
  },
  {
-  "id": "8ad5fdbe",
+  "id": "e3e7ed25",
   "who": "tower",
-  "text": "Playnes one two three, Atlanta Tower, runway niner left, cleared for takeoff.",
-  "speak": "Planes one two three, Atlanta Tower, runway niner left, cleared for takeoff."
+  "text": "Playne one two three, Atlanta Tower, runway niner left, cleared for takeoff.",
+  "speak": "Plane one two three, Atlanta Tower, runway niner left, cleared for takeoff."
  },
  {
-  "id": "e4adaac3",
+  "id": "4dd9f7de",
   "who": "copilot",
-  "text": "Atlanta Tower, Playnes one two three, on final, runway niner left.",
-  "speak": "Atlanta Tower, Planes one two three, on final, runway niner left."
+  "text": "Atlanta Tower, Playne one two three, on final, runway niner left.",
+  "speak": "Atlanta Tower, Plane one two three, on final, runway niner left."
  },
  {
-  "id": "f0fc918f",
+  "id": "e2115276",
   "who": "tower",
-  "text": "Playnes one two three, runway niner left, cleared to land.",
-  "speak": "Planes one two three, runway niner left, cleared to land."
+  "text": "Playne one two three, runway niner left, cleared to land.",
+  "speak": "Plane one two three, runway niner left, cleared to land."
  },
  {
-  "id": "c40b4afc",
+  "id": "f415265d",
   "who": "copilot",
-  "text": "Atlanta Tower, Playnes one two three, ready for takeoff, runway two seven right.",
-  "speak": "Atlanta Tower, Planes one two three, ready for takeoff, runway two seven right."
+  "text": "Atlanta Tower, Playne one two three, ready for takeoff, runway two seven right.",
+  "speak": "Atlanta Tower, Plane one two three, ready for takeoff, runway two seven right."
  },
  {
-  "id": "38977bc8",
+  "id": "8dba91a5",
   "who": "tower",
-  "text": "Playnes one two three, Atlanta Tower, runway two seven right, cleared for takeoff.",
-  "speak": "Planes one two three, Atlanta Tower, runway two seven right, cleared for takeoff."
+  "text": "Playne one two three, Atlanta Tower, runway two seven right, cleared for takeoff.",
+  "speak": "Plane one two three, Atlanta Tower, runway two seven right, cleared for takeoff."
  },
  {
-  "id": "fc5e9b8d",
+  "id": "91a2162e",
   "who": "copilot",
-  "text": "Atlanta Tower, Playnes one two three, on final, runway two seven right.",
-  "speak": "Atlanta Tower, Planes one two three, on final, runway two seven right."
+  "text": "Atlanta Tower, Playne one two three, on final, runway two seven right.",
+  "speak": "Atlanta Tower, Plane one two three, on final, runway two seven right."
  },
  {
-  "id": "e56790cd",
+  "id": "f3cb3a2e",
   "who": "tower",
-  "text": "Playnes one two three, runway two seven right, cleared to land.",
-  "speak": "Planes one two three, runway two seven right, cleared to land."
+  "text": "Playne one two three, runway two seven right, cleared to land.",
+  "speak": "Plane one two three, runway two seven right, cleared to land."
  },
  {
-  "id": "3b5c9f15",
+  "id": "6c657640",
   "who": "tower",
-  "text": "Playnes one two three, welcome to Atlanta!",
-  "speak": "Planes one two three, welcome to Atlanta!"
+  "text": "Playne one two three, welcome to Atlanta!",
+  "speak": "Plane one two three, welcome to Atlanta!"
  },
  {
   "id": "19cebf36",
@@ -954,58 +954,58 @@
   "speak": "A birthday party wants to fly to Atlanta!"
  },
  {
-  "id": "2be4f3bf",
+  "id": "ac0f7a88",
   "who": "copilot",
-  "text": "Knoxville Tower, Playnes one two three, ready for takeoff, runway five left.",
-  "speak": "Knoxville Tower, Planes one two three, ready for takeoff, runway five left."
+  "text": "Knoxville Tower, Playne one two three, ready for takeoff, runway five left.",
+  "speak": "Knoxville Tower, Plane one two three, ready for takeoff, runway five left."
  },
  {
-  "id": "8af8ba61",
+  "id": "a8356c98",
   "who": "tower",
-  "text": "Playnes one two three, Knoxville Tower, runway five left, cleared for takeoff.",
-  "speak": "Planes one two three, Knoxville Tower, runway five left, cleared for takeoff."
+  "text": "Playne one two three, Knoxville Tower, runway five left, cleared for takeoff.",
+  "speak": "Plane one two three, Knoxville Tower, runway five left, cleared for takeoff."
  },
  {
-  "id": "074c49a4",
+  "id": "6f515ec1",
   "who": "copilot",
-  "text": "Knoxville Tower, Playnes one two three, on final, runway five left.",
-  "speak": "Knoxville Tower, Planes one two three, on final, runway five left."
+  "text": "Knoxville Tower, Playne one two three, on final, runway five left.",
+  "speak": "Knoxville Tower, Plane one two three, on final, runway five left."
  },
  {
-  "id": "d773b4cd",
+  "id": "d8140abe",
   "who": "tower",
-  "text": "Playnes one two three, runway five left, cleared to land.",
-  "speak": "Planes one two three, runway five left, cleared to land."
+  "text": "Playne one two three, runway five left, cleared to land.",
+  "speak": "Plane one two three, runway five left, cleared to land."
  },
  {
-  "id": "b7a309ec",
+  "id": "a3de29f3",
   "who": "copilot",
-  "text": "Knoxville Tower, Playnes one two three, ready for takeoff, runway two three right.",
-  "speak": "Knoxville Tower, Planes one two three, ready for takeoff, runway two three right."
+  "text": "Knoxville Tower, Playne one two three, ready for takeoff, runway two three right.",
+  "speak": "Knoxville Tower, Plane one two three, ready for takeoff, runway two three right."
  },
  {
-  "id": "4afe0f10",
+  "id": "7a733d79",
   "who": "tower",
-  "text": "Playnes one two three, Knoxville Tower, runway two three right, cleared for takeoff.",
-  "speak": "Planes one two three, Knoxville Tower, runway two three right, cleared for takeoff."
+  "text": "Playne one two three, Knoxville Tower, runway two three right, cleared for takeoff.",
+  "speak": "Plane one two three, Knoxville Tower, runway two three right, cleared for takeoff."
  },
  {
-  "id": "11acc087",
+  "id": "299d79de",
   "who": "copilot",
-  "text": "Knoxville Tower, Playnes one two three, on final, runway two three right.",
-  "speak": "Knoxville Tower, Planes one two three, on final, runway two three right."
+  "text": "Knoxville Tower, Playne one two three, on final, runway two three right.",
+  "speak": "Knoxville Tower, Plane one two three, on final, runway two three right."
  },
  {
-  "id": "5b4a2c04",
+  "id": "37bcd5df",
   "who": "tower",
-  "text": "Playnes one two three, runway two three right, cleared to land.",
-  "speak": "Planes one two three, runway two three right, cleared to land."
+  "text": "Playne one two three, runway two three right, cleared to land.",
+  "speak": "Plane one two three, runway two three right, cleared to land."
  },
  {
-  "id": "1c8b2776",
+  "id": "4c52882f",
   "who": "tower",
-  "text": "Playnes one two three, welcome to Knoxville!",
-  "speak": "Planes one two three, welcome to Knoxville!"
+  "text": "Playne one two three, welcome to Knoxville!",
+  "speak": "Plane one two three, welcome to Knoxville!"
  },
  {
   "id": "974483c9",
@@ -1056,58 +1056,58 @@
   "speak": "A birthday party wants to fly to Knoxville!"
  },
  {
-  "id": "f533a6ad",
+  "id": "b4310dd8",
   "who": "copilot",
-  "text": "Chattanooga Tower, Playnes one two three, ready for takeoff, runway two.",
-  "speak": "Chattanooga Tower, Planes one two three, ready for takeoff, runway two."
+  "text": "Chattanooga Tower, Playne one two three, ready for takeoff, runway two.",
+  "speak": "Chattanooga Tower, Plane one two three, ready for takeoff, runway two."
  },
  {
-  "id": "dc6f5853",
+  "id": "fd7b6c2a",
   "who": "tower",
-  "text": "Playnes one two three, Chattanooga Tower, runway two, cleared for takeoff.",
-  "speak": "Planes one two three, Chattanooga Tower, runway two, cleared for takeoff."
+  "text": "Playne one two three, Chattanooga Tower, runway two, cleared for takeoff.",
+  "speak": "Plane one two three, Chattanooga Tower, runway two, cleared for takeoff."
  },
  {
-  "id": "f2a40fa8",
+  "id": "546af16b",
   "who": "copilot",
-  "text": "Chattanooga Tower, Playnes one two three, on final, runway two.",
-  "speak": "Chattanooga Tower, Planes one two three, on final, runway two."
+  "text": "Chattanooga Tower, Playne one two three, on final, runway two.",
+  "speak": "Chattanooga Tower, Plane one two three, on final, runway two."
  },
  {
-  "id": "d78e0b5a",
+  "id": "95c4cdb5",
   "who": "tower",
-  "text": "Playnes one two three, runway two, cleared to land.",
-  "speak": "Planes one two three, runway two, cleared to land."
+  "text": "Playne one two three, runway two, cleared to land.",
+  "speak": "Plane one two three, runway two, cleared to land."
  },
  {
-  "id": "741f5881",
+  "id": "54717b2a",
   "who": "copilot",
-  "text": "Chattanooga Tower, Playnes one two three, ready for takeoff, runway two zero.",
-  "speak": "Chattanooga Tower, Planes one two three, ready for takeoff, runway two zero."
+  "text": "Chattanooga Tower, Playne one two three, ready for takeoff, runway two zero.",
+  "speak": "Chattanooga Tower, Plane one two three, ready for takeoff, runway two zero."
  },
  {
-  "id": "7a3e810d",
+  "id": "a48b4cfe",
   "who": "tower",
-  "text": "Playnes one two three, Chattanooga Tower, runway two zero, cleared for takeoff.",
-  "speak": "Planes one two three, Chattanooga Tower, runway two zero, cleared for takeoff."
+  "text": "Playne one two three, Chattanooga Tower, runway two zero, cleared for takeoff.",
+  "speak": "Plane one two three, Chattanooga Tower, runway two zero, cleared for takeoff."
  },
  {
-  "id": "c36c359a",
+  "id": "78a3efb7",
   "who": "copilot",
-  "text": "Chattanooga Tower, Playnes one two three, on final, runway two zero.",
-  "speak": "Chattanooga Tower, Planes one two three, on final, runway two zero."
+  "text": "Chattanooga Tower, Playne one two three, on final, runway two zero.",
+  "speak": "Chattanooga Tower, Plane one two three, on final, runway two zero."
  },
  {
-  "id": "ec332c10",
+  "id": "4a60c489",
   "who": "tower",
-  "text": "Playnes one two three, runway two zero, cleared to land.",
-  "speak": "Planes one two three, runway two zero, cleared to land."
+  "text": "Playne one two three, runway two zero, cleared to land.",
+  "speak": "Plane one two three, runway two zero, cleared to land."
  },
  {
-  "id": "2a685631",
+  "id": "d37d9f34",
   "who": "tower",
-  "text": "Playnes one two three, welcome to Chattanooga!",
-  "speak": "Planes one two three, welcome to Chattanooga!"
+  "text": "Playne one two three, welcome to Chattanooga!",
+  "speak": "Plane one two three, welcome to Chattanooga!"
  },
  {
   "id": "a40461b2",
@@ -1158,58 +1158,58 @@
   "speak": "A birthday party wants to fly to Chattanooga!"
  },
  {
-  "id": "b6070db9",
+  "id": "cfb514ea",
   "who": "copilot",
-  "text": "Greer Tower, Playnes one two three, ready for takeoff, runway four.",
-  "speak": "Greer Tower, Planes one two three, ready for takeoff, runway four."
+  "text": "Greer Tower, Playne one two three, ready for takeoff, runway four.",
+  "speak": "Greer Tower, Plane one two three, ready for takeoff, runway four."
  },
  {
-  "id": "989769b1",
+  "id": "e63bd87e",
   "who": "tower",
-  "text": "Playnes one two three, Greer Tower, runway four, cleared for takeoff.",
-  "speak": "Planes one two three, Greer Tower, runway four, cleared for takeoff."
+  "text": "Playne one two three, Greer Tower, runway four, cleared for takeoff.",
+  "speak": "Plane one two three, Greer Tower, runway four, cleared for takeoff."
  },
  {
-  "id": "ba8556fa",
+  "id": "439dd59f",
   "who": "copilot",
-  "text": "Greer Tower, Playnes one two three, on final, runway four.",
-  "speak": "Greer Tower, Planes one two three, on final, runway four."
+  "text": "Greer Tower, Playne one two three, on final, runway four.",
+  "speak": "Greer Tower, Plane one two three, on final, runway four."
  },
  {
-  "id": "26f5de20",
+  "id": "04484ee1",
   "who": "tower",
-  "text": "Playnes one two three, runway four, cleared to land.",
-  "speak": "Planes one two three, runway four, cleared to land."
+  "text": "Playne one two three, runway four, cleared to land.",
+  "speak": "Plane one two three, runway four, cleared to land."
  },
  {
-  "id": "1d51edcf",
+  "id": "3a343eca",
   "who": "copilot",
-  "text": "Greer Tower, Playnes one two three, ready for takeoff, runway two two.",
-  "speak": "Greer Tower, Planes one two three, ready for takeoff, runway two two."
+  "text": "Greer Tower, Playne one two three, ready for takeoff, runway two two.",
+  "speak": "Greer Tower, Plane one two three, ready for takeoff, runway two two."
  },
  {
-  "id": "e8763569",
+  "id": "c3949acc",
   "who": "tower",
-  "text": "Playnes one two three, Greer Tower, runway two two, cleared for takeoff.",
-  "speak": "Planes one two three, Greer Tower, runway two two, cleared for takeoff."
+  "text": "Playne one two three, Greer Tower, runway two two, cleared for takeoff.",
+  "speak": "Plane one two three, Greer Tower, runway two two, cleared for takeoff."
  },
  {
-  "id": "8e1562ba",
+  "id": "0decbbd5",
   "who": "copilot",
-  "text": "Greer Tower, Playnes one two three, on final, runway two two.",
-  "speak": "Greer Tower, Planes one two three, on final, runway two two."
+  "text": "Greer Tower, Playne one two three, on final, runway two two.",
+  "speak": "Greer Tower, Plane one two three, on final, runway two two."
  },
  {
-  "id": "36013580",
+  "id": "f5412cfb",
   "who": "tower",
-  "text": "Playnes one two three, runway two two, cleared to land.",
-  "speak": "Planes one two three, runway two two, cleared to land."
+  "text": "Playne one two three, runway two two, cleared to land.",
+  "speak": "Plane one two three, runway two two, cleared to land."
  },
  {
-  "id": "a9f6ee1e",
+  "id": "cf31df31",
   "who": "tower",
-  "text": "Playnes one two three, welcome to Greenville Spartanburg!",
-  "speak": "Planes one two three, welcome to Greenville Spartanburg!"
+  "text": "Playne one two three, welcome to Greenville Spartanburg!",
+  "speak": "Plane one two three, welcome to Greenville Spartanburg!"
  },
  {
   "id": "328279e7",
@@ -1260,58 +1260,58 @@
   "speak": "A birthday party wants to fly to Greenville Spartanburg!"
  },
  {
-  "id": "827a98e0",
+  "id": "4742fac3",
   "who": "copilot",
-  "text": "Columbia Tower, Playnes one two three, ready for takeoff, runway one one.",
-  "speak": "Columbia Tower, Planes one two three, ready for takeoff, runway one one."
+  "text": "Columbia Tower, Playne one two three, ready for takeoff, runway one one.",
+  "speak": "Columbia Tower, Plane one two three, ready for takeoff, runway one one."
  },
  {
-  "id": "899cc46e",
+  "id": "462b0585",
   "who": "tower",
-  "text": "Playnes one two three, Columbia Tower, runway one one, cleared for takeoff.",
-  "speak": "Planes one two three, Columbia Tower, runway one one, cleared for takeoff."
+  "text": "Playne one two three, Columbia Tower, runway one one, cleared for takeoff.",
+  "speak": "Plane one two three, Columbia Tower, runway one one, cleared for takeoff."
  },
  {
-  "id": "7b447847",
+  "id": "ef3e484e",
   "who": "copilot",
-  "text": "Columbia Tower, Playnes one two three, on final, runway one one.",
-  "speak": "Columbia Tower, Planes one two three, on final, runway one one."
+  "text": "Columbia Tower, Playne one two three, on final, runway one one.",
+  "speak": "Columbia Tower, Plane one two three, on final, runway one one."
  },
  {
-  "id": "31d66dfc",
+  "id": "b6a92a97",
   "who": "tower",
-  "text": "Playnes one two three, runway one one, cleared to land.",
-  "speak": "Planes one two three, runway one one, cleared to land."
+  "text": "Playne one two three, runway one one, cleared to land.",
+  "speak": "Plane one two three, runway one one, cleared to land."
  },
  {
-  "id": "f202e400",
+  "id": "d492d48f",
   "who": "copilot",
-  "text": "Columbia Tower, Playnes one two three, ready for takeoff, runway two niner.",
-  "speak": "Columbia Tower, Planes one two three, ready for takeoff, runway two niner."
+  "text": "Columbia Tower, Playne one two three, ready for takeoff, runway two niner.",
+  "speak": "Columbia Tower, Plane one two three, ready for takeoff, runway two niner."
  },
  {
-  "id": "ae7992ae",
+  "id": "b4cb2585",
   "who": "tower",
-  "text": "Playnes one two three, Columbia Tower, runway two niner, cleared for takeoff.",
-  "speak": "Planes one two three, Columbia Tower, runway two niner, cleared for takeoff."
+  "text": "Playne one two three, Columbia Tower, runway two niner, cleared for takeoff.",
+  "speak": "Plane one two three, Columbia Tower, runway two niner, cleared for takeoff."
  },
  {
-  "id": "cceffaa3",
+  "id": "09c0ccb2",
   "who": "copilot",
-  "text": "Columbia Tower, Playnes one two three, on final, runway two niner.",
-  "speak": "Columbia Tower, Planes one two three, on final, runway two niner."
+  "text": "Columbia Tower, Playne one two three, on final, runway two niner.",
+  "speak": "Columbia Tower, Plane one two three, on final, runway two niner."
  },
  {
-  "id": "511bff18",
+  "id": "3fdd3a1b",
   "who": "tower",
-  "text": "Playnes one two three, runway two niner, cleared to land.",
-  "speak": "Planes one two three, runway two niner, cleared to land."
+  "text": "Playne one two three, runway two niner, cleared to land.",
+  "speak": "Plane one two three, runway two niner, cleared to land."
  },
  {
-  "id": "763fa866",
+  "id": "4af398a9",
   "who": "tower",
-  "text": "Playnes one two three, welcome to Columbia!",
-  "speak": "Planes one two three, welcome to Columbia!"
+  "text": "Playne one two three, welcome to Columbia!",
+  "speak": "Plane one two three, welcome to Columbia!"
  },
  {
   "id": "e97636bb",
@@ -1362,58 +1362,58 @@
   "speak": "A birthday party wants to fly to Columbia!"
  },
  {
-  "id": "3f34bf8a",
+  "id": "670881f3",
   "who": "copilot",
-  "text": "Greensboro Tower, Playnes one two three, ready for takeoff, runway five right.",
-  "speak": "Greensboro Tower, Planes one two three, ready for takeoff, runway five right."
+  "text": "Greensboro Tower, Playne one two three, ready for takeoff, runway five right.",
+  "speak": "Greensboro Tower, Plane one two three, ready for takeoff, runway five right."
  },
  {
-  "id": "1a7e7a9e",
+  "id": "a07cd003",
   "who": "tower",
-  "text": "Playnes one two three, Greensboro Tower, runway five right, cleared for takeoff.",
-  "speak": "Planes one two three, Greensboro Tower, runway five right, cleared for takeoff."
+  "text": "Playne one two three, Greensboro Tower, runway five right, cleared for takeoff.",
+  "speak": "Plane one two three, Greensboro Tower, runway five right, cleared for takeoff."
  },
  {
-  "id": "50f79517",
+  "id": "70a8ee6c",
   "who": "copilot",
-  "text": "Greensboro Tower, Playnes one two three, on final, runway five right.",
-  "speak": "Greensboro Tower, Planes one two three, on final, runway five right."
+  "text": "Greensboro Tower, Playne one two three, on final, runway five right.",
+  "speak": "Greensboro Tower, Plane one two three, on final, runway five right."
  },
  {
-  "id": "125f6afa",
+  "id": "4ea2f413",
   "who": "tower",
-  "text": "Playnes one two three, runway five right, cleared to land.",
-  "speak": "Planes one two three, runway five right, cleared to land."
+  "text": "Playne one two three, runway five right, cleared to land.",
+  "speak": "Plane one two three, runway five right, cleared to land."
  },
  {
-  "id": "fb0fe029",
+  "id": "25358f70",
   "who": "copilot",
-  "text": "Greensboro Tower, Playnes one two three, ready for takeoff, runway two three left.",
-  "speak": "Greensboro Tower, Planes one two three, ready for takeoff, runway two three left."
+  "text": "Greensboro Tower, Playne one two three, ready for takeoff, runway two three left.",
+  "speak": "Greensboro Tower, Plane one two three, ready for takeoff, runway two three left."
  },
  {
-  "id": "9ce7c1c7",
+  "id": "e7a2d566",
   "who": "tower",
-  "text": "Playnes one two three, Greensboro Tower, runway two three left, cleared for takeoff.",
-  "speak": "Planes one two three, Greensboro Tower, runway two three left, cleared for takeoff."
+  "text": "Playne one two three, Greensboro Tower, runway two three left, cleared for takeoff.",
+  "speak": "Plane one two three, Greensboro Tower, runway two three left, cleared for takeoff."
  },
  {
-  "id": "6c0a561c",
+  "id": "6b08ee63",
   "who": "copilot",
-  "text": "Greensboro Tower, Playnes one two three, on final, runway two three left.",
-  "speak": "Greensboro Tower, Planes one two three, on final, runway two three left."
+  "text": "Greensboro Tower, Playne one two three, on final, runway two three left.",
+  "speak": "Greensboro Tower, Plane one two three, on final, runway two three left."
  },
  {
-  "id": "52a0371f",
+  "id": "f19f0592",
   "who": "tower",
-  "text": "Playnes one two three, runway two three left, cleared to land.",
-  "speak": "Planes one two three, runway two three left, cleared to land."
+  "text": "Playne one two three, runway two three left, cleared to land.",
+  "speak": "Plane one two three, runway two three left, cleared to land."
  },
  {
-  "id": "9e0b8356",
+  "id": "6c618ed5",
   "who": "tower",
-  "text": "Playnes one two three, welcome to Greensboro!",
-  "speak": "Planes one two three, welcome to Greensboro!"
+  "text": "Playne one two three, welcome to Greensboro!",
+  "speak": "Plane one two three, welcome to Greensboro!"
  },
  {
   "id": "d42d82e3",
@@ -1464,46 +1464,46 @@
   "speak": "A birthday party wants to fly to Greensboro!"
  },
  {
-  "id": "43036c20",
+  "id": "c06e2789",
   "who": "copilot",
-  "text": "Raleigh Durham Tower, Playnes one two three, ready for takeoff, runway five left.",
-  "speak": "Raleigh Durham Tower, Planes one two three, ready for takeoff, runway five left."
+  "text": "Raleigh Durham Tower, Playne one two three, ready for takeoff, runway five left.",
+  "speak": "Raleigh Durham Tower, Plane one two three, ready for takeoff, runway five left."
  },
  {
-  "id": "116090ba",
+  "id": "873d0d0d",
   "who": "tower",
-  "text": "Playnes one two three, Raleigh Durham Tower, runway five left, cleared for takeoff.",
-  "speak": "Planes one two three, Raleigh Durham Tower, runway five left, cleared for takeoff."
+  "text": "Playne one two three, Raleigh Durham Tower, runway five left, cleared for takeoff.",
+  "speak": "Plane one two three, Raleigh Durham Tower, runway five left, cleared for takeoff."
  },
  {
-  "id": "85f3a239",
+  "id": "93297c22",
   "who": "copilot",
-  "text": "Raleigh Durham Tower, Playnes one two three, on final, runway five left.",
-  "speak": "Raleigh Durham Tower, Planes one two three, on final, runway five left."
+  "text": "Raleigh Durham Tower, Playne one two three, on final, runway five left.",
+  "speak": "Raleigh Durham Tower, Plane one two three, on final, runway five left."
  },
  {
-  "id": "3dd0d58b",
+  "id": "0397f066",
   "who": "copilot",
-  "text": "Raleigh Durham Tower, Playnes one two three, ready for takeoff, runway two three right.",
-  "speak": "Raleigh Durham Tower, Planes one two three, ready for takeoff, runway two three right."
+  "text": "Raleigh Durham Tower, Playne one two three, ready for takeoff, runway two three right.",
+  "speak": "Raleigh Durham Tower, Plane one two three, ready for takeoff, runway two three right."
  },
  {
-  "id": "c7ee0433",
+  "id": "9a7d1b24",
   "who": "tower",
-  "text": "Playnes one two three, Raleigh Durham Tower, runway two three right, cleared for takeoff.",
-  "speak": "Planes one two three, Raleigh Durham Tower, runway two three right, cleared for takeoff."
+  "text": "Playne one two three, Raleigh Durham Tower, runway two three right, cleared for takeoff.",
+  "speak": "Plane one two three, Raleigh Durham Tower, runway two three right, cleared for takeoff."
  },
  {
-  "id": "6a8120d6",
+  "id": "be1a576d",
   "who": "copilot",
-  "text": "Raleigh Durham Tower, Playnes one two three, on final, runway two three right.",
-  "speak": "Raleigh Durham Tower, Planes one two three, on final, runway two three right."
+  "text": "Raleigh Durham Tower, Playne one two three, on final, runway two three right.",
+  "speak": "Raleigh Durham Tower, Plane one two three, on final, runway two three right."
  },
  {
-  "id": "6afc1655",
+  "id": "5684cc7e",
   "who": "tower",
-  "text": "Playnes one two three, welcome to Raleigh Durham!",
-  "speak": "Planes one two three, welcome to Raleigh Durham!"
+  "text": "Playne one two three, welcome to Raleigh Durham!",
+  "speak": "Plane one two three, welcome to Raleigh Durham!"
  },
  {
   "id": "974058f0",
@@ -1554,58 +1554,58 @@
   "speak": "A birthday party wants to fly to Raleigh Durham!"
  },
  {
-  "id": "07855e89",
+  "id": "9c0b4858",
   "who": "copilot",
-  "text": "Roanoke Tower, Playnes one two three, ready for takeoff, runway six.",
-  "speak": "Roanoke Tower, Planes one two three, ready for takeoff, runway six."
+  "text": "Roanoke Tower, Playne one two three, ready for takeoff, runway six.",
+  "speak": "Roanoke Tower, Plane one two three, ready for takeoff, runway six."
  },
  {
-  "id": "a74b385b",
+  "id": "2278a4ba",
   "who": "tower",
-  "text": "Playnes one two three, Roanoke Tower, runway six, cleared for takeoff.",
-  "speak": "Planes one two three, Roanoke Tower, runway six, cleared for takeoff."
+  "text": "Playne one two three, Roanoke Tower, runway six, cleared for takeoff.",
+  "speak": "Plane one two three, Roanoke Tower, runway six, cleared for takeoff."
  },
  {
-  "id": "c382c7ec",
+  "id": "3221153f",
   "who": "copilot",
-  "text": "Roanoke Tower, Playnes one two three, on final, runway six.",
-  "speak": "Roanoke Tower, Planes one two three, on final, runway six."
+  "text": "Roanoke Tower, Playne one two three, on final, runway six.",
+  "speak": "Roanoke Tower, Plane one two three, on final, runway six."
  },
  {
-  "id": "768651a4",
+  "id": "7d522e03",
   "who": "tower",
-  "text": "Playnes one two three, runway six, cleared to land.",
-  "speak": "Planes one two three, runway six, cleared to land."
+  "text": "Playne one two three, runway six, cleared to land.",
+  "speak": "Plane one two three, runway six, cleared to land."
  },
  {
-  "id": "b4db35b1",
+  "id": "509dc7e2",
   "who": "copilot",
-  "text": "Roanoke Tower, Playnes one two three, ready for takeoff, runway two four.",
-  "speak": "Roanoke Tower, Planes one two three, ready for takeoff, runway two four."
+  "text": "Roanoke Tower, Playne one two three, ready for takeoff, runway two four.",
+  "speak": "Roanoke Tower, Plane one two three, ready for takeoff, runway two four."
  },
  {
-  "id": "d3cd9e69",
+  "id": "6ffc7192",
   "who": "tower",
-  "text": "Playnes one two three, Roanoke Tower, runway two four, cleared for takeoff.",
-  "speak": "Planes one two three, Roanoke Tower, runway two four, cleared for takeoff."
+  "text": "Playne one two three, Roanoke Tower, runway two four, cleared for takeoff.",
+  "speak": "Plane one two three, Roanoke Tower, runway two four, cleared for takeoff."
  },
  {
-  "id": "1e08d4ae",
+  "id": "85dd17b3",
   "who": "copilot",
-  "text": "Roanoke Tower, Playnes one two three, on final, runway two four.",
-  "speak": "Roanoke Tower, Planes one two three, on final, runway two four."
+  "text": "Roanoke Tower, Playne one two three, on final, runway two four.",
+  "speak": "Roanoke Tower, Plane one two three, on final, runway two four."
  },
  {
-  "id": "ed2f590e",
+  "id": "63373457",
   "who": "tower",
-  "text": "Playnes one two three, runway two four, cleared to land.",
-  "speak": "Planes one two three, runway two four, cleared to land."
+  "text": "Playne one two three, runway two four, cleared to land.",
+  "speak": "Plane one two three, runway two four, cleared to land."
  },
  {
-  "id": "87c256c7",
+  "id": "1e9d2f52",
   "who": "tower",
-  "text": "Playnes one two three, welcome to Roanoke!",
-  "speak": "Planes one two three, welcome to Roanoke!"
+  "text": "Playne one two three, welcome to Roanoke!",
+  "speak": "Plane one two three, welcome to Roanoke!"
  },
  {
   "id": "e931cc70",

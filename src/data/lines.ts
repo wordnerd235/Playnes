@@ -13,7 +13,7 @@ export interface Line {
   text: string;
 }
 
-export const CALLSIGN = "Playnes one two three";
+export const CALLSIGN = "Playne one two three";
 
 const c = (text: string): Line => ({ who: "copilot", text });
 const t = (text: string): Line => ({ who: "tower", text });
@@ -21,9 +21,9 @@ const t = (text: string): Line => ({ who: "tower", text });
 export const LINES = {
   welcome: c("Hi Captain! I'm your co-pilot. Let's go flying!"),
   pickFlight: c("Where should we fly today?"),
-  hangar: c("Welcome to the hangar! Tap a plane to pick it."),
-  locked: c("We need more Wings for this plane. Let's fly some charters to earn them!"),
-  bought: c("Wow! This plane is yours, Captain!"),
+  hangar: c("Welcome to the hangar! Tap a playne to pick it."),
+  locked: c("We need more Wings for this playne. Let's fly some charters to earn them!"),
+  bought: c("Wow! This playne is yours, Captain!"),
   school: c("Welcome to Flight School! Let's learn to fly."),
   schoolLocked: c("Let's finish the lesson before this one first."),
   lineup: c("We're on the runway. First, let's ask the tower if we can take off. Tap the radio!"),
@@ -35,7 +35,7 @@ export const LINES = {
   rotate: c("Rotate! Pull back gently!"),
   rotateHelp: c("I'll help you pull back."),
   positiveRate: c("Positive rate! Gear up!"),
-  fixedGear: c("Our wheels stay down on this plane. Some planes keep their wheels out all the time!"),
+  fixedGear: c("Our wheels stay down on this playne. Some playnes keep their wheels out all the time!"),
   gearHelp: c("I'll put the gear up."),
   gearUpGood: c("Gear up! Nice job!"),
   hoops: c("Fly through the hoops! Tilt left and right to steer."),
@@ -78,13 +78,13 @@ export const LINES = {
   flapsUp: c("Flaps up! Tap the flaps button so we can fly fast."),
   landingHelp: c("You're lined up with the runway. I'll help you land!"),
   // Lesson 1: meet your plane
-  l1Intro: c("This is your plane! Tap each part to learn its name."),
+  l1Intro: c("This is your playne! Tap each part to learn its name."),
   l1Wings: c("These are the wings. Wings lift us up like a bird!"),
   l1Tail: c("This is the tail. It keeps us flying straight."),
   l1Prop: c("This is the propeller. It spins super fast to pull us forward!"),
   l1Wheels: c("These are the wheels. We roll on them before we fly."),
   l1Cockpit: c("This is the cockpit. That's where the pilots sit!"),
-  l1Done: c("You know all the parts of your plane!"),
+  l1Done: c("You know all the parts of your playne!"),
   // Lesson 2: go fast, go slow
   l2Intro: c("Let's learn to go fast and slow. Push the throttle up to go!"),
   l2Slow: c("Now pull the throttle all the way back to slow down."),
@@ -98,7 +98,7 @@ export const LINES = {
   l4Done: c("You're a turning pro!"),
   // Lesson 5: landing
   l5Intro: c("Now the most important part: landing! Steer toward the hoops."),
-  l5Done: c("You landed the plane! Amazing!"),
+  l5Done: c("You landed the playne! Amazing!"),
 } satisfies Record<string, Line>;
 
 export type LineKey = keyof typeof LINES;
@@ -175,7 +175,7 @@ export function lineKey(l: Line): string {
   return h.toString(16).padStart(8, "0");
 }
 
-/** Text as it should be pronounced (TTS has never heard of "Playnes"). */
+/** Text as it should be pronounced (TTS has never heard of "Playne"). */
 export function speakable(text: string): string {
-  return text.replace(/Playnes/g, "Planes").replace(/Tri-Cities/g, "Tri Cities").replace(/\.\.\./g, ",");
+  return text.replace(/([Pp])layne/g, "$1lane").replace(/Tri-Cities/g, "Tri Cities").replace(/\.\.\./g, ",");
 }

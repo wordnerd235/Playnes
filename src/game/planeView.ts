@@ -1,7 +1,7 @@
 // The player's plane on screen: model, moving control surfaces, blinking lights, ground
 // shadow, and the camera (chase / cockpit, with drag-to-look offsets).
 
-import { Cartesian3, Cartesian4, Color, Matrix3, Matrix4, Model, Transforms, type ModelNode } from "cesium";
+import { Cartesian3, Cartesian4, Cartographic, Color, Matrix3, Matrix4, Model, Transforms, type ModelNode } from "cesium";
 import type { AircraftDef } from "../data/aircraft.ts";
 import { angleDiff, clamp, DEG, destination, type LatLon } from "../sim/geo.ts";
 import type { FlightState } from "../sim/physics.ts";
@@ -151,9 +151,11 @@ export class PlaneView {
         Cartesian3.add(Cartesian3.multiplyByScalar(base.fwd, L * 0.36, new Cartesian3()), Cartesian3.multiplyByScalar(base.up, this.ac.shape.fuselageDiameter * 0.75 + 0.9, new Cartesian3()), new Cartesian3()),
         new Cartesian3(),
       );
-      scene.camera.setView({ destination: eye, orientation: { direction: f.fwd, up: f.up } });
-      const c = scene.camera.positionCartographic;
-      return { lat: (c.latitude / DEG), lon: c.longitude / DEG, height: c.height };
+      const ec = Cartographic.fromCartesian(eye);
+      const safe = this.aboveTerrain(ec.latitude / DEG, ec.longitude / DEG, ec.height);
+      const dest = safe === ec.height ? eye : Cartesian3.fromRadians(ec.longitude, ec.latitude, safe);
+      scene.camera.setView({ destination: dest, orientation: { direction: f.fwd, up: f.up } });
+      return { lat: ec.latitude / DEG, lon: ec.longitude / DEG, height: safe };
     }
 
     const dist = Math.max(18, L * 2.4);
@@ -163,7 +165,7 @@ export class PlaneView {
     const camHdg = this.camHeading + 180 + this.lookYaw;
     const horiz = dist * Math.cos(elev);
     const ground = destination(s, camHdg, horiz);
-    const camAlt = s.alt + L * 0.15 + dist * Math.sin(elev);
+    const camAlt = this.aboveTerrain(ground.lat, ground.lon, s.alt + L * 0.15 + dist * Math.sin(elev));
     this.shake = Math.max(0, this.shake - dt * 0.4);
     const j = this.shake * 3;
     const eye = Cartesian3.fromDegrees(ground.lon + (Math.random() - 0.5) * j * 1e-5, ground.lat + (Math.random() - 0.5) * j * 1e-5, camAlt + (Math.random() - 0.5) * j);
@@ -176,6 +178,17 @@ export class PlaneView {
     const up = Cartesian3.cross(right, dir, new Cartesian3());
     scene.camera.setView({ destination: eye, orientation: { direction: dir, up } });
     return { lat: ground.lat, lon: ground.lon, height: camAlt };
+  }
+
+  /**
+   * Keep the camera above the terrain that is loaded right now. While detailed terrain tiles
+   * stream in, the coarse ones can sit a few meters above the runway; a camera under them
+   * would see the underside of the world (a green or black sky).
+   */
+  private aboveTerrain(lat: number, lon: number, h: number): number {
+    const globe = this.world.widget.scene.globe;
+    const g = globe.show ? globe.getHeight(Cartographic.fromDegrees(lon, lat)) : undefined;
+    return g !== undefined && Number.isFinite(g) ? Math.max(h, g + 1.2) : h;
   }
 
   destroy(): void {
