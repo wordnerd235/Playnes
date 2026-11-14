@@ -51,3 +51,29 @@ describe("offline world", () => {
     expect(data.landAt(34.06, -81.27)).toBe(LAND.water); // Lake Murray
   });
 });
+
+describe("airport buildings", () => {
+  it("has real buildings for every airport, with sensible heights", async () => {
+    const { guessHeight } = await import("../src/world/buildings.ts");
+    const json = JSON.parse(readFileSync("public/world/buildings.json", "utf8")) as { airports: Record<string, { b: { a: number; h?: number; c?: string; n?: string }[] }> };
+    for (const a of AIRPORTS) {
+      const list = json.airports[a.code]?.b ?? [];
+      expect(list.length, a.code).toBeGreaterThan(50);
+      for (const b of list) {
+        const h = guessHeight(b);
+        expect(h).toBeGreaterThan(2);
+        expect(h).toBeLessThanOrEqual(80);
+      }
+    }
+    expect(json.airports.CLT.b.some((b) => /terminal/i.test(b.n ?? ""))).toBe(true);
+  });
+
+  it("collision footprint test: inside, near the wall, and clear", async () => {
+    const { insideOrNear } = await import("../src/world/buildings.ts");
+    const square = [0, 0, 100, 0, 100, 60, 0, 60];
+    expect(insideOrNear(square, 50, 30, 5)).toBe(true);
+    expect(insideOrNear(square, 104, 30, 5)).toBe(true);
+    expect(insideOrNear(square, 120, 30, 5)).toBe(false);
+    expect(insideOrNear(square, -3, -3, 5)).toBe(true);
+  });
+});

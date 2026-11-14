@@ -7,6 +7,8 @@ import { LAND, type CartoonData } from "./cartoon.ts";
 import { gfxOn } from "./safety.ts";
 
 const COS35 = Math.cos((35 * Math.PI) / 180);
+/** Grid spacing for trees and houses, meters. */
+const PROP_CELL = 46;
 
 function frac(v: number): number {
   return v - Math.floor(v);
@@ -183,52 +185,26 @@ export class Scenery {
   }
 
   private buildProps(p: LatLon): void {
-    const data = this.data!;
     this.propCenter = { ...p };
     this.props.removeAll();
     const R = 1400 + 900 * this.detail;
-    const cell = 46;
+    const cell = PROP_CELL;
     const mx0 = p.lon * 111320 * COS35;
     const my0 = p.lat * 111320;
     let count = 0;
     for (let gx = Math.floor((mx0 - R) / cell); gx <= Math.floor((mx0 + R) / cell); gx++) {
       for (let gy = Math.floor((my0 - R) / cell); gy <= Math.floor((my0 + R) / cell); gy++) {
-        const k = gx * 3301 + gy * 9001;
-        const mx = (gx + 0.15 + hash(k, 1) * 0.7) * cell;
-        const my = (gy + 0.15 + hash(k, 2) * 0.7) * cell;
+        if (((gx + 0.5) * cell - mx0) ** 2 + ((gy + 0.5) * cell - my0) ** 2 > (R + cell) ** 2) continue;
+        const pr = this.propAt(gx, gy);
+        if (!pr) continue;
+        const mx = pr.lon * 111320 * COS35;
+        const my = pr.lat * 111320;
         if ((mx - mx0) ** 2 + (my - my0) ** 2 > R * R) continue;
-        const lon = mx / (111320 * COS35);
-        const lat = my / 111320;
-        if (!data.inside(lat, lon)) continue;
-        const land = data.landAt(lat, lon);
-        if (land === LAND.water || land === LAND.airport) continue;
-        const h = data.height(lat, lon);
-        if (land === LAND.town) {
-          if (hash(k, 3) > 0.32) continue;
-          const tall = 8 + hash(k, 4) * hash(k, 5) * hash(k, 12) * 60;
-          this.props.add({
-            position: Cartesian3.fromDegrees(lon, lat, h - 1),
-            image: this.houses[Math.floor(hash(k, 6) * this.houses.length)],
-            width: 14 + hash(k, 7) * 10,
-            height: tall,
-            sizeInMeters: true,
-            verticalOrigin: VerticalOrigin.BOTTOM,
-          });
-          count++;
-          continue;
-        }
-        const f = valueNoise(mx, my, 1800, 7) * 0.7 + valueNoise(mx, my, 500, 8) * 0.3;
-        const thresh = Math.min(0.66, Math.max(0.2, 0.66 - h / 3600));
-        const inForest = f > thresh;
-        if (!inForest && hash(k, 8) > 0.04) continue; // a few lone trees in fields
-        const size = 0.8 + hash(k, 9) * 0.6;
-        const pine = h > 700 ? hash(k, 10) < 0.7 : hash(k, 10) < 0.3;
-        const img = this.trees[(pine ? 2 : 0) + (hash(k, 11) < 0.5 ? 0 : 1)];
         this.props.add({
-          position: Cartesian3.fromDegrees(lon, lat, h - 1.5),
-          image: img,
-          width: 11 * size,
-          height: (pine ? 19 : 16) * size,
+          position: Cartesian3.fromDegrees(pr.lon, pr.lat, pr.base),
+          image: pr.image,
+          width: pr.width,
+          height: pr.height,
           sizeInMeters: true,
           verticalOrigin: VerticalOrigin.BOTTOM,
           color: Color.WHITE,
@@ -237,6 +213,61 @@ export class Scenery {
         if (count > 2500 + 2500 * this.detail) return;
       }
     }
+  }
+
+  /**
+   * The tree or house in grid cell (gx, gy), if any. One place decides what grows where, so
+   * what is drawn and what you can bump into always match.
+   */
+  private propAt(gx: number, gy: number): { lat: number; lon: number; base: number; width: number; height: number; image: string } | null {
+    const data = this.data;
+    if (!data) return null;
+    const cell = PROP_CELL;
+    const k = gx * 3301 + gy * 9001;
+    const mx = (gx + 0.15 + hash(k, 1) * 0.7) * cell;
+    const my = (gy + 0.15 + hash(k, 2) * 0.7) * cell;
+    const lon = mx / (111320 * COS35);
+    const lat = my / 111320;
+    if (!data.inside(lat, lon)) return null;
+    const land = data.landAt(lat, lon);
+    if (land === LAND.water || land === LAND.airport) return null;
+    const h = data.height(lat, lon);
+    if (land === LAND.town) {
+      if (hash(k, 3) > 0.32) return null;
+      const tall = 8 + hash(k, 4) * hash(k, 5) * hash(k, 12) * 60;
+      return { lat, lon, base: h - 1, width: 14 + hash(k, 7) * 10, height: tall, image: this.houses[Math.floor(hash(k, 6) * this.houses.length)] };
+    }
+    const f = valueNoise(mx, my, 1800, 7) * 0.7 + valueNoise(mx, my, 500, 8) * 0.3;
+    const thresh = Math.min(0.66, Math.max(0.2, 0.66 - h / 3600));
+    const inForest = f > thresh;
+    if (!inForest && hash(k, 8) > 0.04) return null; // a few lone trees in fields
+    const size = 0.8 + hash(k, 9) * 0.6;
+    const pine = h > 700 ? hash(k, 10) < 0.7 : hash(k, 10) < 0.3;
+    const img = this.trees[(pine ? 2 : 0) + (hash(k, 11) < 0.5 ? 0 : 1)];
+    return { lat, lon, base: h - 1.5, width: 11 * size, height: (pine ? 19 : 16) * size, image: img };
+  }
+
+  /**
+   * Top (ellipsoid height, m) of the tallest tree or house within `radius` meters of p, or null.
+   * Only while trees and houses are shown (offline world, scenery on).
+   */
+  obstacleTop(p: LatLon, radius: number): number | null {
+    if (!this.data || !gfxOn("props") || !this.props.show) return null;
+    const mx0 = p.lon * 111320 * COS35;
+    const my0 = p.lat * 111320;
+    const reach = radius + 12;
+    let top: number | null = null;
+    for (let gx = Math.floor((mx0 - reach) / PROP_CELL); gx <= Math.floor((mx0 + reach) / PROP_CELL); gx++) {
+      for (let gy = Math.floor((my0 - reach) / PROP_CELL); gy <= Math.floor((my0 + reach) / PROP_CELL); gy++) {
+        const pr = this.propAt(gx, gy);
+        if (!pr) continue;
+        const d = Math.hypot(pr.lon * 111320 * COS35 - mx0, pr.lat * 111320 - my0);
+        if (d > radius + pr.width * 0.4) continue;
+        const t = pr.base + pr.height * 0.92;
+        if (top === null || t > top) top = t;
+      }
+    }
+    return top;
   }
 
   destroy(): void {

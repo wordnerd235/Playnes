@@ -48,6 +48,8 @@ export interface World {
   cartoon: CartoonData | null;
   /** Keep clouds/trees around this point. */
   updateScenery(p: LatLon, alt: number, agl: number): void;
+  /** Top (ellipsoid height) of a tree, house or airport building within `radius` m of p, or null. */
+  obstacleTop(p: LatLon, radius: number): number | null;
   destroy(): void;
 }
 
@@ -176,7 +178,7 @@ function baseWidget(container: HTMLElement, kind: WorldKind, q: "high" | "medium
 export async function createWorld(container: HTMLElement, kind: WorldKind, opts: WorldOptions): Promise<World> {
   const q = qualityLevel(opts.quality);
   const cartoon = await loadCartoon();
-  let w: Omit<World, "cartoon" | "updateScenery">;
+  let w: Omit<World, "cartoon" | "updateScenery" | "obstacleTop">;
   if (kind === "google") w = await createGoogleWorld(container, opts.googleKey ?? "", q);
   else if (kind === "ion") w = await createIonWorld(container, opts.ionToken ?? "", q);
   else w = await createBasicWorld(container, q, cartoon);
@@ -199,6 +201,11 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
       scenery.update(p, alt, agl);
       buildings?.update(p);
     },
+    obstacleTop(p, radius) {
+      const a = scenery.obstacleTop(p, radius);
+      const b = buildings ? buildings.obstacleTop(p, radius) : null;
+      return a === null ? b : b === null ? a : Math.max(a, b);
+    },
     destroy() {
       scenery.destroy();
       buildings?.destroy();
@@ -207,7 +214,7 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
   };
 }
 
-async function createGoogleWorld(container: HTMLElement, key: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery">> {
+async function createGoogleWorld(container: HTMLElement, key: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop">> {
   const widget = baseWidget(container, "google", q, { globe: false, baseLayer: false });
   const scene = widget.scene;
   const tileset: Cesium3DTileset = await createGooglePhotorealistic3DTileset(
@@ -252,7 +259,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   };
 }
 
-async function createIonWorld(container: HTMLElement, token: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery">> {
+async function createIonWorld(container: HTMLElement, token: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop">> {
   Ion.defaultAccessToken = token;
   const widget = baseWidget(container, "ion", q, {
     terrain: Terrain.fromWorldTerrain(),
@@ -296,7 +303,7 @@ async function createIonWorld(container: HTMLElement, token: string, q: "high" |
   };
 }
 
-async function createBasicWorld(container: HTMLElement, q: "high" | "medium" | "low", cartoon: CartoonData | null): Promise<Omit<World, "cartoon" | "updateScenery">> {
+async function createBasicWorld(container: HTMLElement, q: "high" | "medium" | "low", cartoon: CartoonData | null): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop">> {
   const provider = await TileMapServiceImageryProvider.fromUrl(buildModuleUrl("Assets/Textures/NaturalEarthII"), {
     credit: new Credit("Natural Earth II"),
   });

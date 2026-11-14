@@ -149,6 +149,30 @@ const path = require("path");
   const flying = await F();
   check(!flying.ground && flying.phase === "free", "keeps flying after resume");
 
+  // Collisions: fly low and level straight at TRI's biggest real building with crashes on.
+  const target = await page.evaluate(async () => {
+    const json = await (await fetch("./world/buildings.json")).json();
+    const ap = json.airports.TRI;
+    const b = ap.b.filter((x) => x.h).sort((x, y) => y.a - x.a)[0];
+    let lon = 0, lat = 0;
+    const n = b.p.length / 2;
+    for (let i = 0; i < n; i++) { lon += ap.lon + b.p[2 * i] / 1e6; lat += ap.lat + b.p[2 * i + 1] / 1e6; }
+    return { lat: lat / n, lon: lon / n, h: b.h };
+  });
+  await page.evaluate((t) => {
+    const f = window.playnes.flight;
+    f.d.crashes = true;
+    const base = f.d.world.cartoon.height(t.lat, t.lon);
+    // 400 m south of the building, heading north, a few meters below its roof.
+    Object.assign(f.s, { lat: t.lat - 400 / 111320, lon: t.lon, heading: 0, alt: base + Math.max(2, t.h - 3), speed: 60, onGround: false, gearDown: false, flaps: 0, bank: 0, gamma: 0, vs: 0 });
+    f.d.controls.setThrottle(0.6, false);
+    window.playnes.world.updateScenery(f.s, f.s.alt, 5);
+  }, target);
+  const hit = await page.waitForFunction(() => window.playnes.flight.phase === "crashed", null, { timeout: 30000 }).then(() => true, () => false);
+  const where = await page.evaluate((t) => { const s = window.playnes.flight.s; return Math.hypot((s.lat - t.lat) * 111320, (s.lon - t.lon) * 111320 * Math.cos(t.lat * Math.PI / 180)); }, target);
+  check(hit && where < 250, `flying into a building crashes the playne (${Math.round(where)} m from its middle)`);
+  await shot("10-building-crash");
+
   console.log(errors.length ? `page errors: ${errors.join(" | ")}` : "no page errors");
   await browser.close();
   process.exit(failed ? 1 : 0);

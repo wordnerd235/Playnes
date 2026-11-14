@@ -47,7 +47,7 @@ function hash(s: number): number {
 
 /** A sensible height for a building whose real height isn't in the data. */
 export function guessHeight(b: Pick<BuildingRec, "a" | "c" | "n" | "h">): number {
-  if (b.h && b.h > 0) return Math.min(b.h, 80);
+  if (b.h && b.h > 0) return Math.max(3, Math.min(b.h, 80));
   const name = (b.n ?? "").toLowerCase();
   if (b.c === "control_tower" || /\btower\b/.test(name)) return 38;
   if (b.c === "hangar" || /hangar/.test(name)) return 13;
@@ -74,10 +74,31 @@ function roofColor(b: BuildingRec): Color {
   return Color.fromCssColorString("#8e857b");
 }
 
+/** Is (x, y) inside the polygon ring [x0, y0, x1, y1, ...], or within r of its outline? */
+export function insideOrNear(ring: number[], x: number, y: number, r: number): boolean {
+  let inside = false;
+  const n = ring.length / 2;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = ring[2 * i];
+    const yi = ring[2 * i + 1];
+    const xj = ring[2 * j];
+    const yj = ring[2 * j + 1];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    // Distance to this edge.
+    const dx = xj - xi;
+    const dy = yj - yi;
+    const t = Math.max(0, Math.min(1, ((x - xi) * dx + (y - yi) * dy) / (dx * dx + dy * dy || 1)));
+    if (Math.hypot(x - (xi + t * dx), y - (yi + t * dy)) < r) return true;
+  }
+  return inside;
+}
+
 export class AirportBuildings {
   private data: Record<string, AirportRec> | null = null;
   private loading = false;
   private built = new Map<string, Primitive>();
+  /** Footprints of the built airports, for collisions (meters east/north of the airport). */
+  private solids = new Map<string, { lat0: number; lon0: number; mlon: number; items: { ring: number[]; minX: number; minY: number; maxX: number; maxY: number; top: number }[] }>();
   private visible = true;
 
   constructor(private scene: Scene, private cartoon: CartoonData) {}
@@ -102,6 +123,7 @@ export class AirportBuildings {
       else if (d > DROP_KM && this.built.has(code)) {
         this.scene.primitives.remove(this.built.get(code)!);
         this.built.delete(code);
+        this.solids.delete(code);
       }
     }
   }
@@ -119,8 +141,29 @@ export class AirportBuildings {
     }
   }
 
+  /**
+   * Top (ellipsoid height, m) of a building within `radius` meters of p, or null. Only for
+   * airports whose buildings are on screen.
+   */
+  obstacleTop(p: LatLon, radius: number): number | null {
+    if (!this.visible) return null;
+    let top: number | null = null;
+    for (const sol of this.solids.values()) {
+      const x = (p.lon - sol.lon0) * sol.mlon;
+      const y = (p.lat - sol.lat0) * 111320;
+      if (Math.abs(x) > 6000 || Math.abs(y) > 6000) continue;
+      for (const b of sol.items) {
+        if (x < b.minX - radius || x > b.maxX + radius || y < b.minY - radius || y > b.maxY + radius) continue;
+        if (insideOrNear(b.ring, x, y, radius) && (top === null || b.top > top)) top = b.top;
+      }
+    }
+    return top;
+  }
+
   private build(code: string, ap: AirportRec): void {
     const instances: GeometryInstance[] = [];
+    const mlon = 111320 * Math.cos((ap.lat * Math.PI) / 180);
+    const solid = { lat0: ap.lat, lon0: ap.lon, mlon, items: [] as { ring: number[]; minX: number; minY: number; maxX: number; maxY: number; top: number }[] };
     ap.b.forEach((b, i) => {
       const ring: LatLon[] = [];
       for (let k = 0; k + 1 < b.p.length; k += 2) ring.push({ lon: ap.lon + b.p[k] / 1e6, lat: ap.lat + b.p[k + 1] / 1e6 });
@@ -130,6 +173,11 @@ export class AirportBuildings {
       for (const c of ring) base = Math.min(base, this.cartoon.height(c.lat, c.lon));
       base -= 0.8;
       const top = base + 0.8 + guessHeight(b);
+      const local: number[] = [];
+      for (const c of ring) local.push((c.lon - ap.lon) * mlon, (c.lat - ap.lat) * 111320);
+      const xs = local.filter((_, k) => k % 2 === 0);
+      const ys = local.filter((_, k) => k % 2 === 1);
+      solid.items.push({ ring: local, minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys), top: top + 0.5 });
       const hierarchy = new PolygonHierarchy(Cartesian3.fromDegreesArray(ring.flatMap((c) => [c.lon, c.lat])));
       instances.push(
         new GeometryInstance({
@@ -152,11 +200,13 @@ export class AirportBuildings {
     prim.show = this.visible;
     this.scene.primitives.add(prim);
     this.built.set(code, prim);
+    this.solids.set(code, solid);
   }
 
   clear(): void {
     for (const p of this.built.values()) this.scene.primitives.remove(p);
     this.built.clear();
+    this.solids.clear();
   }
 
   destroy(): void {

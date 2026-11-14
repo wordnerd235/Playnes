@@ -189,4 +189,76 @@ describe("real-world performance", () => {
     expect(t / 60).toBeGreaterThan(17);
     expect(t / 60).toBeLessThan(28);
   });
+
+  /** Free Flight as the game flies it: real throttle, stick input, power-off glide on. */
+  function free(id: string, o: { altFt: number; kt: number; throttle: number; pitch: number; seconds: number; flaps?: number; gear?: boolean }) {
+    const ac = aircraftById(id);
+    const p = perfFor(ac);
+    const s = createState({ lat: 35, lon: -81, alt: o.altFt * 0.3048, heading: 0, onGround: false, speed: o.kt * KT_, gearDown: o.gear ?? false, flaps: o.flaps ?? 0 });
+    s.throttle = o.throttle;
+    const mem = createMemory();
+    const g = baseGuidance({ landing: false, groundHeading: null, wantRotate: false, agl: 9000, powerGlide: true });
+    let maxVs = -Infinity;
+    let minVs = Infinity;
+    let maxIas = 0;
+    const start = { alt: s.alt, speed: s.speed };
+    for (let i = 0; i < o.seconds / DT; i++) {
+      const cmd = computeCommands(2, { roll: 0, pitch: o.pitch, throttle: o.throttle, brake: 0 }, g, s, p, mem, DT);
+      step(s, cmd, p, { groundHeight: -1e5 }, DT);
+      if (i * DT > 8) {
+        maxVs = Math.max(maxVs, s.vs);
+        minVs = Math.min(minVs, s.vs);
+      }
+      maxIas = Math.max(maxIas, indicated(s.speed, s.alt));
+    }
+    return { s, p, ac, start, maxVs: maxVs / FPM, minVs: minVs / FPM, maxIasKt: maxIas / KT_ };
+  }
+
+  it("full power with the stick centred holds altitude (no runaway altimeter at max speed)", () => {
+    for (const ac of AIRCRAFT) {
+      const r = free(ac.id, { altFt: 3000, kt: ac.vclimb, throttle: 1, pitch: 0, seconds: 300 });
+      expect(Math.abs(r.s.alt - r.start.alt) / 0.3048, ac.id).toBeLessThan(60);
+      expect(r.maxIasKt, ac.id).toBeLessThan(ac.vmo * 1.05);
+    }
+  });
+
+  it("throttle off with the stick centred: the playne starts down right away and keeps its speed", () => {
+    for (const ac of AIRCRAFT) {
+      const kt = ac.kind === "piston" ? 100 : 230;
+      const r = free(ac.id, { altFt: 8000, kt, throttle: 0, pitch: 0, seconds: 30 });
+      const fpm = r.s.vs / FPM;
+      expect(fpm, ac.id).toBeLessThan(ac.kind === "piston" ? -500 : -1200);
+      expect(Math.abs(r.s.speed - r.start.speed) / r.start.speed, ac.id).toBeLessThan(0.15);
+    }
+  });
+
+  it("dives fast with the stick pushed (speedbrakes hold the speed limit)", () => {
+    const rows: string[] = [];
+    for (const ac of AIRCRAFT) {
+      const r = free(ac.id, { altFt: 20000, kt: ac.kind === "piston" ? 110 : 250, throttle: 0, pitch: -1, seconds: 90 });
+      rows.push(`${ac.id} dive ${Math.round(-r.minVs)} fpm, max ${Math.round(r.maxIasKt)} kt`);
+      expect(-r.minVs, ac.id).toBeGreaterThan(ac.kind === "piston" ? 1300 : ac.kind === "turboprop" ? 3200 : 4500);
+      expect(r.maxIasKt, ac.id).toBeLessThan(ac.vmo * 1.06);
+    }
+    console.log(rows.join("\n"));
+  });
+
+  it("climbs near the book rate at full power and full pull", () => {
+    const rows: string[] = [];
+    for (const ac of AIRCRAFT) {
+      const r = free(ac.id, { altFt: 2000, kt: ac.vclimb, throttle: 1, pitch: 1, seconds: 40 });
+      const avg = ((r.s.alt - r.start.alt) / 0.3048 / 40) * 60;
+      rows.push(`${ac.id} climb avg ${Math.round(avg)} fpm (book ${ac.climbFpm}), peak ${Math.round(r.maxVs)}`);
+      expect(avg, ac.id).toBeGreaterThan(ac.climbFpm * 0.75);
+    }
+    console.log(rows.join("\n"));
+  });
+
+  it("zoom climb: pulling up from high speed climbs faster than the book rate at first", () => {
+    for (const id of ["phenom100", "g700"]) {
+      const ac = aircraftById(id);
+      const r = free(id, { altFt: 3000, kt: 260, throttle: 1, pitch: 1, seconds: 14 });
+      expect(r.maxVs, id).toBeGreaterThan(ac.climbFpm * 1.2);
+    }
+  });
 });

@@ -4,7 +4,7 @@
 //   2 "Up & down"  - player also commands climb/descent (release = level flight)
 //   3+ (later)     - player also flies power, flare, brakes
 
-import { indicated, type Commands, type FlightState, type Perf } from "./physics.ts";
+import { excessAccel, indicated, type Commands, type FlightState, type Perf } from "./physics.ts";
 import { angleDiff, clamp, lerp } from "./geo.ts";
 
 export interface StickInput {
@@ -43,6 +43,11 @@ export interface Guidance {
   steerAssist?: boolean;
   /** Bank the hoop course's curve needs here, degrees (hoop helper feed-forward). */
   courseBank?: number;
+  /**
+   * Free Flight: with the stick centred and the lever pulled back, glide down at the rate the
+   * missing power dictates (keeping the speed), like a real trimmed playne.
+   */
+  powerGlide?: boolean;
 }
 
 export interface AssistMemory {
@@ -89,9 +94,19 @@ export function computeCommands(
   if (level <= 1) {
     targetVs = g.targetVs;
   } else {
-    targetVs = input.pitch >= 0 ? input.pitch * p.climbMax : input.pitch * p.descentMax;
+    // Extra speed can be traded for height (a "zoom climb"): faster than climb speed, pulling
+    // back climbs harder until the playne has slowed to its climb speed.
+    const zoom = s.onGround ? 1 : clamp(indicated(s.speed, s.alt) / p.vclimb, 1, 1.8);
+    targetVs = input.pitch >= 0 ? input.pitch * p.climbMax * zoom : input.pitch * p.descentMax;
     // Release-to-level, except on approach where letting go follows the glide path.
     if (Math.abs(input.pitch) < 0.08 && g.landing) targetVs = g.targetVs;
+    // Power off with the stick centred: not enough thrust to hold this speed level, so the
+    // nose goes down just enough to keep the speed (full glide at idle, level from ~35% power).
+    if (g.powerGlide && Math.abs(input.pitch) < 0.08 && input.throttle !== null && !s.onGround) {
+      const w = clamp((0.35 - input.throttle) / 0.25, 0, 1);
+      const ex = excessAccel(s, p, s.throttle);
+      if (w > 0 && ex < 0) targetVs = Math.max(-p.descentMax, ((s.speed * ex) / 9.81) * w);
+    }
   }
 
   const ias = indicated(s.speed, s.alt);

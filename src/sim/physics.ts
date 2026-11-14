@@ -174,7 +174,8 @@ export function perfFor(ac: AircraftDef): Perf {
     fixedGear: ac.shape.fixedGear,
     rollRate: ac.rollRate,
     climbMax,
-    descentMax: (ac.kind === "piston" ? 1000 : 2500) * FT_PER_MIN,
+    // Fast descents (jets use their speedbrakes for these).
+    descentMax: (ac.kind === "piston" ? 1500 : ac.kind === "turboprop" ? 3500 : 5000) * FT_PER_MIN,
     gammaRate: ac.kind === "piston" ? 5 : 3.5,
   };
 }
@@ -182,6 +183,31 @@ export function perfFor(ac: AircraftDef): Perf {
 /** Engine thrust (as acceleration) at a speed, height and lever setting. */
 export function thrustAccel(p: Perf, throttle: number, tas: number, h: number): number {
   return p.accel * throttle * densityRatio(h) ** p.lapse * Math.max(0, 1 - SPEED_LAPSE * (tas / p.cruiseTas));
+}
+
+/** How far past Vmo/Mmo (0 = at or under, 1 = well over). */
+function overspeed(p: Perf, ias: number, mach: number): number {
+  return clamp(Math.max((ias - p.vmo) / (0.04 * p.vmo), p.mmo < 1 ? (mach - p.mmo) / 0.015 : -1), 0, 1);
+}
+
+/** Deceleration from fully extended speedbrakes, m/s². */
+const SPEEDBRAKE_DECEL = 0.16 * G;
+
+/** Aerodynamic drag as a deceleration (parasite + induced), m/s². */
+function dragAccel(s: FlightState, p: Perf): number {
+  const sigma = densityRatio(s.alt);
+  const eas2 = Math.max(sigma * s.speed * s.speed, (p.vstall * 0.8) ** 2);
+  return p.dragK * sigma * s.speed * s.speed * dragFactor(s, p) + (s.onGround ? 0 : p.inducedK / eas2);
+}
+
+/**
+ * Thrust minus drag (m/s²) at the current speed and height for a throttle setting. Negative
+ * means the playne can only keep its speed by descending: vs = V * excess / g.
+ */
+export function excessAccel(s: FlightState, p: Perf, throttle: number): number {
+  const ias = s.speed * Math.sqrt(densityRatio(s.alt));
+  const over = overspeed(p, ias, s.speed / speedOfSound(s.alt));
+  return thrustAccel(p, throttle, s.speed, s.alt) * (1 - over) - dragAccel(s, p) - over * SPEEDBRAKE_DECEL;
 }
 
 /** Extra push on the takeoff roll so a 5-year-old isn't waiting 40 seconds for rotation. */
@@ -219,11 +245,11 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
   const sigma = densityRatio(s.alt);
   const ias = s.speed * Math.sqrt(sigma);
   const mach = s.speed / speedOfSound(s.alt);
-  // Overspeed protection (like fly-by-wire): above Vmo/Mmo the engines pull back and the nose comes up.
-  const over = clamp(Math.max((ias - p.vmo) / (0.04 * p.vmo), p.mmo < 1 ? (mach - p.mmo) / 0.015 : -1), 0, 1);
+  // Overspeed protection (like fly-by-wire): at Vmo/Mmo the engines pull back to idle and the
+  // speedbrakes come out. It never climbs on its own (that would look like a runaway altimeter).
+  const over = overspeed(p, ias, mach);
   const thrust = thrustAccel(p, s.throttle, s.speed, s.alt) * (1 - over);
-  const eas2 = Math.max(sigma * s.speed * s.speed, (p.vstall * 0.8) ** 2);
-  const drag = p.dragK * sigma * s.speed * s.speed * dragFactor(s, p) + (s.onGround ? 0 : p.inducedK / eas2);
+  const drag = dragAccel(s, p) + over * SPEEDBRAKE_DECEL;
 
   if (s.onGround) {
     const rolling = 0.015 * G + cmd.brake * 0.35 * G;
@@ -259,7 +285,7 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
 
     // Envelope protection: never let the wing stall. Short of airspeed, the nose comes down
     // and the plane glides (trading height for speed), just like a real wing.
-    let targetVs = clamp(cmd.targetVs, -p.descentMax, p.climbMax * 1.2);
+    let targetVs = clamp(cmd.targetVs, -p.descentMax, p.climbMax * 1.8);
     // Flaps lower the stall speed (about 6% per notch, ~18% at full flaps).
     const vsEff = p.vstall * (1 - 0.06 * s.flaps);
     const lowSpeed = clamp((vsEff * 1.2 - ias) / (vsEff * 0.12), 0, 1);
@@ -267,7 +293,8 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
       targetVs = Math.min(targetVs, -lowSpeed * 7);
       if (lowSpeed > 0.9) events.push({ type: "stall-protect" });
     }
-    if (over > 0) targetVs = Math.max(targetVs, over * 6);
+    // Still too fast with the speedbrakes out: make the dive shallower (never a climb).
+    if (over > 0.6 && targetVs < 0) targetVs *= 1 - (over - 0.6) / 0.4;
     const vsAvail = Math.max(s.speed, 1);
     const targetGamma = Math.asin(clamp(targetVs / vsAvail, -0.3, 0.3)) / DEG;
     s.gamma = approach(s.gamma, targetGamma, p.gammaRate * dt);
