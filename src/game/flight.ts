@@ -42,6 +42,7 @@ import {
 import { createState, perfFor, step, type FlightState, type Perf } from "../sim/physics.ts";
 import type { Hud, Prompt } from "../ui/hud.ts";
 import { CloudDeck } from "../world/clouds.ts";
+import { gfxOn } from "../world/safety.ts";
 import type { World } from "../world/world.ts";
 import { frameMatrix, PlaneView } from "./planeView.ts";
 import { makeRunway, onRunwayArea, pickEnd, runwayCoords, runwayHeight, runwayPoint, type RunwayInUse } from "./runway.ts";
@@ -258,6 +259,7 @@ export class FlightSession {
     const kind = this.d.world.kind;
     if (kind !== "basic" && kind !== "cartoon") return;
     const draped = kind === "cartoon";
+    if (!gfxOn("groundPolys")) return;
     const ents = this.d.world.widget.entities;
     const w = r.airport.runway.widthFt * FT;
     const rect = (s0: number, s1: number, x0: number, x1: number, color: Color) => {

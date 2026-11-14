@@ -5,6 +5,7 @@
 
 import { Cartesian2, Cartesian3, Cartesian4, Ellipsoid, PostProcessStage, Transforms, Matrix4, type Scene } from "cesium";
 import type { LatLon } from "../sim/geo.ts";
+import { gfxOn } from "./safety.ts";
 
 const FRAG = /* glsl */ `
 uniform sampler2D colorTexture;
@@ -83,7 +84,7 @@ export class CloudDeck {
       name: "playnes-cloud-deck",
       fragmentShader: FRAG,
       uniforms: {
-        u_opacity: () => this.opacity,
+        u_opacity: () => (gfxOn("cloudDeck") ? this.opacity : 0),
         u_R: () => this.R,
         u_h: () => this.h,
         u_east: () => this.east,

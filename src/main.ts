@@ -15,7 +15,7 @@ import { Controls } from "./input/controls.ts";
 import { destination } from "./sim/geo.ts";
 import { Hud } from "./ui/hud.ts";
 import { LESSONS, Screens, type ScreenHost } from "./ui/screens.ts";
-import { createWorld, type World } from "./world/world.ts";
+import { createWorld, setGraphicsRecoveredHandler, type World } from "./world/world.ts";
 
 const app = document.getElementById("app") as HTMLElement;
 const worldEl = document.getElementById("world") as HTMLElement;
@@ -33,6 +33,7 @@ class Game implements ScreenHost {
   lastMission: Mission | null = null;
   sessionStart = performance.now();
   private orbit = 0;
+  private frameErrors = 0;
   private lastFrame = performance.now();
 
   constructor() {
@@ -46,6 +47,7 @@ class Game implements ScreenHost {
       if (e === "pause" && this.flight) this.togglePause();
     });
     void this.audio.init();
+    setGraphicsRecoveredHandler((msg) => this.hud.toast(msg, "info"));
     this.screens.title(() => void this.begin());
     document.addEventListener("visibilitychange", () => {
       if (document.hidden && this.flight && !this.flight.paused) this.togglePause();
@@ -82,7 +84,16 @@ class Game implements ScreenHost {
       kind = "basic";
     }
     this.worldKind = kind;
-    this.world.widget.scene.preUpdate.addEventListener(() => this.frame());
+    this.world.widget.scene.preUpdate.addEventListener(() => {
+      // A bug in game code must never stop the 3D view from rendering.
+      try {
+        this.frame();
+      } catch (err) {
+        this.frameErrors++;
+        if (this.frameErrors < 5) console.error("frame error", err);
+        recordFrameError(err);
+      }
+    });
   }
 
   private frame(): void {
@@ -278,6 +289,15 @@ class Game implements ScreenHost {
       () => this.screens.parentCorner(() => this.screens.home()),
       () => this.screens.home(),
     );
+  }
+}
+
+function recordFrameError(err: unknown): void {
+  try {
+    const msg = err instanceof Error ? `${err.name}: ${err.message} @ ${(err.stack ?? "").split("\n")[1]?.trim() ?? ""}` : String(err);
+    localStorage.setItem("playnes.lastFrameError", msg.slice(0, 400));
+  } catch {
+    /* storage unavailable */
   }
 }
 

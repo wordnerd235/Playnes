@@ -9,6 +9,7 @@ import { buy, canBuy, exportCode, importCode, owns, type Progress, type Reward }
 import type { Settings } from "../game/settings.ts";
 import { distance, NM } from "../sim/geo.ts";
 import { saveForOffline } from "../game/offline.ts";
+import { FEATURE_NAMES, resetSafety, safetyReport } from "../world/safety.ts";
 import { clear, h } from "./dom.ts";
 import { ICONS } from "./icons.ts";
 
@@ -442,6 +443,34 @@ export class Screens {
               }, "Save for offline play"),
             ]),
             offlineMsg,
+            (() => {
+              const rep = safetyReport();
+              let frameErr = "";
+              try {
+                frameErr = localStorage.getItem("playnes.lastFrameError") ?? "";
+              } catch {
+                /* none */
+              }
+              if (!rep.lastError && !frameErr) return h("p.field-help", {}, "Graphics: no problems recorded.");
+              const box = h("div.gfx-report", {}, [
+                h("p.field-help", {}, `Graphics safety: ${rep.off.length ? `turned off ${rep.off.map((f) => FEATURE_NAMES[f]).join(", ")}` : "nothing turned off"}.`),
+                rep.lastError ? h("p.field-help", {}, `Last rendering error: ${rep.lastError}`) : null,
+                frameErr ? h("p.field-help", {}, `Last game error: ${frameErr}`) : null,
+                h("button.btn.secondary", {
+                  type: "button",
+                  onclick: () => {
+                    resetSafety();
+                    try {
+                      localStorage.removeItem("playnes.lastFrameError");
+                    } catch {
+                      /* none */
+                    }
+                    box.textContent = "Graphics safety reset. Reload the game to try everything again.";
+                  },
+                }, "Reset graphics safety"),
+              ]);
+              return box;
+            })(),
           ]),
           h("section", {}, [
             h("h2", {}, "Flying"),

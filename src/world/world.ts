@@ -24,6 +24,7 @@ import type { LatLon } from "../sim/geo.ts";
 import type { Quality } from "../game/settings.ts";
 import { CartoonData } from "./cartoon.ts";
 import { Scenery } from "./scenery.ts";
+import { degrade, FEATURE_NAMES, gfxOn, type GfxFeature } from "./safety.ts";
 
 /** "cartoon" = offline cartoon world; "basic" = bare globe if the offline data is missing. */
 export type WorldKind = "google" | "ion" | "cartoon" | "basic";
@@ -45,6 +46,45 @@ export interface World {
   /** Keep clouds/trees around this point. */
   updateScenery(p: LatLon, alt: number, agl: number): void;
   destroy(): void;
+}
+
+/** Called with a short message whenever graphics recovery switches something off. */
+export let onGraphicsRecovered: (msg: string) => void = () => {};
+export function setGraphicsRecoveredHandler(fn: (msg: string) => void): void {
+  onGraphicsRecovered = fn;
+}
+
+/**
+ * If rendering throws (a GPU/browser limit, or a bug), switch off the next most demanding
+ * feature and restart the render loop instead of freezing the game.
+ */
+function installRecovery(widget: CesiumWidget, scenery: Scenery): void {
+  let restarts = 0;
+  const apply = (f: GfxFeature) => {
+    const scene = widget.scene;
+    if (f === "cumulus") scenery.disableClouds();
+    if (f === "props") scenery.disableProps();
+    if (f === "groundPolys") widget.entities.removeAll();
+    if (f === "terrainDepth") scene.globe.depthTestAgainstTerrain = false;
+    if (f === "msaa") {
+      scene.msaaSamples = 1;
+      scene.postProcessStages.fxaa.enabled = false;
+    }
+    // cloudDeck: CloudDeck checks gfxOn() every frame.
+  };
+  widget.scene.renderError.addEventListener((_scene: unknown, error: unknown) => {
+    console.error("render error", error);
+    const off = degrade(error);
+    if (off) apply(off);
+    if (restarts++ < 12) {
+      setTimeout(() => {
+        widget.useDefaultRenderLoop = true;
+      }, 50);
+      onGraphicsRecovered(off ? `Graphics fix: turned off ${FEATURE_NAMES[off]}.` : "Graphics hiccup: restarted.");
+    } else {
+      onGraphicsRecovered("Graphics keep failing. A grown-up can see the details in settings.");
+    }
+  });
 }
 
 let cartoonCache: Promise<CartoonData | null> | null = null;
@@ -77,8 +117,9 @@ function baseWidget(container: HTMLElement, kind: WorldKind, q: "high" | "medium
   const widget = new CesiumWidget(container, {
     shouldAnimate: false,
     useBrowserRecommendedResolution: q !== "high",
-    msaaSamples: q === "high" ? 4 : 1,
-    showRenderLoopErrors: true,
+    msaaSamples: q === "high" && gfxOn("msaa") ? 4 : 1,
+    // We handle render errors ourselves (see installRecovery) instead of showing Cesium's panel.
+    showRenderLoopErrors: false,
     ...extra,
   });
   const scene = widget.scene;
@@ -101,6 +142,7 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
   else if (kind === "ion") w = await createIonWorld(container, opts.ionToken ?? "", q);
   else w = await createBasicWorld(container, q, cartoon);
   const scenery = new Scenery(w.widget.scene, w.kind === "cartoon" ? cartoon : null, q === "high" ? 1 : q === "medium" ? 0.75 : 0.4);
+  installRecovery(w.widget, scenery);
   const setGround = w.setGroundVisible.bind(w);
   const destroy = w.destroy.bind(w);
   return {
@@ -220,7 +262,7 @@ async function createBasicWorld(container: HTMLElement, q: "high" | "medium" | "
   const scene = widget.scene;
   if (cartoon) {
     scene.imageryLayers.addImageryProvider(cartoon.imageryProvider());
-    scene.globe.depthTestAgainstTerrain = true;
+    scene.globe.depthTestAgainstTerrain = gfxOn("terrainDepth");
     scene.globe.maximumScreenSpaceError = q === "high" ? 1.5 : 2.5;
     scene.globe.tileCacheSize = 200;
   }

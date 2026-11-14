@@ -4,6 +4,7 @@
 import { BillboardCollection, Cartesian2, Cartesian3, CloudCollection, Color, VerticalOrigin, type Scene } from "cesium";
 import { destination, distance, type LatLon } from "../sim/geo.ts";
 import { LAND, type CartoonData } from "./cartoon.ts";
+import { gfxOn } from "./safety.ts";
 
 const COS35 = Math.cos((35 * Math.PI) / 180);
 
@@ -96,17 +97,27 @@ export class Scenery {
     }
   }
 
+  disableClouds(): void {
+    this.clouds.removeAll();
+    this.clouds.show = false;
+  }
+
+  disableProps(): void {
+    this.props.removeAll();
+    this.props.show = false;
+  }
+
   setVisible(v: boolean): void {
     this.visible = v;
-    this.clouds.show = v;
-    this.props.show = v;
+    this.clouds.show = v && gfxOn("cumulus");
+    this.props.show = v && gfxOn("props");
   }
 
   /** Call every frame with the plane (or camera) position. heightAgl decides tree detail. */
   update(p: LatLon, alt: number, heightAgl: number): void {
     if (!this.visible) return;
-    if (!this.cloudCenter || distance(p, this.cloudCenter) > 7000) this.buildClouds(p);
-    if (this.data) {
+    if (gfxOn("cumulus") && (!this.cloudCenter || distance(p, this.cloudCenter) > 7000)) this.buildClouds(p);
+    if (this.data && gfxOn("props")) {
       const near = heightAgl < 1500;
       this.props.show = near;
       if (near && (!this.propCenter || distance(p, this.propCenter) > 450)) this.buildProps(p);
