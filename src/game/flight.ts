@@ -127,6 +127,7 @@ export class FlightSession {
   paused = false;
   /** Simulation steps per frame (1 in the game; tests raise it to fast-forward). */
   timeScale = 1;
+  private accum = 0;
 
   private d: FlightDeps;
   private ac: AircraftDef;
@@ -935,8 +936,15 @@ export class FlightSession {
       this.updateCamera(dt);
       return;
     }
-    const steps = Math.max(1, Math.round(this.timeScale));
-    for (let i = 0; i < steps; i++) this.simulate(dt);
+    // Fixed 1/60 s physics steps, so the plane flies the same on fast and slow devices.
+    const STEP = 1 / 60;
+    this.accum = Math.min(this.accum + dt * Math.max(1, Math.round(this.timeScale)), 0.25 * Math.max(1, this.timeScale));
+    let n = 0;
+    while (this.accum >= STEP && n < 60 * Math.max(1, this.timeScale)) {
+      this.simulate(STEP);
+      this.accum -= STEP;
+      n++;
+    }
     this.updateModel(dt);
     this.updateCamera(dt);
     this.updateHud();

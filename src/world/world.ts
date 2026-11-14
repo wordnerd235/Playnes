@@ -120,6 +120,8 @@ function baseWidget(container: HTMLElement, kind: WorldKind, q: "high" | "medium
     msaaSamples: q === "high" && gfxOn("msaa") ? 4 : 1,
     // We handle render errors ourselves (see installRecovery) instead of showing Cesium's panel.
     showRenderLoopErrors: false,
+    // "?nooit" mimics devices without order-independent translucency (iPad Safari) for testing.
+    orderIndependentTranslucency: !new URLSearchParams(location.search).has("nooit"),
     ...extra,
   });
   const scene = widget.scene;

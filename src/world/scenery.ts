@@ -1,7 +1,7 @@
 // Things near the plane that make speed and height easy to feel: puffy cumulus clouds (every
 // world), plus cartoon trees and town buildings in the offline world. Rebuilt as the plane moves.
 
-import { BillboardCollection, Cartesian2, Cartesian3, CloudCollection, Color, VerticalOrigin, type Scene } from "cesium";
+import { BillboardCollection, BoundingSphere, Cartesian2, Cartesian3, CloudCollection, Color, VerticalOrigin, type Scene } from "cesium";
 import { destination, distance, type LatLon } from "../sim/geo.ts";
 import { LAND, type CartoonData } from "./cartoon.ts";
 import { gfxOn } from "./safety.ts";
@@ -77,8 +77,32 @@ const building = (wall: string, roof: string) =>
     for (let y = 16; y < 88; y += 14) for (let x = 14; x < 52; x += 12) c.fillRect(x, y, 6, 8);
   });
 
+/**
+ * Cesium's CloudCollection draws with no bounding volume. On devices without order-independent
+ * translucency (iPad Safari), Cesium sorts see-through draws by distance and crashes on the
+ * missing volume ("e.boundingVolume.distanceSquaredTo"). Give each cloud draw one.
+ */
+class SafeCloudCollection extends CloudCollection {
+  sphere = new BoundingSphere(new Cartesian3(), 1);
+
+  setBounds(positions: Cartesian3[]): void {
+    this.sphere = positions.length ? BoundingSphere.fromPoints(positions) : new BoundingSphere(new Cartesian3(), 1);
+    this.sphere.radius += 3000;
+  }
+
+  update(frameState: unknown): void {
+    const fs = frameState as { commandList: { boundingVolume?: unknown; owner?: unknown }[] };
+    const start = fs.commandList.length;
+    (CloudCollection.prototype as unknown as { update: (f: unknown) => void }).update.call(this, frameState);
+    for (let i = start; i < fs.commandList.length; i++) {
+      const cmd = fs.commandList[i];
+      if (!cmd.boundingVolume) cmd.boundingVolume = this.sphere;
+    }
+  }
+}
+
 export class Scenery {
-  private clouds: CloudCollection;
+  private clouds: SafeCloudCollection;
   private props: BillboardCollection;
   private cloudCenter: LatLon | null = null;
   private propCenter: LatLon | null = null;
@@ -89,7 +113,7 @@ export class Scenery {
 
   /** 0..1 detail scale from the graphics setting. */
   constructor(private scene: Scene, private data: CartoonData | null, private detail = 1) {
-    this.clouds = scene.primitives.add(new CloudCollection({ noiseDetail: 16 })) as CloudCollection;
+    this.clouds = scene.primitives.add(new SafeCloudCollection({ noiseDetail: 16 })) as SafeCloudCollection;
     this.props = scene.primitives.add(new BillboardCollection({ scene })) as BillboardCollection;
     if (data) {
       this.trees = [roundTree("#3f9a4a"), roundTree("#55ad52"), pineTree("#2f7f45"), pineTree("#3b8f4c")].map((c) => c.toDataURL());
@@ -128,6 +152,7 @@ export class Scenery {
   private buildClouds(p: LatLon): void {
     this.cloudCenter = { ...p };
     this.clouds.removeAll();
+    const positions: Cartesian3[] = [];
     const cell = 2600;
     const R = 26000;
     const mx = p.lon * 111320 * COS35;
@@ -143,8 +168,10 @@ export class Scenery {
         const base = (this.data ? this.data.height(lat, lon) : 300) + 1200 + hash(k, 4) * 900;
         const sx = 1100 + hash(k, 5) * 1300;
         const sy = 450 + hash(k, 6) * 350;
+        const pos = Cartesian3.fromDegrees(lon, lat, base);
+        positions.push(pos);
         this.clouds.add({
-          position: Cartesian3.fromDegrees(lon, lat, base),
+          position: pos,
           scale: new Cartesian2(sx, sy),
           maximumSize: new Cartesian3(sx * 0.9, sy, sy * 0.9),
           slice: 0.36 + hash(k, 7) * 0.2,
@@ -152,6 +179,7 @@ export class Scenery {
         });
       }
     }
+    this.clouds.setBounds(positions);
   }
 
   private buildProps(p: LatLon): void {
