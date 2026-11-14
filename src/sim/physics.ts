@@ -126,7 +126,7 @@ function dragFactor(s: FlightState): number {
 /** Advance the flight state by dt seconds. Returns events that happened during the step. */
 export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: number): FlightEvent[] {
   const events: FlightEvent[] = [];
-  s.throttle = approach(s.throttle, clamp(cmd.throttle, 0, 1), dt * 0.8);
+  s.throttle = approach(s.throttle, clamp(cmd.throttle, 0, 1), dt * 1.6);
 
   // Thrust falls off a little with speed; drag grows with speed squared.
   const thrust = p.accel * s.throttle * (1 - 0.3 * clamp(s.speed / p.vmax, 0, 1.5));

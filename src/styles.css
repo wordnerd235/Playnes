@@ -55,6 +55,8 @@ svg { display: block; }
 }
 #app { position: fixed; inset: 0; pointer-events: none; }
 #app > * { pointer-events: auto; }
+/* Overlays that only show visuals must never block taps on the controls underneath. */
+#app > .whiteout { pointer-events: none; }
 
 /* ---------------------------------------------------------------- screens */
 .screens {

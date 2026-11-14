@@ -332,7 +332,7 @@ export class FlightSession {
     if (m.kind === "lesson" && m.lesson === "l2") {
       void this.say(LINES.l2Intro);
       this.setPhase("l2go");
-      this.ask("throttle", 30, () => this.d.controls.state.throttle > 0.6, () => this.d.controls.setThrottle(0.8, false));
+      this.ask("throttle", 15, () => this.d.controls.state.throttle > 0.6, () => this.d.controls.setThrottle(0.8, false));
       return;
     }
     if (m.kind === "lesson" && m.lesson === "l3") void this.say(LINES.l3Intro);
@@ -758,7 +758,9 @@ export class FlightSession {
       case "l2slow":
       case "l2brake":
         g.groundHeading = this.dep.heading;
-        throttle = Math.min(c.throttle, 0.55);
+        throttle = c.throttle;
+        // Keep the lesson on the ground: ease off power near rotation speed.
+        if (s.speed > p.vr * 0.75) throttle = Math.min(throttle, 0.15);
         break;
       case "roll": {
         g.groundHeading = this.dep.heading;
@@ -1107,7 +1109,7 @@ export class FlightSession {
       heading: s.heading,
       bank: s.bank,
       pitch: s.pitch,
-      throttle: s.throttle,
+      throttle: this.playerPower() ? this.d.controls.state.throttle : s.throttle,
       gearDown: s.gearDown,
       fixedGear: this.ac.shape.fixedGear,
       flaps: s.flaps,
@@ -1119,6 +1121,11 @@ export class FlightSession {
       terrain: this.mem.terrainWarning,
       hoopsLeft: this.hoops.length ? this.hoops.length - this.hoopIndex : null,
     });
+  }
+
+  /** Phases where the lever is the player's, not the co-pilot's. */
+  private playerPower(): boolean {
+    return ["lineup", "roll", "l2go", "l2slow", "l2brake"].includes(this.phase) && this.s.onGround;
   }
 
   private cruiseProgressFraction(): number {
