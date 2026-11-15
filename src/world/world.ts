@@ -5,6 +5,7 @@
 // The rest of the game only talks to the World interface, so switching is a settings change.
 
 import {
+  Color,
   BoundingSphere,
   Cartesian3,
   buildModuleUrl,
@@ -234,6 +235,10 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
     },
   );
   scene.primitives.add(tileset);
+  // With no globe, Cesium leaves out the blue sky (you'd see stars at noon): turn it back on.
+  if (scene.skyAtmosphere) scene.skyAtmosphere.show = true;
+  if (scene.skyBox) scene.skyBox.show = false;
+  scene.backgroundColor = Color.fromCssColorString("#8ec5f2");
   const exclude: object[] = [];
   return {
     kind: "google",

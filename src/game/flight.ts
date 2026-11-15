@@ -1408,9 +1408,18 @@ export class FlightSession {
   }
 
   private groundHeightAt(p: LatLon): number {
+    // On a runway: the offline worlds draw their own flat runway, so use its exact height.
+    // Google / Cesium ion show the real runway in their own data: sit on what's really there
+    // (measured below), unless that measurement is way off (e.g. it hit a parked airplane).
+    let runwayPlane: number | null = null;
     for (const r of [this.dep, this.arr, ...this.allRunways]) {
-      if (r && onRunwayArea(r, p)) return runwayHeight(r, runwayCoords(r, p).s) + (this.runwayPrims.length ? RUNWAY_LIFT : 0);
+      if (r && onRunwayArea(r, p)) {
+        runwayPlane = runwayHeight(r, runwayCoords(r, p).s) + (this.runwayPrims.length ? RUNWAY_LIFT : 0);
+        break;
+      }
     }
+    const drawsRunways = this.d.world.kind === "cartoon" || this.d.world.kind === "basic";
+    if (runwayPlane !== null && drawsRunways) return runwayPlane;
     // Re-read every few frames, or right away if the playne has jumped (resume, respawn, line-up):
     // a stale height from somewhere else could put the ground above the playne.
     const gc = this.groundCache;
@@ -1425,6 +1434,7 @@ export class FlightSession {
         this.groundCache.valid = true;
       }
     }
+    if (runwayPlane !== null) return this.groundCache.valid && Math.abs(this.groundCache.h - runwayPlane) < 12 ? this.groundCache.h : runwayPlane;
     if (this.groundCache.valid) return this.groundCache.h;
     const near = this.arr && distance(p, this.arr.end) < distance(p, this.dep.end) ? this.arr : this.dep;
     return runwayHeight(near, 0);
