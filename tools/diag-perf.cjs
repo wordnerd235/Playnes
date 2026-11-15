@@ -26,7 +26,9 @@ const path = require("path");
       resume: { v: 1, aircraft: "c172", airport: "TRI", worldKind: window.playnes.worldKind, refHeight: 0, lat: 36.44, lon: -82.45, alt: 1500, heading: 70, pitch: 0, bank: 0, gamma: 0, speed: 55, vs: 0, throttle: 0.75, flaps: 0, gearDown: true, onGround: false, navTarget: "CLT", landedAt: null, from: "TRI", savedAt: Date.now() },
     }),
   );
-  await page.waitForFunction(() => { const f = window.playnes.flight; return f && f.phase === "free" && !f.paused; }, null, { timeout: 120000 });
+  await page.waitForFunction(() => { const f = window.playnes.flight; return f && f.phase === "free"; }, null, { timeout: 120000 });
+  // A resumed Free Flight starts paused ("tap to continue").
+  await page.evaluate(() => window.playnes.flight.paused && window.playnes.togglePause());
   await page.waitForTimeout(4000);
   const scene = () => window.playnes.world.widget.scene;
   // Haze: now vs. the old settings, from the same spot.
