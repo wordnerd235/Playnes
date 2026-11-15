@@ -347,12 +347,13 @@ export class FlightSession {
     const was = this.paused;
     this.paused = true;
     const t0 = performance.now();
-    const globe = this.d.world.widget.scene.globe;
+    const globe = this.d.world.widget.scene.globe as { show: boolean; getHeight(c: Cartographic): number | undefined } | undefined;
     await new Promise<void>((resolve) => {
       const check = () => {
         if (this.destroyed || performance.now() - t0 > maxMs) return resolve();
         const s = this.s;
-        const gh = globe.show ? globe.getHeight(Cartographic.fromDegrees(s.lon, s.lat)) : undefined;
+        // Google's 3D world has no globe: wait for its tiles instead.
+        const gh = globe && globe.show ? globe.getHeight(Cartographic.fromDegrees(s.lon, s.lat)) : undefined;
         const settled = gh === undefined ? this.d.world.groundReady() : s.onGround ? Math.abs(gh - this.groundHeightAt(s)) < 1.5 : s.alt > gh + 10;
         if (settled && performance.now() - t0 > 300) resolve();
         else setTimeout(check, 100);

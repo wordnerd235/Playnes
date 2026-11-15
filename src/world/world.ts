@@ -71,7 +71,7 @@ function installRecovery(widget: CesiumWidget, scenery: Scenery): void {
     if (f === "cumulus") scenery.disableClouds();
     if (f === "props") scenery.disableProps();
     if (f === "groundPolys") widget.entities.removeAll();
-    if (f === "terrainDepth") scene.globe.depthTestAgainstTerrain = false;
+    if (f === "terrainDepth" && scene.globe) scene.globe.depthTestAgainstTerrain = false;
     if (f === "msaa") {
       scene.msaaSamples = 1;
       scene.postProcessStages.fxaa.enabled = false;

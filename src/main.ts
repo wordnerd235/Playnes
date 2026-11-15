@@ -44,6 +44,8 @@ class Game implements ScreenHost {
   progress: Progress = loadProgress();
   settings: Settings = loadSettings();
   worldKind = "basic";
+  /** Why a chosen map didn't load (shown in grown-up settings). */
+  worldNote = "";
   audio = new Audio();
   controls = new Controls();
   hud: Hud;
@@ -96,6 +98,7 @@ class Game implements ScreenHost {
   }
 
   private async loadWorld(): Promise<void> {
+    this.worldNote = "";
     this.world?.destroy();
     this.world = null;
     let kind = resolveWorld(this.settings);
@@ -104,11 +107,13 @@ class Game implements ScreenHost {
       this.world = await createWorld(worldEl, kind, { googleKey: googleKey(this.settings), ionToken: ionToken(this.settings), quality: this.settings.quality });
     } catch (err) {
       console.warn("World failed to load, using the simple globe", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      this.worldNote = `${kind === "google" ? "Google" : "Cesium ion"} didn't load (${msg.slice(0, 160)}), so the offline map is showing.${kind === "google" ? " Check the key, that the Map Tiles API is enabled, and that the key allows this website." : ""}`;
       this.world?.destroy();
       this.world = await createWorld(worldEl, "basic", { quality: this.settings.quality });
       kind = "basic";
     }
-    this.worldKind = kind;
+    this.worldKind = this.world.kind;
     this.world.widget.scene.preUpdate.addEventListener(() => {
       // A bug in game code must never stop the 3D view from rendering.
       try {

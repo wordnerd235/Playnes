@@ -18,6 +18,7 @@ export interface ScreenHost {
   progress: Progress;
   settings: Settings;
   worldKind: string;
+  worldNote: string;
   say(line: Line, interrupt?: boolean): void;
   sfx(name: "click" | "cash" | "star" | "ding"): void;
   saveProgress(): void;
@@ -582,7 +583,8 @@ export class Screens {
         h("div.parent-body", {}, [
           h("section", {}, [
             h("h2", {}, "World map"),
-            field("Map source", world, `Now showing: ${this.host.worldKind}. Google and Cesium need internet; the cartoon world works anywhere.`),
+            field("Map source", world, `Now showing: ${({ google: "Google Photorealistic 3D", ion: "Cesium ion", cartoon: "offline cartoon map", basic: "simple globe" } as Record<string, string>)[this.host.worldKind] ?? this.host.worldKind}. Google and Cesium need internet; the cartoon world works anywhere.`),
+            this.host.worldNote ? h("p.field-msg.warn", {}, this.host.worldNote) : null,
             field("Google Maps API key", gkey, "See docs/SETUP.md. Restrict the key to this site and the Map Tiles API."),
             field("Cesium ion token (optional)", ion),
             field("Graphics quality", quality),

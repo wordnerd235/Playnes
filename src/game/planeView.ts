@@ -249,10 +249,19 @@ export class PlaneView {
    * would see the underside of the world (a green or black sky).
    */
   private aboveTerrain(lat: number, lon: number, h: number): number {
-    const globe = this.world.widget.scene.globe;
-    const g = globe.show ? globe.getHeight(Cartographic.fromDegrees(lon, lat)) : undefined;
+    // Globe worlds: the height of the terrain actually drawn. Google's 3D world has no globe:
+    // ask the world (measuring 3D tiles is costly, so only every few frames).
+    const globe = this.world.widget.scene.globe as { show: boolean; getHeight(c: Cartographic): number | undefined } | undefined;
+    let g: number | undefined;
+    if (globe) g = globe.show ? globe.getHeight(Cartographic.fromDegrees(lon, lat)) : undefined;
+    else {
+      if (this.tileGroundAge++ % 8 === 0) this.tileGround = this.world.groundHeight({ lat, lon });
+      g = this.tileGround;
+    }
     return g !== undefined && Number.isFinite(g) ? Math.max(h, g + 1.2) : h;
   }
+  private tileGround: number | undefined;
+  private tileGroundAge = 0;
 
   destroy(): void {
     const scene = this.world.widget.scene;
