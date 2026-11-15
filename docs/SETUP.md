@@ -56,6 +56,7 @@ All the numbers live in `REWARDS` in `src/game/progress.ts`.
 - The **HEIGHT** gauge shows feet above sea level, like a real altimeter, with a bar that fills toward the playne's cruising altitude and turns green ("cruising!") when you get there. Within 2,500 ft of the ground a **radio altimeter** appears under it: "↓ 350 ft above ground", orange below 500 ft and red below 150 ft (mountains around here are 2,000-6,000 ft above sea level, so the big number alone can mislead). The small number under SPEED is ground speed, also in knots. (There's no "Terrain, pull up!" alarm: the above-ground readout is the warning, and the co-pilot still quietly eases you up if you get very low away from a runway.)
 - **Radio:** on charters and in Flight School the radio button stays greyed out until the co-pilot asks you to call the tower ("Tap the radio..."), then lights up; it greys out again after the call.
 - The big map's **Clear route** button removes a destination you picked.
+- **Routes:** picking a destination draws the route on the minimap and big map the way a pilot would fly it: a turn toward it, then a smooth curve onto the runway's extended centreline about 6 km (3 nm) out, then straight in (the runway end that suits your direction of arrival). It re-plans if you wander more than about 2 km off it. The first time you fly to an airport you've never landed at, the same route also appears as a **faint glowing line in the sky** to follow: it eases to about 1,000 ft above the runway at the start of final, then down a normal 3° glide slope to the touchdown point. (The Chinook gets a straight line: helicopters don't need to line up.)
 - **Hangar 3D view:** tap any playne and its picture turns into the real 3D model. Drag a finger to spin it (sideways to turn, up and down to look over the top or under the belly), pinch to look closer, double-tap to see the whole playne again. Left alone, it turns slowly by itself.
 - **F-16 Fighting Falcon** (900 Wings): about Mach 1.2 down low and Mach 1.8 up high, 40,000 ft in under two minutes, and a sonic boom when you pass the speed of sound. One seat, so it's Free Flight only (charters use your best playne with seats).
 - **CH-47 Chinook** (1,500 Wings, the super-special one): it appears in the hangar with a gold frame but can only be bought once **every other playne** is in the hangar. It's a tandem-rotor helicopter and flies with its own controls (Free Flight only):
@@ -200,6 +201,7 @@ node tools/smoke-touch.cjs http://127.0.0.1:8765/dist/ /tmp/shots    # on-screen
 node tools/smoke-free.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # Free Flight: maps, autopilot, landing, crash
 node tools/smoke-spin.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # hangar 3D viewer
 node tools/smoke-heli.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # Chinook: unlock, tour, helicopter flying, landings
+node tools/smoke-route.cjs http://127.0.0.1:8765/dist/ /tmp/shots    # Free Flight routes and the sky guide line
 ```
 
 These use the Playwright browser and fast-forward the physics, because software rendering is slow.

@@ -28,7 +28,9 @@ const path = require("path");
   );
   await page.waitForFunction(() => { const f = window.playnes.flight; return f && f.phase === "free"; }, null, { timeout: 120000 });
   // A resumed Free Flight starts paused ("tap to continue").
-  await page.evaluate(() => window.playnes.flight.paused && window.playnes.togglePause());
+  // A resumed Free Flight starts paused ("Keep flying" to go on).
+  await page.waitForSelector(".pause-overlay [data-a=go]", { timeout: 60000 });
+  await page.evaluate(() => document.querySelector(".pause-overlay [data-a=go]").click());
   await page.waitForTimeout(4000);
   const scene = () => window.playnes.world.widget.scene;
   // Haze: now vs. the old settings, from the same spot.

@@ -25,6 +25,8 @@ import {
 } from "cesium";
 import { CHINOOK_PERF, isHelicopter, type AircraftDef } from "../data/aircraft.ts";
 import { stepHeli } from "../sim/heli.ts";
+import { nearestIndex, planRoute, type RoutePlan } from "../sim/route.ts";
+import { SkyGuide } from "./skyGuide.ts";
 import { AIRPORTS, airportByCode, LANDMARKS, type Airport, type Landmark } from "../data/airports.ts";
 import { inRegion, REGION } from "../data/region.ts";
 import { LINES, tpl, type Line, type Passenger } from "../data/lines.ts";
@@ -195,6 +197,8 @@ export interface FlightDeps {
   autoSpeed: boolean;
   /** Charter route already completed: no tips, no co-pilot assistance (silent last-resort help only). */
   solo?: boolean;
+  /** Free Flight: never landed at this airport yet (shows the sky guide line on the way). */
+  firstLanding?: (code: string) => boolean;
 }
 
 export interface FreeLanding {
@@ -295,6 +299,11 @@ export class FlightSession {
   private lastBoom = -100;
   private edgeTimer = 0;
   private navTarget: Airport | null = null;
+  /** Free Flight route to navTarget (curving onto the final approach), and how far along it we are. */
+  private route: RoutePlan | null = null;
+  private routeIndex = 0;
+  private routeCheck = 0;
+  private skyGuide: SkyGuide | null = null;
   private landmarksSaid = new Set<string>();
   private landedAt: string | null = null;
   private airborneTime = 0;
@@ -949,13 +958,54 @@ export class FlightSession {
     this.navTarget = a;
     this.d.hud.setRoute("FREE", a ? a.code : "—");
     if (a) void this.say(tpl.nextStop(a.spoken));
+    this.planRouteTo(a);
+  }
+
+  /** Plan (or re-plan) the curved route to the destination; first-time airports get the sky guide. */
+  private planRouteTo(a: Airport | null): void {
+    if (!a || !this.s) {
+      this.route = null;
+      this.skyGuide?.clear();
+      return;
+    }
+    const s = this.s;
+    this.route = planRoute(s, s.heading, a, { direct: this.heli });
+    this.routeIndex = 0;
+    const guide = !this.heli && !!this.route.end && (this.d.firstLanding?.(a.code) ?? false);
+    if (!guide) {
+      this.skyGuide?.clear();
+      return;
+    }
+    this.skyGuide ??= new SkyGuide(this.d.world.widget.scene);
+    const r = this.allRunways.find((x) => x.airport.code === a.code);
+    const thrH = !r ? s.alt : r.end.id === this.route.end!.id ? r.hEnd : r.hOther;
+    // Start the line a little above the playne if it's sitting on the ground.
+    const startAlt = s.onGround ? s.alt + 150 : s.alt;
+    this.skyGuide.set(this.route.points, this.route.finalIndex, startAlt, thrH);
+  }
+
+  /** Keep track of progress along the route; re-plan if the playne wanders well off it. */
+  private followRoute(dt: number): void {
+    if (!this.route || !this.navTarget) return;
+    this.routeCheck -= dt;
+    if (this.routeCheck > 0) return;
+    this.routeCheck = 1;
+    const n = nearestIndex(this.route.points, this.s, this.routeIndex, 6);
+    if (n.dist > 1800 && !this.s.onGround) {
+      this.planRouteTo(this.navTarget);
+      return;
+    }
+    if (n.index !== this.routeIndex) {
+      this.routeIndex = n.index;
+      this.skyGuide?.draw(n.index);
+    }
   }
 
   openMap(): void {
     if (this.mission.kind !== "sandbox" || !this.s) return;
     this.autopilot = { heading: this.s.heading, alt: Math.max(this.s.alt, this.groundHeightAt(this.s) + 150), ias: Math.max(indicated(this.s.speed, this.s.alt), this.p.vapp * 1.1) };
     if (!this.s.onGround) void this.say(LINES.mapAutopilot, true);
-    this.d.hud.openBigMap({ pos: this.s, heading: this.s.heading, target: this.navTarget }, (a: Airport | null) => {
+    this.d.hud.openBigMap({ pos: this.s, heading: this.s.heading, target: this.navTarget, route: this.route ? this.route.points.slice(this.routeIndex + 1) : null, direct: this.heli }, (a: Airport | null) => {
       this.setNavTarget(a);
       if (!a) void this.say(LINES.routeCleared, true);
     }, () => {
@@ -982,6 +1032,7 @@ export class FlightSession {
   }
 
   private updateFree(dt: number): void {
+    this.followRoute(dt);
     if (this.heli) {
       this.updateHeli(dt);
       return;
@@ -2076,7 +2127,7 @@ export class FlightSession {
   private updateHud(): void {
     this.updateCockpit();
     const s = this.s;
-    if (this.mission.kind === "sandbox") this.d.hud.updateMaps({ pos: s, heading: s.heading, target: this.navTarget });
+    if (this.mission.kind === "sandbox") this.d.hud.updateMaps({ pos: s, heading: s.heading, target: this.navTarget, route: this.route ? this.route.points.slice(this.routeIndex + 1) : null, direct: this.heli });
     const ref = this.arr && this.cruiseProgressFraction() > 0.5 ? this.arr : this.dep;
     const altFt = (s.alt + ref.mslOffset) / FT;
     const inCruise = this.phase === "cruise";
@@ -2150,6 +2201,7 @@ export class FlightSession {
     for (const p of this.runwayPrims) this.d.world.widget.scene.primitives.remove(p);
     this.d.world.exclude.length = 0;
     this.clouds.destroy();
+    this.skyGuide?.destroy();
     this.d.world.setGroundVisible(true);
     this.d.hud.hide();
     void this.d.hud.whiteout(false, 10);

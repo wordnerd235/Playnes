@@ -2,6 +2,7 @@
 // Both draw the bundled cartoon map tiles, so they work offline and in every world mode.
 
 import { AIRPORTS, LANDMARKS, type Airport } from "../data/airports.ts";
+import { planRoute } from "../sim/route.ts";
 import { REGION } from "../data/region.ts";
 import { bearing, distance, type LatLon } from "../sim/geo.ts";
 
@@ -49,6 +50,10 @@ export interface MapState {
   pos: LatLon;
   heading: number;
   target: Airport | null;
+  /** The planned path to the target (curving onto the runway's final approach). */
+  route?: LatLon[] | null;
+  /** Helicopter: routes go straight to the airport. */
+  direct?: boolean;
 }
 
 /** Round, heading-up minimap with nearby airports and landmarks. Tap to open the big map. */
@@ -130,12 +135,14 @@ export class Minimap {
       return { x: (q.x - center.x) * scale, y: (q.y - center.y) * scale };
     };
     if (s.target) {
-      const t = toCanvas(s.target);
+      // The route: a curve that lines up with the runway (or a straight line if none yet).
+      const pts = s.route && s.route.length > 1 ? s.route.map(toCanvas) : [{ x: 0, y: 0 }, toCanvas(s.target)];
       c.strokeStyle = "#ff2fa0";
       c.lineWidth = 3 * dpr;
+      c.lineJoin = "round";
       c.beginPath();
       c.moveTo(0, 0);
-      c.lineTo(t.x, t.y);
+      for (const q of pts) c.lineTo(q.x, q.y);
       c.stroke();
     }
     const upright = (x: number, y: number, draw: () => void) => {
@@ -246,6 +253,7 @@ export class BigMap {
       this.onPick(null);
       this.drawBase();
       this.updateInfo();
+      this.drawRoute();
     });
     parent.append(this.el);
     window.addEventListener("resize", () => !this.el.hidden && this.layout());
@@ -349,6 +357,7 @@ export class BigMap {
         for (const x of Array.from(this.layer.querySelectorAll(".bigmap-airport"))) x.classList.remove("picked");
         b.classList.add("picked");
         this.updateInfo();
+        this.drawRoute();
         this.onSelect(a);
       });
       this.layer.append(b);
@@ -359,9 +368,40 @@ export class BigMap {
     this.layer.append(plane);
   }
 
+  private routeSvg: SVGSVGElement | null = null;
+
+  /** The route on the big map: the flight's planned path, or a preview to the airport just tapped. */
+  private drawRoute(): void {
+    const s = this.state;
+    if (!this.routeSvg || !this.routeSvg.isConnected) {
+      this.routeSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      this.routeSvg.classList.add("bigmap-route");
+      this.layer.prepend(this.routeSvg);
+    }
+    const svg = this.routeSvg;
+    svg.setAttribute("width", String(this.canvas.clientWidth));
+    svg.setAttribute("height", String(this.canvas.clientHeight));
+    let route: LatLon[] | null = null;
+    let preview = false;
+    if (s && this.picked && this.picked !== s.target) {
+      route = planRoute(s.pos, s.heading, this.picked, { direct: s.direct }).points;
+      preview = true;
+    } else if (s?.target) route = s.route && s.route.length > 1 ? [s.pos, ...s.route] : [s.pos, s.target];
+    if (!route) {
+      svg.innerHTML = "";
+      return;
+    }
+    const d = route.map((p, i) => {
+      const q = this.toScreen(p);
+      return `${i ? "L" : "M"}${q.x.toFixed(1)} ${q.y.toFixed(1)}`;
+    }).join(" ");
+    svg.innerHTML = `<path d="${d}" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/><path d="${d}" fill="none" stroke="#ff2fa0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"${preview ? ' stroke-dasharray="10 8"' : ""}/>`;
+  }
+
   private drawPlane(): void {
     const s = this.state;
     const plane = this.layer.querySelector(".bigmap-plane") as HTMLElement | null;
+    this.drawRoute();
     if (!s || !plane) return;
     const q = this.toScreen(s.pos);
     plane.style.left = `${q.x}px`;

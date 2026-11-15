@@ -581,3 +581,6 @@ svg { display: block; }
 
 /* Radio waiting for the co-pilot's cue: greyed out. */
 .hud-btn.off { opacity: .4; filter: grayscale(1); }
+
+/* Big map route (curving onto the runway's final approach). */
+.bigmap-route { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }

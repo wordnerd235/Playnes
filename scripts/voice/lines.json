@@ -258,12 +258,6 @@
   "speak": "Let's go around and try again. Real pilots do that when it doesn't look right!"
  },
  {
-  "id": "9ea02d14",
-  "who": "copilot",
-  "text": "Terrain! Pull up!",
-  "speak": "Terrain! Pull up!"
- },
- {
   "id": "a5cf14d6",
   "who": "copilot",
   "text": "You earned Wings!",
@@ -402,6 +396,66 @@
   "speak": "Fighter jets only have one seat, so we'll fly a plane with seats for charters."
  },
  {
+  "id": "ea061b29",
+  "who": "copilot",
+  "text": "The Chinook flies in Free Flight, so we'll take a playne for this charter.",
+  "speak": "The Chinook flies in Free Flight, so we'll take a plane for this charter."
+ },
+ {
+  "id": "4c403eac",
+  "who": "copilot",
+  "text": "This is the Chinook! It flies like a helicopter, with two big spinning rotors. Let's learn how!",
+  "speak": "This is the Chinook! It flies like a helicopter, with two big spinning rotors. Let's learn how!"
+ },
+ {
+  "id": "d620d5b6",
+  "who": "copilot",
+  "text": "This lever is your lift. Push it up to go up. Put it in the middle to hover. Pull it down to come down.",
+  "speak": "This lever is your lift. Push it up to go up. Put it in the middle to hover. Pull it down to come down."
+ },
+ {
+  "id": "07467db0",
+  "who": "copilot",
+  "text": "Push the stick up to fly forward. Pull it down to slow down and hover. Slide it left or right to turn. You can even spin around on the spot!",
+  "speak": "Push the stick up to fly forward. Pull it down to slow down and hover. Slide it left or right to turn. You can even spin around on the spot!"
+ },
+ {
+  "id": "597a19c6",
+  "who": "copilot",
+  "text": "To land, slow down to a hover, then pull the lever down gently. You can land on any flat, open ground, even a big flat roof!",
+  "speak": "To land, slow down to a hover, then pull the lever down gently. You can land on any flat, open ground, even a big flat roof!"
+ },
+ {
+  "id": "d3b5a80b",
+  "who": "copilot",
+  "text": "Let's fly! Push the lever up to lift off.",
+  "speak": "Let's fly! Push the lever up to lift off."
+ },
+ {
+  "id": "7cf5886d",
+  "who": "copilot",
+  "text": "We're flying! Put the lever in the middle to hover.",
+  "speak": "We're flying! Put the lever in the middle to hover."
+ },
+ {
+  "id": "7900a203",
+  "who": "copilot",
+  "text": "Nice and gentle. We landed!",
+  "speak": "Nice and gentle. We landed!"
+ },
+ {
+  "id": "225fb15d",
+  "who": "copilot",
+  "text": "We can't land on water! Let's stay up.",
+  "speak": "We can't land on water! Let's stay up."
+ },
+ {
+  "id": "b55179f0",
+  "who": "copilot",
+  "text": "Too bumpy here. Let's find some flat ground.",
+  "speak": "Too bumpy here. Let's find some flat ground."
+ },
+ {
   "id": "7eefa15f",
   "who": "copilot",
   "text": "We made it down safely! Great emergency landing.",
@@ -444,10 +498,10 @@
   "speak": "This ball shows the sky and the ground. It tells us if our wings are level and if the nose is up or down."
  },
  {
-  "id": "346fbbdf",
+  "id": "05bac76d",
   "who": "copilot",
-  "text": "This is our height, in feet. The bar fills up as we climb to cruising height.",
-  "speak": "This is our height, in feet. The bar fills up as we climb to cruising height."
+  "text": "This is our height above the sea, in feet. The bar fills up as we climb to cruising height. When we're close to the ground, the arrow shows how high we are above it. Orange means low, red means very low!",
+  "speak": "This is our height above the sea, in feet. The bar fills up as we climb to cruising height. When we're close to the ground, the arrow shows how high we are above it. Orange means low, red means very low!"
  },
  {
   "id": "2ae26dea",
@@ -2116,5 +2170,17 @@
   "who": "copilot",
   "text": "The F sixteen can fly faster than sound and climb straight up like a rocket!",
   "speak": "The F sixteen can fly faster than sound and climb straight up like a rocket!"
+ },
+ {
+  "id": "bc7d8906",
+  "who": "copilot",
+  "text": "This is the Chinook!",
+  "speak": "This is the Chinook!"
+ },
+ {
+  "id": "6d34d168",
+  "who": "copilot",
+  "text": "The Chinook has two giant rotors that spin opposite ways, so it can lift a truck and fly straight up, sideways or stay still in the air!",
+  "speak": "The Chinook has two giant rotors that spin opposite ways, so it can lift a truck and fly straight up, sideways or stay still in the air!"
  }
 ]
