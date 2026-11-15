@@ -298,12 +298,12 @@ export const AIRCRAFT: AircraftDef[] = [
     // Helicopter: these fixed-wing numbers only feed the hangar cards; it flies with src/sim/heli.ts.
     vr: 0, vapp: 60, vclimb: 100, vstall: 0, vmo: 170, mmo: 1, climbFpm: 1500, rollRate: 60, cruiseAltFt: 3000,
     shape: { length: 15.9, span: 18.3, fuselageDiameter: 3.8, wing: "high", sweepDeg: 0, tail: "conventional", engines: "tandem-rotor", winglets: false, fixedGear: true },
-    livery: { body: "#5f6f45", stripe: "#f2c230", accent: "#2b3324" },
+    livery: { body: "#4e5a31", stripe: "#f2c230", accent: "#262d1f" },
   },
 ];
 
 /** The Chinook's flight numbers (metres, seconds). */
-export const CHINOOK_PERF = { maxSpeed: 160 * 0.514444, climb: 7.6, accel: 2.6, brake: 4, hoverYawRate: 32, maxBank: 30, ceiling: 4600 };
+export const CHINOOK_PERF = { maxSpeed: 160 * 0.514444, climb: 7.6, accel: 2.6, brake: 4, hoverYawRate: 32, maxBank: 30, ceiling: 4600, backSpeed: 35 * 0.514444, sideSpeed: 35 * 0.514444 };
 
 /** Fighters have one seat, and the Chinook flies from anywhere (no runway routines): Free Flight only. */
 export function carriesPassengers(ac: AircraftDef): boolean {

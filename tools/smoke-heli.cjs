@@ -79,7 +79,7 @@ const path = require("path");
     await page.evaluate(() => document.querySelector(".tour [data-t=next]").click());
     await page.waitForTimeout(250);
   }
-  check(steps.length === 5 && /lever/.test(steps[1]) && /stick/.test(steps[2]), `Chinook tour: ${steps.length} steps (lift lever, stick, landing)`);
+  check(steps.length === 6 && /lever/.test(steps[1]) && /stick/.test(steps[2]) && /sideways/.test(steps[3]), `Chinook tour: ${steps.length} steps (lift lever, stick, slide, landing)`);
   check(await page.evaluate(() => window.playnes.progress.heliTourDone === true), "tour remembered");
   const hud = await page.evaluate(() => ({
     heli: document.querySelector(".hud").classList.contains("heli"),
@@ -119,6 +119,25 @@ const path = require("path");
   st = await F();
   check(Math.abs(st.agl - a1) < 4 && Math.abs(st.vs) < 0.6, `hovers with the lever in the middle (vs ${st.vs.toFixed(2)} m/s)`);
   await shot("3-hover");
+  // Hold the "slide right" button (a real press): moves sideways without turning.
+  const before = await F();
+  const sb = await page.locator(".slide-btn.right").boundingBox();
+  await page.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(5000);
+  const sliding = await page.evaluate(() => window.playnes.flight.s.speed / 0.5144);
+  await shot("3b-slide");
+  await page.mouse.up();
+  const after = await F();
+  const moved = Math.hypot((after.lat - before.lat) * 111320, (after.lon - before.lon) * 89500);
+  check(sliding > 10 && moved > 30 && Math.abs(((after.hdg - before.hdg + 540) % 360) - 180) < 3, `slide button slides sideways (${sliding.toFixed(0)} kt, moved ${moved.toFixed(0)} m, heading ${before.hdg.toFixed(0)} -> ${after.hdg.toFixed(0)})`);
+  // Pull back from a hover: flies backward.
+  await set({ lever: 0.5, pitch: 1 });
+  await page.waitForTimeout(6000);
+  const backing = await page.evaluate(() => { const f = window.playnes.flight; const h = f.s.heading * Math.PI / 180; return { pitch: f.s.pitch, kt: f.s.speed / 0.5144 }; });
+  check(backing.kt > 8 && backing.pitch > 0, `stick back from a hover: flying backward, nose up (${backing.kt.toFixed(0)} kt, pitch ${backing.pitch.toFixed(1)})`);
+  await set({ lever: 0.5 });
+  await page.waitForTimeout(5000);
   await set({ lever: 0.62, pitch: -1 });
   await page.waitForFunction(() => window.playnes.flight.s.speed / 0.5144 > 80, null, { timeout: 240000 });
   check(true, "stick forward: flying forward (80+ kt)");

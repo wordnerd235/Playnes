@@ -414,10 +414,16 @@
   "speak": "This lever is your lift. Push it up to go up. Put it in the middle to hover. Pull it down to come down."
  },
  {
-  "id": "07467db0",
+  "id": "d4079972",
   "who": "copilot",
-  "text": "Push the stick up to fly forward. Pull it down to slow down and hover. Slide it left or right to turn. You can even spin around on the spot!",
-  "speak": "Push the stick up to fly forward. Pull it down to slow down and hover. Slide it left or right to turn. You can even spin around on the spot!"
+  "text": "Push the stick up to fly forward. Pull it down to slow down, and keep pulling to fly backward! Slide it left or right to turn. You can even spin around on the spot!",
+  "speak": "Push the stick up to fly forward. Pull it down to slow down, and keep pulling to fly backward! Slide it left or right to turn. You can even spin around on the spot!"
+ },
+ {
+  "id": "bf602de5",
+  "who": "copilot",
+  "text": "Hold these buttons to slide sideways, like a crab! They work when you're flying slowly.",
+  "speak": "Hold these buttons to slide sideways, like a crab! They work when you're flying slowly."
  },
  {
   "id": "597a19c6",

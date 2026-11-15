@@ -36,8 +36,33 @@ document.addEventListener(
   },
   { passive: false },
 );
+// Full screen (iPad Safari): a downward swipe the page doesn't use (dragging the yoke or lever
+// down, pulling down on a menu that's already at the top) makes Safari leave full screen.
+// While full screen, keep those swipes in the game; real scrolling of a menu still works.
+let touchStartY = 0;
+document.addEventListener("touchstart", (e) => {
+  if (e.touches.length === 1) touchStartY = e.touches[0].clientY;
+}, { passive: true });
+const isFullscreen = () => !!(document.fullscreenElement || (document as Document & { webkitFullscreenElement?: Element | null }).webkitFullscreenElement);
+function canScroll(target: EventTarget | null, dy: number): boolean {
+  for (let el = target instanceof Element ? target : null; el && el !== document.body; el = el.parentElement) {
+    const oy = getComputedStyle(el).overflowY;
+    if ((oy === "auto" || oy === "scroll") && el.scrollHeight > el.clientHeight + 1) {
+      // Finger moving down = scrolling up: only if not already at the top (and vice versa).
+      return dy > 0 ? el.scrollTop > 0 : el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+    }
+  }
+  return false;
+}
 document.addEventListener("touchmove", (e) => {
-  if (e.touches.length > 1) e.preventDefault();
+  if (e.touches.length > 1) {
+    e.preventDefault();
+    return;
+  }
+  if (isFullscreen()) {
+    const dy = e.touches[0].clientY - touchStartY;
+    if (!canScroll(e.target, dy)) e.preventDefault();
+  }
 }, { passive: false });
 const worldEl = document.getElementById("world") as HTMLElement;
 

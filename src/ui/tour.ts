@@ -28,6 +28,7 @@ export const HELI_TOUR: TourStep[] = [
   { target: null, line: LINES.heliIntro },
   { target: ".lever", line: LINES.heliLever },
   { target: ".yoke", line: LINES.heliYoke },
+  { target: "#hud-slide", line: LINES.heliSlide },
   { target: null, line: LINES.heliLand },
   { target: null, line: LINES.heliDone },
 ];

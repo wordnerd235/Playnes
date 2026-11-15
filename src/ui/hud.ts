@@ -173,7 +173,30 @@ export class Hud {
     this.leverHandle = el("div", "lever-handle");
     this.lever.append(this.leverHandle);
     this.setupLever();
-    rightCtl.append(btnCol, flaps, this.lever);
+    // Helicopter only: hold to slide sideways (in place of the flap lever).
+    const slide = el("div", "heli-slide");
+    slide.id = "hud-slide";
+    const slideBtn = (dir: -1 | 1, label: string, arrow: string) => {
+      const b = el("button", `slide-btn ${dir < 0 ? "left" : "right"}`, `<b>${arrow}</b><span>${label}</span>`) as HTMLButtonElement;
+      b.type = "button";
+      b.setAttribute("aria-label", dir < 0 ? "Slide left" : "Slide right");
+      const up = () => {
+        if (this.controls.touchSlide === dir) this.controls.touchSlide = 0;
+        b.classList.remove("on");
+      };
+      b.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        b.setPointerCapture(e.pointerId);
+        this.controls.touchSlide = dir;
+        b.classList.add("on");
+      });
+      b.addEventListener("pointerup", up);
+      b.addEventListener("pointercancel", up);
+      b.addEventListener("lostpointercapture", up);
+      return b;
+    };
+    slide.append(slideBtn(-1, "Slide", "◀"), slideBtn(1, "Slide", "▶"));
+    rightCtl.append(btnCol, flaps, slide, this.lever);
 
     this.toastEl = el("div", "toast");
     this.whiteEl = el("div", "whiteout");

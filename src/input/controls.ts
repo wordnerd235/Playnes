@@ -14,12 +14,14 @@ export interface ControlState {
   brake: number;
   /** True once the player has touched the throttle since it was last reset. */
   throttleTouched: boolean;
+  /** Helicopter slide: -1 = slide left, +1 = slide right (slide buttons, Q / E keys). */
+  slide: number;
 }
 
 type Listener = (e: ControlEvent) => void;
 
 export class Controls {
-  state: ControlState = { roll: 0, pitch: 0, throttle: 0, brake: 0, throttleTouched: false };
+  state: ControlState = { roll: 0, pitch: 0, throttle: 0, brake: 0, throttleTouched: false, slide: 0 };
   invertPitch = false;
   tiltEnabled = false;
   /** Some browsers report gravity with the opposite sign; parents can flip tilt up/down. */
@@ -28,6 +30,8 @@ export class Controls {
   private touchRoll = 0;
   private touchPitch = 0;
   private touchActive = false;
+  /** Slide buttons on screen (helicopter). */
+  touchSlide = 0;
   private keys = new Set<string>();
   private tiltRoll = 0;
   private tiltPitch = 0;
@@ -143,6 +147,10 @@ export class Controls {
     if (k.has("PageUp") || k.has("=") || k.has("+") || k.has("Shift")) this.setThrottle(this.state.throttle + dt * 0.6);
     if (k.has("PageDown") || k.has("-") || k.has("Control")) this.setThrottle(this.state.throttle - dt * 0.6);
     let brake = k.has(" ") ? 1 : 0;
+    let slide = this.touchSlide;
+    if (k.has("q")) slide -= 1;
+    if (k.has("e")) slide += 1;
+    this.state.slide = clamp(slide, -1, 1);
 
     // Game controller (standard mapping).
     const pads = typeof navigator.getGamepads === "function" ? navigator.getGamepads() : [];
@@ -180,7 +188,8 @@ export class Controls {
   }
 
   reset(): void {
-    this.state = { roll: 0, pitch: 0, throttle: 0, brake: 0, throttleTouched: false };
+    this.state = { roll: 0, pitch: 0, throttle: 0, brake: 0, throttleTouched: false, slide: 0 };
     this.touchActive = false;
+    this.touchSlide = 0;
   }
 }

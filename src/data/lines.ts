@@ -90,7 +90,8 @@ export const LINES = {
   // The Chinook (helicopter) and its tour.
   heliIntro: c("This is the Chinook! It flies like a helicopter, with two big spinning rotors. Let's learn how!"),
   heliLever: c("This lever is your lift. Push it up to go up. Put it in the middle to hover. Pull it down to come down."),
-  heliYoke: c("Push the stick up to fly forward. Pull it down to slow down and hover. Slide it left or right to turn. You can even spin around on the spot!"),
+  heliYoke: c("Push the stick up to fly forward. Pull it down to slow down, and keep pulling to fly backward! Slide it left or right to turn. You can even spin around on the spot!"),
+  heliSlide: c("Hold these buttons to slide sideways, like a crab! They work when you're flying slowly."),
   heliLand: c("To land, slow down to a hover, then pull the lever down gently. You can land on any flat, open ground, even a big flat roof!"),
   heliDone: c("Let's fly! Push the lever up to lift off."),
   heliLiftoff: c("We're flying! Put the lever in the middle to hover."),

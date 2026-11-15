@@ -1256,7 +1256,8 @@ export class FlightSession {
     const edgeErr = this.edgeTurn();
     if (edgeErr !== null) turn = clamp(edgeErr / 20, -1, 1);
     const wasGround = s.onGround;
-    const events = stepHeli(s, { collective, fwd, turn }, CHINOOK_PERF, { groundHeight: ground, cushion: !crashes }, dt);
+    const slide = ap || edgeErr !== null ? 0 : c.slide;
+    const events = stepHeli(s, { collective, fwd, turn, slide }, CHINOOK_PERF, { groundHeight: ground, cushion: !crashes }, dt);
     for (const e of events) {
       if (e.type === "liftoff") {
         const near = this.airportWithin(2000);

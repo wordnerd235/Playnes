@@ -647,101 +647,151 @@ function buildAircraft(ac) {
 
 // ---------------------------------------------------------------- Chinook (tandem-rotor helicopter)
 
+/**
+ * Rounded-rectangle cross-section ring (flat sides and floor, rounded corners), centred on
+ * x = 0 between y = bot and y = top. Same point count for every ring, so they loft cleanly.
+ */
+function boxRing(z, hw, bot, top, r, perCorner = 6, edgeSteps = 6) {
+  r = Math.min(r, hw * 0.98, (top - bot) * 0.49);
+  const pts = [];
+  const corners = [
+    [hw - r, top - r, 0],
+    [-(hw - r), top - r, Math.PI / 2],
+    [-(hw - r), bot + r, Math.PI],
+    [hw - r, bot + r, (3 * Math.PI) / 2],
+  ];
+  for (let ci = 0; ci < 4; ci++) {
+    const [cx, cy, a0] = corners[ci];
+    for (let k = 0; k <= perCorner; k++) {
+      const a = a0 + (k / perCorner) * (Math.PI / 2);
+      pts.push(V(cx + Math.cos(a) * r, cy + Math.sin(a) * r, z));
+    }
+    // Points along the straight edge to the next corner (so window edges can be painted cleanly).
+    const end = pts[pts.length - 1];
+    const [nx, ny, na] = corners[(ci + 1) % 4];
+    const next = V(nx + Math.cos(na) * r, ny + Math.sin(na) * r, z);
+    for (let k = 1; k < edgeSteps; k++) pts.push(end.clone().lerp(next, k / edgeSteps));
+  }
+  return pts;
+}
+
+/**
+ * Loft rounded-rectangle stations [z, half-width, floor, roof, corner r], densified along z.
+ * `step` is metres between rings, or a function of the two stations (fine where it curves).
+ */
+function boxLoft(stations, perCorner = 6, step = 0.15, edgeSteps = 6) {
+  const dense = [];
+  for (let i = 0; i < stations.length - 1; i++) {
+    const a = stations[i], b = stations[i + 1];
+    const st = typeof step === "function" ? step(a, b) : step;
+    const n = Math.max(1, Math.ceil(Math.abs(b[0] - a[0]) / st));
+    for (let k = 0; k < n; k++) dense.push(a.map((v, j) => v + (b[j] - v) * (k / n)));
+  }
+  dense.push(stations[stations.length - 1]);
+  return smooth(loft(dense.map(([z, hw, bot, top, r]) => boxRing(z, hw, bot, top, r, perCorner, edgeSteps))));
+}
+
 /** Boeing CH-47 Chinook, roughly to scale. Rotors are their own nodes (rotorF, rotorR) so the game can spin them. */
 function buildChinook(ac) {
   const body = C(ac.livery.body);
   const stripe = C(ac.livery.stripe);
   const dark = C(ac.livery.accent);
-  const belly = body.clone().lerp(C("#2f3a24"), 0.35);
-  const glassC = C("#1b2834");
+  const belly = body.clone().lerp(C("#20261a"), 0.3);
+  const glassC = C("#16222c");
+  const metal = C("#55595e");
   const nodes = {};
   const add = (node, part) => (nodes[node] ??= { parts: [] }).parts.push(part);
 
-  // Fuselage: long and boxy, rounded nose with a big windscreen, the tail sweeps up to the ramp.
+  // Fuselage: boxy cabin with flat sides and floor, a rounded glazed nose, and the underside
+  // sweeping up at the back to the loading ramp. [z, half-width, floor y, roof y, corner r]
   const fus = [
-    [-7.75, 1.15, 1.2, 2.95],
-    [-7.2, 1.45, 1.45, 2.75],
-    [-6.3, 1.6, 1.62, 2.62],
-    [-5.0, 1.64, 1.7, 2.58],
-    [4.6, 1.64, 1.7, 2.58],
-    [5.9, 1.58, 1.64, 2.6],
-    [6.8, 1.42, 1.5, 2.62],
-    [7.4, 1.12, 1.25, 2.58],
-    [7.8, 0.7, 0.85, 2.5],
-    [7.98, 0.2, 0.3, 2.45],
-    [8.0, 0.02, 0.04, 2.45],
+    [-7.8, 1.2, 2.75, 3.95, 0.45],
+    [-7.1, 1.48, 1.95, 4.05, 0.55],
+    [-5.7, 1.55, 1.05, 4.1, 0.6],
+    [4.5, 1.55, 1.05, 4.1, 0.6],
+    [5.6, 1.5, 1.1, 4.02, 0.68],
+    [6.55, 1.36, 1.24, 3.8, 0.76],
+    [7.25, 1.12, 1.45, 3.4, 0.72],
+    [7.72, 0.78, 1.7, 2.92, 0.56],
+    [7.95, 0.34, 1.98, 2.46, 0.22],
+    [8.0, 0.04, 2.18, 2.26, 0.02],
   ];
-  add("body", finish(fuselageGeo(fus), MAT.paint, (c) => {
-    // Cockpit windows: the upper nose.
-    if (c.z > 6.15 && c.y > 2.75 && c.y < 3.95 && !(c.z > 7.75 && c.y > 3.3)) return glassC;
-    if (c.z > 6.5 && c.y > 1.65 && c.y < 2.4 && Math.abs(c.x) > 0.9) return glassC; // chin windows
-    return c.y < 1.45 ? belly : body;
+  add("body", finish(boxLoft(fus, 8, (a, b) => (a[0] >= 4.4 ? 0.1 : b[0] <= -5.6 ? 0.25 : 1.2), 8), MAT.dark, (c) => {
+    // Windscreen and cockpit side windows.
+    if (c.z > 5.95 && c.y > 2.4 && c.y < 3.95 && !(c.z > 7.78)) return glassC;
+    if (c.z > 5.1 && c.z < 6.2 && c.y > 2.55 && c.y < 3.75 && Math.abs(c.x) > 1.2) return glassC;
+    if (c.z > 7.1 && c.y > 1.75 && c.y < 2.3 && Math.abs(c.x) < 0.7) return glassC; // chin window
+    return c.y < 1.6 ? belly : body;
   }));
-  // Side windows (round-ish portholes) and the cabin door.
+  // Cabin windows (square-ish) and the front door; the callsign on the back of the cabin.
   for (const side of [1, -1]) {
-    for (let z = -4.2; z <= 3.6; z += 1.3) {
-      add("body", finish(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 14), MAT.glass, glassC, chain(T(side * 1.645, 3.05, z), RZ(Math.PI / 2))));
+    for (let z = -4.3; z <= 3.4; z += 1.1) {
+      add("body", finish(new THREE.BoxGeometry(0.05, 0.42, 0.46), MAT.glass, glassC, T(side * 1.56, 3.1, z)));
     }
-    add("body", finish(new THREE.BoxGeometry(0.05, 1.5, 0.95), MAT.paint, dark, T(side * 1.645, 2.25, 4.9)));
-    // Long fuel pods along the lower sides.
-    const pod = [[-3.8, 0.05, 0.08, 1.45], [-3.4, 0.32, 0.42, 1.45], [3.2, 0.36, 0.46, 1.45], [4.1, 0.25, 0.36, 1.5], [4.5, 0.03, 0.06, 1.5]];
-    add("body", finish(fuselageGeo(pod, 24), MAT.paint, body, T(side * 1.72, 0, 0)));
-    // The game's callsign on the back of the cabin.
-    for (const b of registration(REGISTRATION, side, () => 1.64, 3.75, -1.6, 0.42)) add("body", finish(b, MAT.paint, stripe));
+    if (side < 0) add("body", finish(new THREE.BoxGeometry(0.05, 1.7, 0.95), MAT.dark, dark, T(-1.56, 2.1, 4.9)));
+    for (const b of registration(REGISTRATION, side, () => 1.55, 3.78, -1.7, 0.4)) add("body", finish(b, MAT.dark, stripe));
+    // Long boxy fuel pods along the lower sides.
+    const pod = [[-4.5, 0.06, 1.25, 1.55, 0.03], [-4.1, 0.42, 1.05, 2.05, 0.2], [3.4, 0.42, 1.05, 2.05, 0.2], [4.05, 0.3, 1.12, 1.9, 0.14], [4.4, 0.04, 1.35, 1.6, 0.02]];
+    add("body", finish(boxLoft(pod, 4, (a, b) => (Math.abs(b[0] - a[0]) > 2 ? 2 : 0.15), 2), MAT.dark, body, T(side * 1.9, 0, 0)));
   }
+  // Loading ramp hinge line at the back.
+  add("body", finish(new THREE.BoxGeometry(2.6, 0.08, 0.08), MAT.dark, dark, T(0, 1.95, -7.1)));
 
-  // Front rotor tower (low, over the cockpit) and rear rotor tower (tall, with the engines).
-  const frontPylon = [[3.4, 0.05, 0.05, 4.2], [4.4, 0.62, 0.42, 4.2], [6.1, 0.72, 0.55, 4.3], [7.0, 0.5, 0.4, 4.18], [7.35, 0.05, 0.05, 4.1]];
-  add("body", finish(fuselageGeo(frontPylon, 32), MAT.paint, body));
-  const rearPylon = [[-2.9, 0.05, 0.05, 4.25], [-3.9, 0.62, 0.55, 4.35], [-5.2, 0.8, 1.05, 4.6], [-6.9, 0.78, 1.18, 4.62], [-7.6, 0.55, 0.95, 4.45], [-7.85, 0.05, 0.1, 4.4]];
-  add("body", finish(fuselageGeo(rearPylon, 32), MAT.paint, body));
+  // Front rotor tower over the cockpit, and the tall rear tower with the engines on its sides.
+  const frontPylon = [[3.2, 0.5, 3.95, 4.12, 0.18], [4.2, 0.8, 3.95, 4.6, 0.32], [6.0, 0.86, 3.9, 4.85, 0.38], [6.9, 0.7, 3.8, 4.55, 0.32], [7.3, 0.36, 3.65, 3.95, 0.16]];
+  add("body", finish(boxLoft(frontPylon, 5, 0.3, 2), MAT.dark, body));
+  const rearPylon = [[-2.5, 0.5, 3.95, 4.15, 0.18], [-3.8, 0.85, 3.95, 4.95, 0.38], [-5.0, 0.95, 3.95, 5.6, 0.42], [-6.6, 0.95, 3.95, 5.8, 0.42], [-7.5, 0.82, 3.75, 5.65, 0.38], [-7.85, 0.5, 3.65, 5.35, 0.25], [-7.97, 0.08, 3.65, 4.9, 0.05]];
+  add("body", finish(boxLoft(rearPylon, 5, 0.3, 2), MAT.dark, body));
   for (const side of [1, -1]) {
-    const x = side * 1.38;
-    const prof = [[0.05, -2.0], [0.42, -1.8], [0.52, -1.2], [0.52, 0.9], [0.44, 1.35], [0.36, 1.45]];
-    add("body", finish(lathe(prof, 20), MAT.paint, body, T(x, 4.15, -5.9)));
-    add("body", finish(new THREE.CircleGeometry(0.3, 16), MAT.dark, C("#1d2126"), chain(T(x, 4.15, -4.44))));
-    add("body", finish(lathe([[0.34, -2.0], [0.28, -2.25], [0.2, -2.3]], 16), MAT.metal, C("#4b5056"), T(x, 4.15, -5.9)));
-    add("body", finish(new THREE.BoxGeometry(0.62, 0.22, 1.6), MAT.paint, body, T(side * 0.95, 4.15, -5.9)));
+    const x = side * 1.5;
+    const prof = [[0.08, -1.7], [0.44, -1.5], [0.55, -1.0], [0.55, 1.0], [0.46, 1.4], [0.36, 1.5]];
+    add("body", finish(lathe(prof, 20), MAT.dark, body, T(x, 4.6, -5.95)));
+    add("body", finish(new THREE.CircleGeometry(0.32, 16), MAT.dark, C("#16191c"), T(x, 4.6, -4.44)));
+    add("body", finish(lathe([[0.34, -1.7], [0.3, -1.95], [0.22, -2.0]], 16), MAT.metal, metal, T(x, 4.6, -5.95)));
+    add("body", finish(new THREE.BoxGeometry(0.6, 0.28, 1.5), MAT.dark, body, T(side * 1.1, 4.5, -5.95)));
   }
-  // Rotor masts and hubs.
-  add("body", finish(cylinderBetween(V(0, 4.6, 6.3), V(0, 4.95, 6.3), 0.24, 14), MAT.metal, C("#5d636a")));
-  add("body", finish(cylinderBetween(V(0, 5.7, -6.4), V(0, 6.05, -6.4), 0.24, 14), MAT.metal, C("#5d636a")));
+  // Rotor masts and heads.
+  add("body", finish(cylinderBetween(V(0, 4.75, 6.3), V(0, 5.2, 6.3), 0.26, 14), MAT.metal, metal));
+  add("body", finish(cylinderBetween(V(0, 5.7, -6.4), V(0, 6.15, -6.4), 0.26, 14), MAT.metal, metal));
 
-  // Wheels: two pairs (front under the pods, back further aft).
-  const wheel = (x, z, r) => {
-    add("body", finish(new THREE.TorusGeometry(r * 0.7, r * 0.3, 10, 20), MAT.rubber, C("#ffffff"), chain(T(x, r, z), RY(Math.PI / 2))));
-    add("body", finish(new THREE.CylinderGeometry(r * 0.48, r * 0.48, r * 0.75, 14), MAT.metal, C("#c3c8ce"), chain(T(x, r, z), RZ(Math.PI / 2))));
-    add("body", finish(cylinderBetween(V(x, r, z), V(x * 0.95, 1.2, z), 0.09), MAT.metal, C("#8e959c")));
+  // Wheels: twin wheels each side at the front of the pods, single ones at the back.
+  const wheel = (x, z, r, w) => {
+    add("body", finish(new THREE.TorusGeometry(r * 0.68, r * 0.32, 10, 20), MAT.rubber, C("#ffffff"), chain(T(x, r, z), RY(Math.PI / 2))));
+    add("body", finish(new THREE.CylinderGeometry(r * 0.46, r * 0.46, w, 14), MAT.metal, C("#b8bdc3"), chain(T(x, r, z), RZ(Math.PI / 2))));
   };
   for (const side of [1, -1]) {
-    wheel(side * 1.62, 3.9, 0.46);
-    wheel(side * 1.55, -3.4, 0.46);
+    wheel(side * 1.72, 3.85, 0.45, 0.28);
+    wheel(side * 2.1, 3.85, 0.45, 0.28);
+    add("body", finish(cylinderBetween(V(side * 1.91, 0.45, 3.85), V(side * 1.9, 1.15, 3.7), 0.1), MAT.metal, metal));
+    wheel(side * 1.9, -3.75, 0.48, 0.3);
+    add("body", finish(cylinderBetween(V(side * 1.9, 0.48, -3.75), V(side * 1.9, 1.15, -3.6), 0.1), MAT.metal, metal));
   }
   // Lights.
-  add("body", finish(new THREE.SphereGeometry(0.09, 8, 6), MAT.navRed, C("#ffffff"), T(1.66, 2.0, 0.5)));
-  add("body", finish(new THREE.SphereGeometry(0.09, 8, 6), MAT.navGreen, C("#ffffff"), T(-1.66, 2.0, 0.5)));
-  nodes.beacon = { parts: [finish(new THREE.SphereGeometry(0.12, 8, 6), MAT.navRed, C("#ffffff"))], translation: [0, 5.58, -4.4] };
+  add("body", finish(new THREE.SphereGeometry(0.09, 8, 6), MAT.navRed, C("#ffffff"), T(2.33, 1.9, 0.4)));
+  add("body", finish(new THREE.SphereGeometry(0.09, 8, 6), MAT.navGreen, C("#ffffff"), T(-2.33, 1.9, 0.4)));
+  nodes.beacon = { parts: [finish(new THREE.SphereGeometry(0.12, 8, 6), MAT.navRed, C("#ffffff"))], translation: [0, 5.85, -5.0] };
 
-  // Rotors: three long blades each, yellow tips; spinning nodes centred on the hub.
+  // Rotors: three long, wide blades each with yellow tips, drooping a little at rest.
   const rotor = (spin) => {
-    const parts = [finish(new THREE.CylinderGeometry(0.42, 0.5, 0.36, 16), MAT.metal, C("#4a4f55"))];
+    const parts = [finish(new THREE.CylinderGeometry(0.45, 0.55, 0.4, 16), MAT.metal, metal)];
     for (let i = 0; i < 3; i++) {
       const a = (i / 3) * Math.PI * 2;
       const len = 9.15;
-      const blade = new THREE.BoxGeometry(len - 0.35, 0.07, 0.64, 8, 1, 1);
+      const root = 0.45;
+      const blade = new THREE.BoxGeometry(len - root, 0.08, 0.8, 10, 1, 1);
       const pos = blade.attributes.position;
       for (let k = 0; k < pos.count; k++) {
-        const x = pos.getX(k) + (len - 0.35) / 2 + 0.35;
+        const x = pos.getX(k) + (len - root) / 2 + root;
         pos.setX(k, x);
-        pos.setY(k, pos.getY(k) - (x / len) ** 2 * 0.25); // slight droop
+        pos.setY(k, pos.getY(k) - (x / len) ** 2 * 0.35);
       }
       blade.computeVertexNormals();
-      parts.push(finish(blade, MAT.dark, (c) => (Math.hypot(c.x, c.z) > len - 0.7 ? stripe : C("#2b2f33")), RY(a + spin)));
+      parts.push(finish(blade, MAT.dark, (c) => (Math.hypot(c.x, c.z) > len - 0.6 ? stripe : C("#26292c")), RY(a + spin)));
     }
     return parts;
   };
-  nodes.rotorF = { parts: rotor(0), translation: [0, 5.1, 6.3] };
-  nodes.rotorR = { parts: rotor(Math.PI / 3), translation: [0, 6.2, -6.4] };
+  nodes.rotorF = { parts: rotor(0), translation: [0, 5.3, 6.3] };
+  nodes.rotorR = { parts: rotor(Math.PI / 3), translation: [0, 6.25, -6.4] };
   return nodes;
 }
 

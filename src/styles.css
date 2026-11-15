@@ -72,6 +72,7 @@ svg { display: block; }
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 .screen-layer { min-height: 100%; padding: calc(16px + var(--safe-t)) max(20px, var(--safe-r)) calc(24px + var(--safe-b)) max(20px, var(--safe-l)); display: flex; flex-direction: column; }
 .screen-layer > div { flex: 1; display: flex; flex-direction: column; gap: 18px; }
@@ -610,3 +611,12 @@ svg { display: block; }
    button, settings gear and top gauges clear of it. */
 .is-fullscreen .screen-layer .topbar { padding-left: calc(max(20px, var(--safe-l)) + 64px); }
 .is-fullscreen .hud-top { left: calc(max(12px, var(--safe-l)) + 64px); }
+
+/* Chinook slide buttons (hold to slide sideways), where the flap lever is on playnes. */
+.heli-slide { display: none; flex-direction: column; justify-content: center; gap: 12px; }
+.hud.heli .heli-slide { display: flex; }
+.slide-btn { width: 78px; height: 78px; border-radius: 22px; border: 4px solid rgba(255,255,255,.85); background: var(--glass); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-weight: 900; touch-action: none; -webkit-user-select: none; user-select: none; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.slide-btn b { font-size: 26px; line-height: 1; }
+.slide-btn span { font-size: 12px; letter-spacing: .04em; }
+.slide-btn.on { background: rgba(255, 204, 0, .85); color: #10233a; }
+@media (max-height: 700px) { .slide-btn { width: 68px; height: 64px; } }
