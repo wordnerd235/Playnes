@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { AIRCRAFT, aircraftById } from "../src/data/aircraft.ts";
+import { AIRCRAFT as ALL_AIRCRAFT, aircraftById } from "../src/data/aircraft.ts";
+
+// Fixed-wing flight model only (the Chinook flies with src/sim/heli.ts; see heli.test.ts).
+const AIRCRAFT = ALL_AIRCRAFT.filter((a) => a.kind !== "helicopter");
 import { computeCommands, createMemory, type Guidance, type StickInput } from "../src/sim/assist.ts";
 import { KT } from "../src/sim/geo.ts";
 import { createState, indicated, perfFor, step, type FlightEvent } from "../src/sim/physics.ts";
