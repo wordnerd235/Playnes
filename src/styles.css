@@ -483,7 +483,7 @@ svg { display: block; }
 .plane-stats.big .stat-bar { height: 12px; border-radius: 6px; }
 /* Fixed to the screen (not the scrolling hangar), so it opens where you are. */
 .screen-layer > .plane-sheet, .plane-sheet { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: rgba(16, 35, 58, .45); padding: 16px; flex: none; }
-.plane-sheet-card { width: min(560px, 100%); max-height: 100%; overflow: auto; background: var(--card); color: var(--ink); border-radius: 28px; padding: 22px 26px; box-shadow: 0 18px 50px rgba(0,0,0,.3); display: flex; flex-direction: column; gap: 6px; }
+.plane-sheet-card { width: min(560px, 100%); max-height: 100%; overflow: auto; background: #fff; color: var(--ink); border-radius: 28px; padding: 22px 26px; box-shadow: 0 18px 50px rgba(0,0,0,.3); display: flex; flex-direction: column; gap: 6px; }
 .plane-swatch.big { height: 110px; border-radius: 20px; }
 .plane-sheet-title { margin: 0; font-size: 30px; font-weight: 900; }
 .plane-wow { margin: 6px 0 0; font-size: 17px; font-weight: 700; color: var(--ink); }
@@ -533,6 +533,15 @@ svg { display: block; }
 .plane-card.locked .plane-pic { filter: grayscale(.9) brightness(.95) drop-shadow(0 6px 6px rgba(0,0,0,.12)); opacity: .8; }
 .plane-swatch.big { height: auto; aspect-ratio: 16 / 9; }
 .plane-swatch.big .plane-pic { width: 100%; }
+/* Hangar details: live 3D model you can spin */
+.plane-swatch.big { position: relative; }
+.plane-spin { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; opacity: 0; transition: opacity .35s ease; }
+.plane-spin:active { cursor: grabbing; }
+.plane-spin.ready { opacity: 1; }
+.plane-swatch.spinning .plane-pic { opacity: 0; transition: opacity .35s ease .1s; }
+.spin-hint { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 1; pointer-events: none; padding: 5px 12px; border-radius: 999px; background: rgba(16, 35, 58, .55); color: #fff; font-size: 14px; font-weight: 800; opacity: 0; transition: opacity .4s ease; white-space: nowrap; }
+.plane-swatch.spinning .spin-hint { opacity: 1; animation: spin-hint-out .6s ease 4s forwards; }
+@keyframes spin-hint-out { to { opacity: 0; } }
 
 /* Meet your playne: rendered Cessna with tap spots */
 .meet-stage { position: relative; width: min(94vw, 1100px); aspect-ratio: 1400 / 760; }

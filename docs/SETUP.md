@@ -54,6 +54,7 @@ All the numbers live in `REWARDS` in `src/game/progress.ts`.
 - **Landmarks** (the stars on the minimap) have a golden star pin and name floating over them when you're within about 30 km.
 - The **HEIGHT** gauge has a bar that fills toward the playne's cruising altitude and turns green ("cruising!") when you get there.
 - The big map's **Clear route** button removes a destination you picked.
+- **Hangar 3D view:** tap any playne and its picture turns into the real 3D model. Drag a finger to spin it (sideways to turn, up and down to look over the top or under the belly), pinch to look closer, double-tap to see the whole playne again. Left alone, it turns slowly by itself.
 - **F-16 Fighting Falcon** (900 Wings): about Mach 1.2 down low and Mach 1.8 up high, 40,000 ft in under two minutes, and a sonic boom when you pass the speed of sound. One seat, so it's Free Flight only (charters use your best playne with seats).
 
 ### Grown-up settings
@@ -195,6 +196,8 @@ node tools/smoke.cjs http://127.0.0.1:8765/dist/ /tmp/shots      # full charter 
 node tools/smoke-lessons.cjs http://127.0.0.1:8765/dist/ /tmp/shots
 node tools/smoke-touch.cjs http://127.0.0.1:8765/dist/ /tmp/shots    # on-screen controls only
 node tools/smoke-free.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # Free Flight: maps, autopilot, landing, crash
+node tools/smoke-spin.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # hangar 3D viewer
+node tools/smoke-sat.cjs http://127.0.0.1:8765/dist/ /tmp/shots      # satellite-photo switch
 ```
 
 These use the Playwright browser and fast-forward the physics, because software rendering is slow.

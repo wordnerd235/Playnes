@@ -400,9 +400,15 @@ export class Screens {
       note = ac.unlock.type === "graduation" ? "Finish all of Flight School to unlock this playne." : "A special playne.";
       actions.push(btn("primary", "OK", close));
     }
+    // The big picture turns into the real 3D model once it loads: drag to spin it.
+    const pic = this.planePicture(ac, true);
+    pic.append(h("div.spin-hint", { "aria-hidden": "true" }, "👆 Drag to spin"));
+    void import("./planeSpin.ts")
+      .then((m) => m.mountPlaneSpinner(pic, `./models/${ac.id}.glb`, (e) => console.warn("3D viewer unavailable", e)))
+      .catch((e) => console.warn("3D viewer unavailable", e));
     const sheet = h("div.plane-sheet", { onclick: (e: Event) => e.target === sheet && close() }, [
       h("div.plane-sheet-card", {}, [
-        this.planePicture(ac, true),
+        pic,
         h("div.plane-maker", {}, ac.maker),
         h("h2.plane-sheet-title", {}, ac.model),
         h("div.plane-facts", {}, (() => {

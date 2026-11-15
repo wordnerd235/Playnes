@@ -42,6 +42,8 @@ export async function saveForOffline(onProgress: (done: number, total: number) =
     "./models/shadow.glb",
     ...Object.values(manifest).map((f) => `./audio/voice/${f}`),
   ];
+  // The hangar's 3D viewer is loaded on demand: fetch it now so it's kept for offline too.
+  await import("../ui/planeSpin.ts").catch(() => {});
   let done = 0;
   let ok = 0;
   let failed = 0;
