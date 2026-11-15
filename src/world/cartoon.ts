@@ -9,6 +9,7 @@ import {
   Math as CMath,
   type Request,
 } from "cesium";
+import { AIRPORTS } from "../data/airports.ts";
 
 export interface WorldMeta {
   bounds: { south: number; north: number; west: number; east: number };
@@ -20,12 +21,64 @@ export interface WorldMeta {
 
 export const LAND = { land: 0, water: 1, town: 2, airport: 3 } as const;
 
+/**
+ * Ground under a runway, made flat. The terrain grid is ~300 m apart, so between a runway's
+ * two ends it can bulge a metre or two above the straight runway surface and poke through
+ * it. Inside the runway (plus shoulders and overruns) the ground follows the runway's own
+ * slope exactly, blending smoothly back into the hills around it.
+ */
+interface RunwayPad {
+  lat0: number;
+  lon0: number;
+  /** Metres per degree of longitude here. */
+  kx: number;
+  ux: number;
+  uy: number;
+  length: number;
+  half: number;
+  h0: number;
+  h1: number;
+  box: { s: number; n: number; w: number; e: number };
+}
+const PAD_SIDE = 70; // beyond the runway edge (shoulders, taxiing)
+const PAD_END = 150; // beyond each end (the drawn overrun is 40 m)
+const PAD_BLEND = 450; // distance over which the flat pad blends back into the terrain
+
 export class CartoonData {
+  private pads: RunwayPad[] = [];
+
   constructor(
     readonly meta: WorldMeta,
     private dem: Int16Array,
     private land: Uint8Array,
-  ) {}
+  ) {
+    for (const a of AIRPORTS) {
+      const [e0, e1] = a.runway.ends;
+      const kx = 111320 * Math.cos((e0.lat * Math.PI) / 180);
+      const dx = (e1.lon - e0.lon) * kx;
+      const dy = (e1.lat - e0.lat) * 111320;
+      const length = Math.hypot(dx, dy);
+      const half = (a.runway.widthFt * 0.3048) / 2;
+      const reach = Math.max(half + PAD_SIDE, PAD_END) + PAD_BLEND;
+      this.pads.push({
+        lat0: e0.lat,
+        lon0: e0.lon,
+        kx,
+        ux: dx / length,
+        uy: dy / length,
+        length,
+        half,
+        h0: this.terrainHeight(e0.lat, e0.lon),
+        h1: this.terrainHeight(e1.lat, e1.lon),
+        box: {
+          s: Math.min(e0.lat, e1.lat) - reach / 111320,
+          n: Math.max(e0.lat, e1.lat) + reach / 111320,
+          w: Math.min(e0.lon, e1.lon) - reach / kx,
+          e: Math.max(e0.lon, e1.lon) + reach / kx,
+        },
+      });
+    }
+  }
 
   static async load(base = "./world/"): Promise<CartoonData> {
     const meta = (await (await fetch(`${base}world.json`)).json()) as WorldMeta;
@@ -48,8 +101,31 @@ export class CartoonData {
     return lat >= b.south && lat <= b.north && lon >= b.west && lon <= b.east;
   }
 
-  /** Terrain height (meters above sea level), bilinear. 0 outside the region. */
+  /** Ground height (meters above sea level): the terrain, flattened under runways. */
   height(lat: number, lon: number): number {
+    const natural = this.terrainHeight(lat, lon);
+    for (const p of this.pads) {
+      const b = p.box;
+      if (lat < b.s || lat > b.n || lon < b.w || lon > b.e) continue;
+      const x = (lon - p.lon0) * p.kx;
+      const y = (lat - p.lat0) * 111320;
+      const along = x * p.ux + y * p.uy;
+      const across = Math.abs(-x * p.uy + y * p.ux);
+      const outEnd = Math.max(0, -along - PAD_END, along - p.length - PAD_END);
+      const outSide = Math.max(0, across - p.half - PAD_SIDE);
+      const out = Math.hypot(outEnd, outSide);
+      if (out >= PAD_BLEND) continue;
+      const f = Math.max(0, Math.min(1, along / p.length));
+      const flat = p.h0 + (p.h1 - p.h0) * f;
+      const t = 1 - out / PAD_BLEND;
+      const w = t * t * (3 - 2 * t);
+      return natural + (flat - natural) * w;
+    }
+    return natural;
+  }
+
+  /** Raw terrain height from the grid (meters above sea level), bilinear. 0 outside the region. */
+  terrainHeight(lat: number, lon: number): number {
     const g = this.meta.grid;
     const x = (lon - g.west) / g.step;
     const y = (g.north - lat) / g.step;

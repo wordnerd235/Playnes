@@ -645,6 +645,106 @@ function buildAircraft(ac) {
   return nodes;
 }
 
+// ---------------------------------------------------------------- Chinook (tandem-rotor helicopter)
+
+/** Boeing CH-47 Chinook, roughly to scale. Rotors are their own nodes (rotorF, rotorR) so the game can spin them. */
+function buildChinook(ac) {
+  const body = C(ac.livery.body);
+  const stripe = C(ac.livery.stripe);
+  const dark = C(ac.livery.accent);
+  const belly = body.clone().lerp(C("#2f3a24"), 0.35);
+  const glassC = C("#1b2834");
+  const nodes = {};
+  const add = (node, part) => (nodes[node] ??= { parts: [] }).parts.push(part);
+
+  // Fuselage: long and boxy, rounded nose with a big windscreen, the tail sweeps up to the ramp.
+  const fus = [
+    [-7.75, 1.15, 1.2, 2.95],
+    [-7.2, 1.45, 1.45, 2.75],
+    [-6.3, 1.6, 1.62, 2.62],
+    [-5.0, 1.64, 1.7, 2.58],
+    [4.6, 1.64, 1.7, 2.58],
+    [5.9, 1.58, 1.64, 2.6],
+    [6.8, 1.42, 1.5, 2.62],
+    [7.4, 1.12, 1.25, 2.58],
+    [7.8, 0.7, 0.85, 2.5],
+    [7.98, 0.2, 0.3, 2.45],
+    [8.0, 0.02, 0.04, 2.45],
+  ];
+  add("body", finish(fuselageGeo(fus), MAT.paint, (c) => {
+    // Cockpit windows: the upper nose.
+    if (c.z > 6.15 && c.y > 2.75 && c.y < 3.95 && !(c.z > 7.75 && c.y > 3.3)) return glassC;
+    if (c.z > 6.5 && c.y > 1.65 && c.y < 2.4 && Math.abs(c.x) > 0.9) return glassC; // chin windows
+    return c.y < 1.45 ? belly : body;
+  }));
+  // Side windows (round-ish portholes) and the cabin door.
+  for (const side of [1, -1]) {
+    for (let z = -4.2; z <= 3.6; z += 1.3) {
+      add("body", finish(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 14), MAT.glass, glassC, chain(T(side * 1.645, 3.05, z), RZ(Math.PI / 2))));
+    }
+    add("body", finish(new THREE.BoxGeometry(0.05, 1.5, 0.95), MAT.paint, dark, T(side * 1.645, 2.25, 4.9)));
+    // Long fuel pods along the lower sides.
+    const pod = [[-3.8, 0.05, 0.08, 1.45], [-3.4, 0.32, 0.42, 1.45], [3.2, 0.36, 0.46, 1.45], [4.1, 0.25, 0.36, 1.5], [4.5, 0.03, 0.06, 1.5]];
+    add("body", finish(fuselageGeo(pod, 24), MAT.paint, body, T(side * 1.72, 0, 0)));
+    // The game's callsign on the back of the cabin.
+    for (const b of registration(REGISTRATION, side, () => 1.64, 3.75, -1.6, 0.42)) add("body", finish(b, MAT.paint, stripe));
+  }
+
+  // Front rotor tower (low, over the cockpit) and rear rotor tower (tall, with the engines).
+  const frontPylon = [[3.4, 0.05, 0.05, 4.2], [4.4, 0.62, 0.42, 4.2], [6.1, 0.72, 0.55, 4.3], [7.0, 0.5, 0.4, 4.18], [7.35, 0.05, 0.05, 4.1]];
+  add("body", finish(fuselageGeo(frontPylon, 32), MAT.paint, body));
+  const rearPylon = [[-2.9, 0.05, 0.05, 4.25], [-3.9, 0.62, 0.55, 4.35], [-5.2, 0.8, 1.05, 4.6], [-6.9, 0.78, 1.18, 4.62], [-7.6, 0.55, 0.95, 4.45], [-7.85, 0.05, 0.1, 4.4]];
+  add("body", finish(fuselageGeo(rearPylon, 32), MAT.paint, body));
+  for (const side of [1, -1]) {
+    const x = side * 1.38;
+    const prof = [[0.05, -2.0], [0.42, -1.8], [0.52, -1.2], [0.52, 0.9], [0.44, 1.35], [0.36, 1.45]];
+    add("body", finish(lathe(prof, 20), MAT.paint, body, T(x, 4.15, -5.9)));
+    add("body", finish(new THREE.CircleGeometry(0.3, 16), MAT.dark, C("#1d2126"), chain(T(x, 4.15, -4.44))));
+    add("body", finish(lathe([[0.34, -2.0], [0.28, -2.25], [0.2, -2.3]], 16), MAT.metal, C("#4b5056"), T(x, 4.15, -5.9)));
+    add("body", finish(new THREE.BoxGeometry(0.62, 0.22, 1.6), MAT.paint, body, T(side * 0.95, 4.15, -5.9)));
+  }
+  // Rotor masts and hubs.
+  add("body", finish(cylinderBetween(V(0, 4.6, 6.3), V(0, 4.95, 6.3), 0.24, 14), MAT.metal, C("#5d636a")));
+  add("body", finish(cylinderBetween(V(0, 5.7, -6.4), V(0, 6.05, -6.4), 0.24, 14), MAT.metal, C("#5d636a")));
+
+  // Wheels: two pairs (front under the pods, back further aft).
+  const wheel = (x, z, r) => {
+    add("body", finish(new THREE.TorusGeometry(r * 0.7, r * 0.3, 10, 20), MAT.rubber, C("#ffffff"), chain(T(x, r, z), RY(Math.PI / 2))));
+    add("body", finish(new THREE.CylinderGeometry(r * 0.48, r * 0.48, r * 0.75, 14), MAT.metal, C("#c3c8ce"), chain(T(x, r, z), RZ(Math.PI / 2))));
+    add("body", finish(cylinderBetween(V(x, r, z), V(x * 0.95, 1.2, z), 0.09), MAT.metal, C("#8e959c")));
+  };
+  for (const side of [1, -1]) {
+    wheel(side * 1.62, 3.9, 0.46);
+    wheel(side * 1.55, -3.4, 0.46);
+  }
+  // Lights.
+  add("body", finish(new THREE.SphereGeometry(0.09, 8, 6), MAT.navRed, C("#ffffff"), T(1.66, 2.0, 0.5)));
+  add("body", finish(new THREE.SphereGeometry(0.09, 8, 6), MAT.navGreen, C("#ffffff"), T(-1.66, 2.0, 0.5)));
+  nodes.beacon = { parts: [finish(new THREE.SphereGeometry(0.12, 8, 6), MAT.navRed, C("#ffffff"))], translation: [0, 5.58, -4.4] };
+
+  // Rotors: three long blades each, yellow tips; spinning nodes centred on the hub.
+  const rotor = (spin) => {
+    const parts = [finish(new THREE.CylinderGeometry(0.42, 0.5, 0.36, 16), MAT.metal, C("#4a4f55"))];
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2;
+      const len = 9.15;
+      const blade = new THREE.BoxGeometry(len - 0.35, 0.07, 0.64, 8, 1, 1);
+      const pos = blade.attributes.position;
+      for (let k = 0; k < pos.count; k++) {
+        const x = pos.getX(k) + (len - 0.35) / 2 + 0.35;
+        pos.setX(k, x);
+        pos.setY(k, pos.getY(k) - (x / len) ** 2 * 0.25); // slight droop
+      }
+      blade.computeVertexNormals();
+      parts.push(finish(blade, MAT.dark, (c) => (Math.hypot(c.x, c.z) > len - 0.7 ? stripe : C("#2b2f33")), RY(a + spin)));
+    }
+    return parts;
+  };
+  nodes.rotorF = { parts: rotor(0), translation: [0, 5.1, 6.3] };
+  nodes.rotorR = { parts: rotor(Math.PI / 3), translation: [0, 6.2, -6.4] };
+  return nodes;
+}
+
 function buildRing() {
   return { ring: { parts: [finish(new THREE.TorusGeometry(1, 0.07, 12, 56), MAT.paint, C("#ffffff"))] } };
 }
@@ -802,7 +902,7 @@ function writeGlb(nodes, file, extraMaterials = []) {
 }
 
 for (const ac of AIRCRAFT) {
-  const bytes = writeGlb(buildAircraft(ac), join(outDir, `${ac.id}.glb`));
+  const bytes = writeGlb(ac.kind === "helicopter" ? buildChinook(ac) : buildAircraft(ac), join(outDir, `${ac.id}.glb`));
   console.log(`${ac.id}.glb  ${(bytes / 1024).toFixed(0)} KB`);
 }
 writeGlb(buildRing(), join(outDir, "ring.glb"));

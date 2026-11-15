@@ -3,7 +3,7 @@
 // Shape values (meters) drive the procedural "toy-real" 3D models built by scripts/build-models.mjs.
 // This file must stay free of DOM/browser imports: Node scripts import it too.
 
-export type EngineLayout = "prop-nose" | "rear-twin" | "over-wing" | "rear-tri" | "fighter";
+export type EngineLayout = "prop-nose" | "rear-twin" | "over-wing" | "rear-tri" | "fighter" | "tandem-rotor";
 export type TailType = "conventional" | "t-tail" | "cruciform";
 
 export interface AircraftShape {
@@ -31,13 +31,13 @@ export interface AircraftDef {
   model: string;
   /** How the co-pilot says it. */
   spoken: string;
-  kind: "piston" | "turboprop" | "jet" | "fighter";
+  kind: "piston" | "turboprop" | "jet" | "fighter" | "helicopter";
   category: string;
   seats: number;
   rangeNm: number;
   cruiseKt: number;
   /** Wings needed, or how it is unlocked. */
-  unlock: { type: "start" } | { type: "graduation" } | { type: "wings"; price: number } | { type: "captain" };
+  unlock: { type: "start" } | { type: "graduation" } | { type: "wings"; price: number; afterAllOthers?: boolean } | { type: "captain" };
   /** Kid "wow" fact, read aloud on the plane card. */
   wow: string;
   // Flight model (knots, feet per minute, degrees per second)
@@ -282,11 +282,36 @@ export const AIRCRAFT: AircraftDef[] = [
     shape: { length: 15.0, span: 9.96, fuselageDiameter: 1.35, wing: "mid", sweepDeg: 40, tail: "conventional", engines: "fighter", winglets: false, fixedGear: false },
     livery: { body: "#9aa4ae", stripe: "#5c6772", accent: "#1f6fd1" },
   },
+  {
+    // The super-special one: buyable only once every other playne is in the hangar.
+    id: "ch47",
+    maker: "Boeing",
+    model: "CH-47 Chinook",
+    spoken: "Chinook",
+    kind: "helicopter",
+    category: "Heavy-lift helicopter",
+    seats: 33,
+    rangeNm: 400,
+    cruiseKt: 160,
+    unlock: { type: "wings", price: 1500, afterAllOthers: true },
+    wow: "The Chinook has two giant rotors that spin opposite ways, so it can lift a truck and fly straight up, sideways or stay still in the air!",
+    // Helicopter: these fixed-wing numbers only feed the hangar cards; it flies with src/sim/heli.ts.
+    vr: 0, vapp: 60, vclimb: 100, vstall: 0, vmo: 170, mmo: 1, climbFpm: 1500, rollRate: 60, cruiseAltFt: 3000,
+    shape: { length: 15.9, span: 18.3, fuselageDiameter: 3.8, wing: "high", sweepDeg: 0, tail: "conventional", engines: "tandem-rotor", winglets: false, fixedGear: true },
+    livery: { body: "#5f6f45", stripe: "#f2c230", accent: "#2b3324" },
+  },
 ];
 
-/** Fighters have one seat: Free Flight only (no charter passengers). */
+/** The Chinook's flight numbers (metres, seconds). */
+export const CHINOOK_PERF = { maxSpeed: 160 * 0.514444, climb: 7.6, accel: 2.6, brake: 4, hoverYawRate: 32, maxBank: 30, ceiling: 4600 };
+
+/** Fighters have one seat, and the Chinook flies from anywhere (no runway routines): Free Flight only. */
 export function carriesPassengers(ac: AircraftDef): boolean {
-  return ac.kind !== "fighter";
+  return ac.kind !== "fighter" && ac.kind !== "helicopter";
+}
+
+export function isHelicopter(ac: AircraftDef): boolean {
+  return ac.kind === "helicopter";
 }
 
 export function aircraftById(id: string): AircraftDef {

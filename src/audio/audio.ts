@@ -263,10 +263,10 @@ export class Audio {
 
   // ----- Engine -----
 
-  startEngine(kind: "piston" | "turboprop" | "jet" | "fighter"): void {
+  startEngine(kind: "piston" | "turboprop" | "jet" | "fighter" | "helicopter"): void {
     if (!this.ctx || !this.master) return;
     this.stopEngine();
-    this.engine = new EngineSound(this.ctx, this.master, kind === "fighter" ? "jet" : kind);
+    this.engine = new EngineSound(this.ctx, this.master, kind === "fighter" ? "jet" : kind === "helicopter" ? "heli" : kind);
   }
 
   updateEngine(throttle: number, speed: number): void {
@@ -288,7 +288,10 @@ class EngineSound {
   private windGain: GainNode;
   private out: GainNode;
 
-  constructor(private ctx: AudioContext, dest: AudioNode, private kind: "piston" | "turboprop" | "jet") {
+  private thump: GainNode | null = null;
+  private thumpOsc: OscillatorNode | null = null;
+
+  constructor(private ctx: AudioContext, dest: AudioNode, private kind: "piston" | "turboprop" | "jet" | "heli") {
     this.out = ctx.createGain();
     this.out.gain.value = 0;
     this.out.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 1.5);
@@ -320,7 +323,20 @@ class EngineSound {
     this.noiseFilter = ctx.createBiquadFilter();
     this.noiseFilter.type = "lowpass";
     this.noiseGain = ctx.createGain();
-    noise.connect(this.noiseFilter).connect(this.noiseGain).connect(this.out);
+    if (kind === "heli") {
+      // Rotor "whop-whop": the rumble pulses with the blades going by.
+      this.thump = ctx.createGain();
+      this.thump.gain.value = 0.55;
+      this.thumpOsc = ctx.createOscillator();
+      this.thumpOsc.type = "sine";
+      this.thumpOsc.frequency.value = 5.5;
+      const depth = ctx.createGain();
+      depth.gain.value = 0.45;
+      this.thumpOsc.connect(depth).connect(this.thump.gain);
+      this.thumpOsc.start();
+      this.nodes.push(this.thumpOsc);
+      noise.connect(this.noiseFilter).connect(this.noiseGain).connect(this.thump).connect(this.out);
+    } else noise.connect(this.noiseFilter).connect(this.noiseGain).connect(this.out);
     noise.start();
     this.nodes.push(noise);
 
@@ -343,7 +359,14 @@ class EngineSound {
   update(throttle: number, speed: number): void {
     const t = this.ctx.currentTime;
     const k = 0.15;
-    if (this.kind === "piston") {
+    if (this.kind === "heli") {
+      // Turbine whine plus a deep rotor rumble that beats faster with more lift.
+      this.toneOsc.frequency.setTargetAtTime(1800 + throttle * 900, t, k * 3);
+      this.toneGain.gain.setTargetAtTime(0.01 + throttle * 0.01, t, k);
+      this.noiseFilter.frequency.setTargetAtTime(260 + throttle * 220, t, k * 2);
+      this.noiseGain.gain.setTargetAtTime(0.32 + throttle * 0.2, t, k * 2);
+      this.thumpOsc?.frequency.setTargetAtTime(4.8 + throttle * 1.6, t, 0.5);
+    } else if (this.kind === "piston") {
       this.toneOsc.frequency.setTargetAtTime(55 + throttle * 55, t, k);
       this.toneGain.gain.setTargetAtTime(0.05 + throttle * 0.07, t, k);
       this.noiseFilter.frequency.setTargetAtTime(300 + throttle * 500, t, k);

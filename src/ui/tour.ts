@@ -22,3 +22,12 @@ export const TOUR: TourStep[] = [
   { target: "#hud-help", line: LINES.tourHelp },
   { target: null, line: LINES.tourDone },
 ];
+
+/** The Chinook tour: shown on its first flight, and from the "?" button while flying it. */
+export const HELI_TOUR: TourStep[] = [
+  { target: null, line: LINES.heliIntro },
+  { target: ".lever", line: LINES.heliLever },
+  { target: ".yoke", line: LINES.heliYoke },
+  { target: null, line: LINES.heliLand },
+  { target: null, line: LINES.heliDone },
+];

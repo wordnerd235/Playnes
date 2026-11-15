@@ -189,10 +189,10 @@ export function perfFor(ac: AircraftDef): Perf {
     reversers: ac.kind === "jet" || ac.kind === "turboprop",
     climbMax,
     // Fast descents (jets use their speedbrakes for these).
-    descentMax: ({ piston: 2000, turboprop: 4000, jet: 6000, fighter: 40000 } as const)[ac.kind] * FT_PER_MIN,
+    descentMax: ({ piston: 2000, turboprop: 4000, jet: 6000, fighter: 40000, helicopter: 1800 } as const)[ac.kind] * FT_PER_MIN,
     // How quickly the nose comes up or down (deg/s) and the steepest climb/dive path (sine).
-    gammaRate: ({ piston: 7, turboprop: 6, jet: 5, fighter: 20 } as const)[ac.kind],
-    maxPathSin: ({ piston: 0.4, turboprop: 0.45, jet: 0.5, fighter: 0.98 } as const)[ac.kind],
+    gammaRate: ({ piston: 7, turboprop: 6, jet: 5, fighter: 20, helicopter: 6 } as const)[ac.kind],
+    maxPathSin: ({ piston: 0.4, turboprop: 0.45, jet: 0.5, fighter: 0.98, helicopter: 0.4 } as const)[ac.kind],
   };
 }
 

@@ -493,6 +493,8 @@ svg { display: block; }
 
 /* Free Flight arrival pop-up */
 .arrival-icon { font-size: 56px; line-height: 1; margin-bottom: 4px; }
+.arrival-reward { display: inline-flex; align-items: center; gap: 6px; margin: 2px 0 6px; padding: 6px 14px; border-radius: 999px; background: #fff4c2; color: #6b4a00; font-weight: 900; font-size: 20px; }
+.arrival-reward .wing-icon { width: 26px; height: 26px; display: inline-flex; }
 .arrival-actions { flex-wrap: wrap; justify-content: center; }
 /* Keep the throttle's GO!/STOP labels clear of the flap lever. */
 .right-controls .lever { margin-left: 26px; }
@@ -561,3 +563,12 @@ svg { display: block; }
 
 /* Charter card: route already flown -> solo */
 .charter-solo { align-self: flex-start; margin-top: 6px; padding: 4px 12px; border-radius: 999px; background: #1f2a37; color: #ffd34d; font-size: 14px; font-weight: 900; letter-spacing: .02em; }
+
+/* The super-special Chinook card: a golden frame. */
+.plane-card.super { box-shadow: 0 0 0 3px #f2c230, 0 8px 24px rgba(242, 194, 48, .35); }
+.plane-status.special { background: #2b3324; color: #f2c230; }
+
+/* Helicopter (Chinook): no flaps, wheels or brakes; a HOVER mark in the middle of the lever. */
+.hud.heli #hud-flaps, .hud.heli #hud-gear, .hud.heli #hud-brake { display: none !important; }
+.hud.heli .lever-track { position: relative; }
+.hud.heli .lever-track::after { content: "HOVER"; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 2px 6px; border-radius: 8px; background: rgba(16, 35, 58, .7); color: #fff; font-size: 11px; font-weight: 900; letter-spacing: .04em; pointer-events: none; }

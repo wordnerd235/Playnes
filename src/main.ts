@@ -4,17 +4,18 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 import "./styles.css";
 
 import { Cartesian3, Math as CMath } from "cesium";
-import { aircraftById } from "./data/aircraft.ts";
+import { aircraftById, isHelicopter } from "./data/aircraft.ts";
 import { airportByCode, type Airport } from "./data/airports.ts";
 import { LINES, type Line } from "./data/lines.ts";
 import { Audio } from "./audio/audio.ts";
 import { FlightSession, type FlightResult, type FreeLanding, type FreeSnapshot, type Mission } from "./game/flight.ts";
-import { charterKey, charterPlaneId, charterRewards, freeLandingRewards, landingRewards, loadProgress, ringRewards, takeoffBonus, total, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
+import { charterKey, charterPlaneId, charterRewards, freeLandingRewards, landingRewards, loadProgress, REWARDS, ringRewards, takeoffBonus, total, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
 import { googleKey, ionToken, loadSettings, resolveWorld, saveSettings, type Settings } from "./game/settings.ts";
 import { Controls } from "./input/controls.ts";
 import { destination } from "./sim/geo.ts";
 import { Hud } from "./ui/hud.ts";
-import { TOUR } from "./ui/tour.ts";
+import { ICONS } from "./ui/icons.ts";
+import { HELI_TOUR, TOUR } from "./ui/tour.ts";
 import { LESSONS, Screens, type ScreenHost } from "./ui/screens.ts";
 import { createWorld, setGraphicsRecoveredHandler, type World } from "./world/world.ts";
 
@@ -198,6 +199,7 @@ class Game implements ScreenHost {
     flight.onLanded = (l) => this.freeLanding(l);
     flight.onTakeoff = (code) => this.takeoff(code);
     flight.onArrived = (a) => this.showArrival(a);
+    flight.onFieldStop = (a, earned) => this.showFieldStop(a, earned);
     flight.onHelp = () => void this.showTour();
     this.flightPlane = ac.id;
     this.flightBonuses = [];
@@ -209,6 +211,11 @@ class Game implements ScreenHost {
         this.screens.hide();
         // First flight ever: show what everything on the screen does.
         if (!this.progress.tourDone && !(m.kind === "sandbox" && m.resume)) {
+          void this.showTour();
+          return;
+        }
+        // First flight in the Chinook: how a helicopter flies.
+        if (isHelicopter(ac) && !this.progress.heliTourDone && !(m.kind === "sandbox" && m.resume)) {
           void this.showTour();
           return;
         }
@@ -403,10 +410,14 @@ class Game implements ScreenHost {
     this.touring = true;
     flight.setPaused(true);
     this.audio.stopVoice();
-    await this.hud.runTour(TOUR, (line) => void this.audio.say(line, { interrupt: true }));
+    const heli = isHelicopter(aircraftById(this.flightPlane));
+    // The first time ever, the general tour comes first; the Chinook's own tour after it.
+    const steps = heli && this.progress.tourDone ? HELI_TOUR : heli ? [...TOUR.filter((st) => st.target !== ".yoke" && st.target !== ".lever" && st.line !== LINES.tourDone), ...HELI_TOUR.slice(1)] : TOUR;
+    await this.hud.runTour(steps, (line) => void this.audio.say(line, { interrupt: true }));
     this.audio.stopVoice();
     this.touring = false;
     this.progress.tourDone = true;
+    if (heli) this.progress.heliTourDone = true;
     this.saveProgress();
     if (this.flight === flight && !this.pauseEl) flight.setPaused(false);
   }
@@ -434,6 +445,40 @@ class Game implements ScreenHost {
       this.clearFreeSave();
       if (act === "pick") this.screens.freeFlight();
       else this.screens.home();
+    });
+    app.append(el);
+    this.pauseEl = el;
+  }
+
+  /** Free Flight: stopped safely after an emergency landing in a field. Small reward; what next? */
+  private showFieldStop(nearest: Airport, earned: boolean): void {
+    const flight = this.flight;
+    if (!flight) return;
+    this.pauseEl?.remove();
+    const wings = earned ? REWARDS.emergencyLanding : 0;
+    if (wings) {
+      this.progress.wings += wings;
+      this.saveProgress();
+      this.audio.sfx("cash");
+    }
+    const el = document.createElement("div");
+    el.className = "pause-overlay arrival";
+    const heli = isHelicopter(aircraftById(this.flightPlane));
+    const note = heli ? "You landed the Chinook out in the open. Helicopters can land almost anywhere!" : "You landed safely in a field, just like a real pilot in an emergency. Great flying!";
+    el.innerHTML = `<div class="pause-card"><div class="arrival-icon">${heli ? "🚁" : "🌾"}</div><h1>Safe landing!</h1><p class="pause-note">${note}</p>${wings ? `<p class="arrival-reward"><span class="wing-icon">${ICONS.wing}</span> +${wings} Wings</p>` : ""}<div class="pause-actions arrival-actions"><button type="button" class="btn secondary" data-a="home">Go home</button><button type="button" class="btn secondary" data-a="field">Take off from here</button><button type="button" class="btn primary" data-a="nearest">Fly from ${nearest.spoken}</button></div></div>`;
+    el.addEventListener("click", (e) => {
+      const act = (e.target as HTMLElement).closest("button")?.dataset.a;
+      if (!act) return;
+      this.audio.sfx("click");
+      el.remove();
+      this.pauseEl = null;
+      if (act === "nearest") flight.flyFromNearest();
+      else if (act === "field") flight.continueFromField();
+      else {
+        this.endFlight();
+        this.clearFreeSave();
+        this.screens.home();
+      }
     });
     app.append(el);
     this.pauseEl = el;

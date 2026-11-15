@@ -438,7 +438,23 @@ export class Hud {
     this.lever.addEventListener("pointercancel", end);
   }
 
+  /**
+   * Helicopter controls: the lever is UP / HOVER / DOWN (lift), the stick is forward / slow
+   * down and turn, and there are no flaps, wheel or brake buttons.
+   */
+  setHeli(on: boolean): void {
+    this.root.classList.toggle("heli", on);
+    const notches = this.lever.querySelectorAll(".lever-notches span");
+    if (notches[0]) notches[0].textContent = on ? "UP" : "GO!";
+    if (notches[3]) notches[3].textContent = on ? "DOWN" : "STOP";
+    const up = this.yoke.querySelector(".yoke-label.up");
+    const down = this.yoke.querySelector(".yoke-label.down");
+    if (up) up.textContent = on ? "fly forward" : "nose down";
+    if (down) down.textContent = on ? "slow down" : "pull to climb";
+  }
+
   show(from: string, to: string): void {
+    this.setHeli(false);
     this.root.hidden = false;
     this.lookReset.hidden = true;
     this.fromLabel.textContent = from;

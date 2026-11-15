@@ -24,7 +24,7 @@ The purple **Free Flight** card on the home screen is an open sandbox:
 - The speed gauge shows **airspeed** (what pilots read in the cockpit); the small "ground" number underneath is how fast you're actually covering the map.
 - The **minimap** (top right) shows nearby airports (✈) and landmarks (⭐). Tap it for the **big map**: the autopilot keeps flying your last heading and height while it's open. Tap an airport to see how far it is, then **Fly to** draws a pink line to it on the minimap.
 - Line up with any runway and let go of the stick: the co-pilot helps you down the glide path.
-- **Wings in Free Flight:** landing at an airport pays for the trip from the airport you took off from (by straight-line distance, about 8 Wings per 100 nm) plus landing stars. Circuits back to the same airport pay a little; emergency landings in fields pay nothing (the trip starts again from the next airport takeoff).
+- **Wings in Free Flight:** landing at an airport pays for the trip from the airport you took off from (by straight-line distance, about 8 Wings per 100 nm) plus landing stars. Circuits back to the same airport pay a little; a safe emergency landing in a field pays a small 5 Wings (after at least 20 seconds in the air), then a pop-up offers **Go home**, **Take off from here** or **Fly from** the nearest airport; the trip distance starts again from the next airport takeoff.
 
 ### Solo charters
 
@@ -39,6 +39,7 @@ Once a charter route has been completed (say Tri-Cities to Charlotte), the next 
 | Landing stars | 5 each (2 in Free Flight); butter landing +5 (+3 in Free Flight) |
 | First landing at an airport (passport stamp) | +20, once per airport |
 | First takeoff from an airport | +10, once per airport |
+| Safe emergency landing in a field (Free Flight) | +5 |
 | Flight School lesson | 25 the first time (50 for the landing lesson), 5 for practice |
 
 All the numbers live in `REWARDS` in `src/game/progress.ts`.
@@ -56,6 +57,11 @@ All the numbers live in `REWARDS` in `src/game/progress.ts`.
 - The big map's **Clear route** button removes a destination you picked.
 - **Hangar 3D view:** tap any playne and its picture turns into the real 3D model. Drag a finger to spin it (sideways to turn, up and down to look over the top or under the belly), pinch to look closer, double-tap to see the whole playne again. Left alone, it turns slowly by itself.
 - **F-16 Fighting Falcon** (900 Wings): about Mach 1.2 down low and Mach 1.8 up high, 40,000 ft in under two minutes, and a sonic boom when you pass the speed of sound. One seat, so it's Free Flight only (charters use your best playne with seats).
+- **CH-47 Chinook** (1,500 Wings, the super-special one): it appears in the hangar with a gold frame but can only be bought once **every other playne** is in the hangar. It's a tandem-rotor helicopter and flies with its own controls (Free Flight only):
+  - **Lever = lift.** Push it up to rise, the middle (marked HOVER) holds the height, pull it down to come down.
+  - **Stick forward / back** speeds up / slows down (let go and it keeps its speed; pull back to stop in a hover). **Left / right** turns: on the spot when hovering, a banked turn when flying fast. Top speed about 160 kt, up to about 15,000 ft.
+  - **Land anywhere flat:** airports (counts as an airport landing: stars, passport stamp, welcome pop-up), open fields (the field pop-up and +5 Wings after a real flight) or a big flat roof. Not on water or steep slopes: with crashes off the co-pilot cushions every landing and lifts you back up from a bad spot; with crashes on, a hard or bad landing is a crash.
+  - A short helicopter tour runs on its first flight (and from the ? button while flying it). No flaps, wheels or brakes buttons.
 
 ### Grown-up settings
 
@@ -147,6 +153,8 @@ node scripts/world/export-data.mjs ~/worldcache/data.json
 ~/mapenv/bin/python scripts/world/build_world.py --cache ~/worldcache    # ~5 minutes, writes public/world/
 ```
 
+Runways in the cartoon world sit on a flat pad: the game flattens the terrain under each runway (plus shoulders and overruns) to the runway's own slope and blends it back into the hills over about 450 m (`CartoonData.height` in `src/world/cartoon.ts`), so the ground can't poke through the runway. The runway itself is drawn a hair closer to the camera with distance, so far-off simplified terrain can't hide it either.
+
 Real airport buildings (terminals, hangars, parking decks...) come from [Overture Maps](https://overturemaps.org/) (OpenStreetMap and other open footprints, ODbL). Only the parts of the dataset around the airports are downloaded:
 
 ```bash
@@ -160,7 +168,7 @@ After changing the models, serve the repo root on port 8765 and run `node tools/
 
 ### Regenerate the 3D planes
 
-The planes are built from code, so there are no model licenses to worry about. Edit shapes and colors in `src/data/aircraft.ts`, then:
+The planes are built from code, so there are no model licenses to worry about. Edit shapes and colors in `src/data/aircraft.ts` (the Chinook has its own builder, `buildChinook` in the script), then:
 
 ```bash
 npm run models       # writes public/models/*.glb
@@ -190,6 +198,7 @@ node tools/smoke-lessons.cjs http://127.0.0.1:8765/dist/ /tmp/shots
 node tools/smoke-touch.cjs http://127.0.0.1:8765/dist/ /tmp/shots    # on-screen controls only
 node tools/smoke-free.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # Free Flight: maps, autopilot, landing, crash
 node tools/smoke-spin.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # hangar 3D viewer
+node tools/smoke-heli.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # Chinook: unlock, tour, helicopter flying, landings
 ```
 
 These use the Playwright browser and fast-forward the physics, because software rendering is slow.

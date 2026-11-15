@@ -23,7 +23,8 @@ import {
   type ModelNode,
   type PointPrimitive,
 } from "cesium";
-import type { AircraftDef } from "../data/aircraft.ts";
+import { CHINOOK_PERF, isHelicopter, type AircraftDef } from "../data/aircraft.ts";
+import { stepHeli } from "../sim/heli.ts";
 import { AIRPORTS, airportByCode, LANDMARKS, type Airport, type Landmark } from "../data/airports.ts";
 import { inRegion, REGION } from "../data/region.ts";
 import { LINES, tpl, type Line, type Passenger } from "../data/lines.ts";
@@ -67,6 +68,32 @@ const SOLO_QUIET = new Set<Line>([
 
 /** Runway surfaces sit this far above the runway's slope (so wheels sit on the paint). */
 const RUNWAY_LIFT = 0.12;
+
+/**
+ * Runway shader: Cesium's flat-colour one, with the runway drawn a touch nearer the camera
+ * than it really is: ~4 cm at chase-camera distance, ~5 m at 4 km, ~18 m at 15 km. Far-off
+ * terrain is drawn with coarse, simplified shapes that can cut through a flat runway (and
+ * Cesium's depth mode ignores ordinary polygon offset); this keeps the runway on top without
+ * ever covering the playne's wheels close up. Paint is nudged slightly more than asphalt.
+ */
+function runwayVertexShader(pull: number): string {
+  return `
+in vec3 position3DHigh;
+in vec3 position3DLow;
+in vec4 color;
+in float batchId;
+out vec4 v_color;
+void main()
+{
+    vec4 p = czm_computePosition();
+    v_color = color;
+    vec4 eye = czm_modelViewRelativeToEye * p;
+    float d = length(eye.xyz);
+    eye.xyz -= eye.xyz / max(d, 0.001) * (d * ${(0.0012 * pull).toFixed(5)});
+    gl_Position = czm_projection * eye;
+}
+`;
+}
 const RUNWAY_ASPHALT = Color.fromCssColorString("#44484f");
 const RUNWAY_PAINT = Color.fromCssColorString("#f4f4f0");
 
@@ -246,6 +273,9 @@ export class FlightSession {
   onHelp: () => void = () => {};
   /** Free Flight: stopped safely on a runway after landing. */
   onArrived: (a: Airport) => void = () => {};
+  /** Free Flight: stopped safely after an emergency landing in a field. `earned`: it counts
+   *  for a reward (a real flight first, not a hop). */
+  onFieldStop: (nearest: Airport, earned: boolean) => void = () => {};
   /** First takeoff from an airport earns a bonus: returns the Wings (0 if not new). */
   onTakeoff: (code: string) => number = () => 0;
   private allRunways: RunwayInUse[] = [];
@@ -258,6 +288,8 @@ export class FlightSession {
   private freeFrom: Airport | null = null;
   /** Landed safely at an airport and still rolling: waiting for the full stop. */
   private arrival: { airport: Airport; runway: RunwayInUse } | null = null;
+  /** Rolling out after a safe emergency landing (true = earned a reward). */
+  private fieldStop: { earned: boolean } | null = null;
   private arrivedRunway: RunwayInUse | null = null;
   private lastMach = 0;
   private lastBoom = -100;
@@ -420,13 +452,13 @@ export class FlightSession {
       for (const x of [-w / 4 - 3, w / 4 - 3]) rect(s0 + dir * 300, s0 + dir * 345, x, x + 6, true);
     }
     const scene = this.d.world.widget.scene;
-    for (const [parts, offset] of [[asphaltParts, -4], [paintParts, -8]] as const) {
+    for (const [parts, pull] of [[asphaltParts, 1], [paintParts, 1.15]] as const) {
       const prim = new Primitive({
         geometryInstances: parts,
         appearance: new PerInstanceColorAppearance({
           flat: true,
           translucent: false,
-          renderState: { polygonOffset: { enabled: true, factor: offset, units: offset * 4 } },
+          vertexShaderSource: runwayVertexShader(pull),
         }),
         shadows: 0,
       });
@@ -789,6 +821,7 @@ export class FlightSession {
     this.d.audio.startEngine(this.ac.kind);
     this.d.hud.show("FREE", "—");
     this.d.hud.setSandbox(true);
+    this.d.hud.setHeli(this.heli);
     this.startFreeAt(airportByCode(code));
     if (resume) this.applySnapshot(resume);
     else void this.say(LINES.freeIntro);
@@ -868,11 +901,12 @@ export class FlightSession {
     const ap = r.airport;
     this.dep = r;
     const pos = runwayPoint(r, 60);
-    this.s = createState({ lat: pos.lat, lon: pos.lon, alt: this.groundHeightAt(pos), heading: r.heading, flaps: 1, gearDown: true, onGround: true });
+    this.s = createState({ lat: pos.lat, lon: pos.lon, alt: this.groundHeightAt(pos), heading: r.heading, flaps: this.heli ? 0 : 1, gearDown: true, onGround: true });
     this.view.resetCameraHeading(r.heading);
     this.d.controls.reset();
     this.speedbrakeOut = false;
     this.arrival = null;
+    this.fieldStop = null;
     this.freeFrom = null;
     this.landedAt = ap.code;
     this.airborneTime = 0;
@@ -883,6 +917,11 @@ export class FlightSession {
 
   /** After arriving: line up again at the start of the runway we landed on. */
   flyAgainFromHere(): void {
+    // The Chinook just lifts off again from where it landed.
+    if (this.heli) {
+      this.paused = false;
+      return;
+    }
     if (!this.arrivedRunway) return;
     this.lineUp(this.arrivedRunway);
     this.d.audio.startEngine(this.ac.kind);
@@ -920,7 +959,16 @@ export class FlightSession {
     return best;
   }
 
+  /** The Chinook flies with its own helicopter controls (src/sim/heli.ts). */
+  private get heli(): boolean {
+    return isHelicopter(this.ac);
+  }
+
   private updateFree(dt: number): void {
+    if (this.heli) {
+      this.updateHeli(dt);
+      return;
+    }
     const s = this.s;
     // Breaking the sound barrier (the fighter can).
     const mach = s.speed / speedOfSound(s.alt);
@@ -1058,15 +1106,7 @@ export class FlightSession {
       if (e.type === "touchdown") this.onFreeTouchdown(e.sinkFpm, overRunway, near);
     }
     if (!wasGround && !s.onGround) this.airborneTime += dt;
-    // Stopped safely after landing at an airport: welcome, and what next?
-    if (this.arrival && s.onGround && s.speed < 0.5 && this.phase === "free") {
-      const a = this.arrival;
-      this.arrival = null;
-      this.arrivedRunway = a.runway;
-      this.paused = true;
-      this.onArrived(a.airport);
-    }
-    if (this.arrival && !s.onGround) this.arrival = null;
+    this.checkFreeStops();
     // Rolling over rough ground (steep, water, or into something) is a crash; a flat open field is fine.
     if (s.onGround && this.phase === "free" && crashes && !overRunway && s.speed > 20 * KT && this.frame % 4 === 0 && !this.fieldOk(s)) this.crash();
     // Bumping into trees, houses and airport buildings (crashes on; only near the ground).
@@ -1086,6 +1126,163 @@ export class FlightSession {
     }
   }
 
+  /** Stopped safely after a landing: at an airport (welcome!) or in a field. What next? */
+  private checkFreeStops(): void {
+    const s = this.s;
+    if (this.arrival && s.onGround && s.speed < 0.5 && this.phase === "free") {
+      const a = this.arrival;
+      this.arrival = null;
+      this.arrivedRunway = a.runway;
+      this.paused = true;
+      this.onArrived(a.airport);
+    }
+    if (this.arrival && !s.onGround) this.arrival = null;
+    if (this.fieldStop && s.onGround && s.speed < 0.5 && this.phase === "free") {
+      const earned = this.fieldStop.earned;
+      this.fieldStop = null;
+      this.paused = true;
+      this.onFieldStop(this.nearestAirport(), earned);
+    }
+    if (this.fieldStop && !s.onGround) this.fieldStop = null;
+  }
+
+  /**
+   * Free Flight in the Chinook: lever = lift, stick = forward/slow and turn. Lifts off and lands
+   * anywhere flat (airports, fields, big flat roofs); not on water or steep slopes.
+   */
+  private updateHeli(dt: number): void {
+    const s = this.s;
+    const c = this.d.controls.state;
+    const crashes = this.d.crashes;
+    let ground = this.groundHeightAt(s);
+    // Roofs and treetops count as the ground once you're above them (land on a big building!).
+    // With crashes on, flying into the side of one is a crash.
+    const top = this.d.world.obstacleTop(s, 8);
+    let onTop = false;
+    if (top !== null && top > ground) {
+      if (crashes && !s.onGround && s.alt < top - 1 && s.speed > 8 * KT) {
+        this.crash();
+        return;
+      }
+      if (s.alt >= top - 2.5) {
+        ground = top;
+        onTop = true;
+      }
+    }
+    let collective = c.throttle;
+    let fwd = -c.pitch;
+    let turn = c.roll;
+    const ap = this.autopilot;
+    if (ap && !s.onGround) {
+      // Big map open: keep going the same way at the same height.
+      fwd = 0;
+      turn = clamp(angleDiff(ap.heading, s.heading) / 30, -1, 1);
+      collective = clamp(0.5 + (ap.alt - s.alt) * 0.01, 0.1, 0.9);
+    }
+    if (!s.onGround && !inRegion(s.lat, s.lon, 0.06) && this.edgeTimer <= 0) {
+      this.edgeTimer = 18;
+      void this.say(LINES.edge, true);
+    }
+    if (this.edgeTimer > 0) {
+      this.edgeTimer -= dt;
+      const home = bearing(s, { lat: (REGION.north + REGION.south) / 2, lon: (REGION.east + REGION.west) / 2 });
+      turn = clamp(angleDiff(home, s.heading) / 30, -1, 1);
+    }
+    const wasGround = s.onGround;
+    const events = stepHeli(s, { collective, fwd, turn }, CHINOOK_PERF, { groundHeight: ground, cushion: !crashes }, dt);
+    for (const e of events) {
+      if (e.type === "liftoff") {
+        const near = this.airportWithin(2000);
+        this.freeFrom = near;
+        if (near) this.takeoffFrom(near);
+        this.sayOnce("heliLiftoff", LINES.heliLiftoff);
+      }
+      if (e.type === "touchdown") this.onHeliTouchdown(e.sinkFpm, e.speedKt, onTop);
+    }
+    if (!wasGround && !s.onGround) this.airborneTime += dt;
+    this.checkFreeStops();
+    if (!s.onGround && s.alt - ground < 3000) {
+      for (const l of LANDMARKS) {
+        if (!this.landmarksSaid.has(l.id) && distance(s, l) < 4000) {
+          this.landmarksSaid.add(l.id);
+          void this.say(tpl.landmark(l.spoken, l.fact));
+        }
+      }
+    }
+  }
+
+  private airportWithin(m: number): Airport | null {
+    const a = this.nearestAirport();
+    return distance(this.s, a) < m ? a : null;
+  }
+
+  private onHeliTouchdown(sink: number, speedKt: number, onTop: boolean): void {
+    const s = this.s;
+    const crashes = this.d.crashes;
+    const bounce = (line: Line) => {
+      s.onGround = false;
+      s.alt += 3;
+      s.vs = 2;
+      void this.say(line, true);
+    };
+    const water = this.d.world.cartoon?.landAt(s.lat, s.lon) === 1;
+    if (water) {
+      if (crashes) this.crash();
+      else bounce(LINES.heliWater);
+      return;
+    }
+    if (crashes && (sink > 900 || speedKt > 45)) {
+      this.crash();
+      return;
+    }
+    if (!onTop && !this.fieldOkHeli(s)) {
+      if (crashes && (sink > 500 || speedKt > 25)) this.crash();
+      else bounce(LINES.heliRough);
+      return;
+    }
+    this.d.audio.sfx("thunk");
+    const airport = this.airportWithin(2000);
+    const hop = this.airborneTime < 15;
+    this.airborneTime = s.onGround ? 0 : this.airborneTime;
+    if (airport) {
+      if (hop && this.landedAt === airport.code) return;
+      const landing = sink < 120 ? "butter" : sink < 300 ? "smooth" : "firm";
+      const stars = 1 + (sink < 300 ? 1 : 0) + (speedKt < 8 ? 1 : 0);
+      this.d.hud.toast(landing === "butter" ? "BUTTER!" : landing === "smooth" ? "Smooth!" : "Firm!", "big");
+      void this.say(LINES.heliLanded, true);
+      void this.say(tpl.welcomeTo(airport.spoken));
+      this.landedAt = airport.code;
+      if (this.navTarget?.code === airport.code) this.setNavTarget(null);
+      const from = this.freeFrom;
+      this.freeFrom = null;
+      const r = this.allRunways.find((x) => x.airport.code === airport.code) ?? null;
+      this.arrival = r ? { airport, runway: r } : null;
+      this.onLanded({ airport, stars, landing, from, distanceNm: from ? distance(from, airport) / NM : 0 });
+      if (!r) {
+        this.paused = true;
+        this.onArrived(airport);
+      }
+      return;
+    }
+    // Anywhere else flat: a field landing. Small reward after a real flight (not a hop).
+    this.d.hud.toast("Safe landing!", "big");
+    void this.say(LINES.heliLanded, true);
+    this.fieldStop = { earned: !hop };
+    this.freeFrom = null;
+  }
+
+  /** Flat enough and clear enough for the Chinook's wheels (its rotors overhang, so obstacles count). */
+  private fieldOkHeli(p: LatLon): boolean {
+    const data = this.d.world.cartoon;
+    if (data) {
+      const h = (dx: number, dy: number) => data.height(p.lat + dy / 111320, p.lon + dx / (111320 * Math.cos(p.lat * DEG)));
+      const c = h(0, 0);
+      const slope = Math.max(Math.abs(h(15, 0) - c), Math.abs(h(-15, 0) - c), Math.abs(h(0, 15) - c), Math.abs(h(0, -15) - c)) / 15;
+      if (slope > 0.12) return false;
+    }
+    return true;
+  }
+
   /**
    * How real playnes slow down. In the air: idle power, then speedbrakes (jets). On the runway
    * with the power at idle: ground spoilers dump the lift, the reversers roar and the
@@ -1098,11 +1295,11 @@ export class FlightSession {
     if (s.onGround) {
       this.speedbrakeOut = false;
       // After a landing the autobrakes hold on all the way to a stop (lever near idle).
-      if ((s.speed > 25 * KT || this.arrival) && lever < 0.15 && !this.autopilot) {
+      if ((s.speed > 25 * KT || this.arrival || this.fieldStop) && (lever < 0.15 || this.fieldStop) && !this.autopilot) {
         cmd.brake = Math.max(cmd.brake, s.speed > 25 * KT ? 0.6 : 0.45);
         cmd.spoilers = 1;
         cmd.reverse = s.speed > 40 * KT;
-        if (this.arrival) cmd.throttle = 0;
+        if (this.arrival || this.fieldStop) cmd.throttle = 0;
         if (!this.said.has("autobrake") && s.speed > 50 * KT) {
           this.said.add("autobrake");
           void this.say(p.reversers ? LINES.reversers : LINES.brakesOn);
@@ -1169,6 +1366,9 @@ export class FlightSession {
         this.d.audio.sfx("thunk");
         this.d.hud.toast("Safe landing!", "big");
         void this.say(LINES.emergencyLanding, true);
+        // The brakes bring it to a stop; then a pop-up offers what's next. A short hop
+        // (under 20 s in the air) doesn't earn the reward again.
+        this.fieldStop = { earned: this.airborneTime > 20 };
         this.airborneTime = 0;
         this.freeFrom = null;
         return;
@@ -1225,10 +1425,26 @@ export class FlightSession {
   private updateCrashed(dt: number): void {
     this.crashTimer -= dt;
     if (this.crashTimer > 0) return;
+    this.d.audio.startEngine(this.ac.kind);
+    this.startFreeAt(this.nearestAirport());
+  }
+
+  private nearestAirport(): Airport {
     let best = AIRPORTS[0];
     for (const a of AIRPORTS) if (distance(this.s, a) < distance(this.s, best)) best = a;
+    return best;
+  }
+
+  /** Free Flight, after an emergency landing: start again on the nearest airport's runway. */
+  flyFromNearest(): void {
     this.d.audio.startEngine(this.ac.kind);
-    this.startFreeAt(best);
+    this.startFreeAt(this.nearestAirport());
+    this.paused = false;
+  }
+
+  /** Free Flight, after an emergency landing: carry on, taking off from the field. */
+  continueFromField(): void {
+    this.paused = false;
   }
 
   // ------------------------------------------------------------------ controls

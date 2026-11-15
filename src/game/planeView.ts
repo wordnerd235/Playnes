@@ -28,6 +28,8 @@ export class PlaneView {
   private originals: Record<string, Matrix4> = {};
   private propT = new Cartesian3();
   private propAngle = 0;
+  private rotorT: Partial<Record<"rotorF" | "rotorR", Cartesian3>> = {};
+  private rotorAngle = 0;
   private flapDeg = 0;
   private ail = 0;
   private elev = 0;
@@ -49,7 +51,7 @@ export class PlaneView {
     scene.primitives.add(this.model);
     this.world.exclude.push(this.model);
     this.model.readyEvent.addEventListener(() => {
-      for (const n of ["gear", "prop", "flapL", "flapR", "ailL", "ailR", "elevL", "elevR", "rudder", "beacon", "strobe"]) {
+      for (const n of ["gear", "prop", "flapL", "flapR", "ailL", "ailR", "elevL", "elevR", "rudder", "beacon", "strobe", "rotorF", "rotorR"]) {
         try {
           const node = this.model!.getNode(n) ?? null;
           this.nodes[n] = node;
@@ -59,6 +61,7 @@ export class PlaneView {
         }
       }
       if (this.originals.prop) Matrix4.getTranslation(this.originals.prop, this.propT);
+      for (const r of ["rotorF", "rotorR"] as const) if (this.originals[r]) this.rotorT[r] = Matrix4.getTranslation(this.originals[r], new Cartesian3());
     });
     this.shadow = await Model.fromGltfAsync({ url: "./models/shadow.glb", color: Color.WHITE.withAlpha(0.8) });
     scene.primitives.add(this.shadow);
@@ -141,6 +144,12 @@ export class PlaneView {
     if (n.prop) {
       this.propAngle += dt * (10 + s.throttle * 55);
       n.prop.matrix = Matrix4.multiply(Matrix4.fromTranslation(this.propT), Matrix4.fromRotation(Matrix3.fromRotationZ(this.propAngle)), new Matrix4());
+    }
+    // Chinook: the two rotors turn opposite ways (a blur of blades, faster with more lift).
+    if (n.rotorF && n.rotorR && this.rotorT.rotorF && this.rotorT.rotorR) {
+      this.rotorAngle += dt * (7 + s.throttle * 4);
+      n.rotorF.matrix = Matrix4.multiply(Matrix4.fromTranslation(this.rotorT.rotorF), Matrix4.fromRotation(Matrix3.fromRotationY(this.rotorAngle)), new Matrix4());
+      n.rotorR.matrix = Matrix4.multiply(Matrix4.fromTranslation(this.rotorT.rotorR), Matrix4.fromRotation(Matrix3.fromRotationY(-this.rotorAngle)), new Matrix4());
     }
     if (n.beacon) n.beacon.show = this.time % 1.3 < 0.18;
     if (n.strobe) n.strobe.show = (this.time + 0.4) % 1.1 < 0.07;

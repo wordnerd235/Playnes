@@ -1,11 +1,11 @@
 // Menu screens: title, home, Flight School, charter board, hangar, debrief, parent corner.
 // Big touch targets, icons first, every important thing also spoken by the co-pilot.
 
-import { AIRCRAFT, aircraftById, carriesPassengers, type AircraftDef } from "../data/aircraft.ts";
+import { AIRCRAFT, aircraftById, carriesPassengers, isHelicopter, type AircraftDef } from "../data/aircraft.ts";
 import { AIRPORTS, airportByCode } from "../data/airports.ts";
 import { LINES, PASSENGERS, tpl, type Line, type Passenger } from "../data/lines.ts";
 import type { FlightResult, FreeSnapshot, LessonId, Mission } from "../game/flight.ts";
-import { buy, canBuy, charterKey, charterPlaneId, charterRewards, exportCode, REWARDS, importCode, owns, type Progress, type Reward } from "../game/progress.ts";
+import { buy, canBuy, charterKey, charterPlaneId, charterRewards, exportCode, REWARDS, importCode, owns, waitingForOthers, type Progress, type Reward } from "../game/progress.ts";
 import type { Settings } from "../game/settings.ts";
 import { distance, NM } from "../sim/geo.ts";
 import { saveForOffline } from "../game/offline.ts";
@@ -195,7 +195,7 @@ export class Screens {
   charters(): void {
     const p = this.host.progress;
     const plane = aircraftById(charterPlaneId(p));
-    if (plane.id !== p.selectedPlane) this.host.say(LINES.fighterFreeOnly);
+    if (plane.id !== p.selectedPlane) this.host.say(isHelicopter(aircraftById(p.selectedPlane)) ? LINES.heliFreeOnly : LINES.fighterFreeOnly);
     const here = airportByCode(p.currentAirport);
     const dests = AIRPORTS.filter((a) => a.code !== here.code && distance(here, a) / NM <= plane.rangeNm);
     const fits = PASSENGERS.filter((x) => x.count <= plane.seats);
@@ -316,7 +316,9 @@ export class Screens {
       ["Climb", `${ac.climbFpm.toLocaleString()} ft/min`, Math.sqrt(ac.climbFpm / max((a) => a.climbFpm))],
       ["Seats", String(ac.seats), ac.seats / max((a) => a.seats)],
     ];
-    if (big) rows.push(["Flies up to", `${ac.cruiseAltFt.toLocaleString()} ft`, ac.cruiseAltFt / max((a) => a.cruiseAltFt)]);
+    // The Chinook cruises low but can climb to about 15,000 ft.
+    const ceil = (a: AircraftDef) => (isHelicopter(a) ? 15000 : a.cruiseAltFt);
+    if (big) rows.push(["Flies up to", `${ceil(ac).toLocaleString()} ft`, ceil(ac) / max(ceil)]);
     return h(`div.plane-stats${big ? ".big" : ""}`, {}, rows.map(([label, value, f]) =>
       h("div.stat", {}, [
         h("span.stat-label", {}, label),
@@ -339,9 +341,11 @@ export class Screens {
     let status: HTMLElement;
     if (mine) status = h("span.plane-status.mine", {}, selected ? "✓ Flying this one" : "In your hangar");
     else if (ac.unlock.type === "graduation") status = h("span.plane-status", {}, "🎓 Graduate Flight School");
+    else if (waitingForOthers(p, ac)) status = h("span.plane-status.special", {}, "🔒 Own every other playne");
     else if (ac.unlock.type === "wings") status = h(`span.plane-status${canBuy(p, ac) ? ".buy" : ""}`, {}, [h("span.wing-icon", { html: ICONS.wing }), `${ac.unlock.price}`]);
     else status = h("span.plane-status", {}, "Special");
-    const card = h(`button.plane-card${mine ? "" : ".locked"}${selected ? ".selected" : ""}`, { type: "button" }, [
+    const special = ac.unlock.type === "wings" && !!ac.unlock.afterAllOthers;
+    const card = h(`button.plane-card${mine ? "" : ".locked"}${selected ? ".selected" : ""}${special ? ".super" : ""}`, { type: "button" }, [
       this.planePicture(ac),
       h("div.plane-maker", {}, ac.maker),
       h("div.plane-model", {}, ac.model),
@@ -375,14 +379,18 @@ export class Screens {
         note = "You're flying this one.";
         actions.push(btn("primary", "OK", close));
       } else {
-        note = carriesPassengers(ac) ? "This playne is in your hangar." : "Fighter jets have one seat, so they fly in Free Flight only.";
+        note = carriesPassengers(ac) ? "This playne is in your hangar." : isHelicopter(ac) ? "Helicopters take off and land anywhere, so the Chinook flies in Free Flight." : "Fighter jets have one seat, so they fly in Free Flight only.";
         actions.push(btn("secondary", "Close", close));
         actions.push(btn("primary", [h("span", { html: ICONS.plane }), "Fly this playne"], () => this.choosePlane(ac, close)));
       }
     } else if (ac.unlock.type === "wings") {
       const price = ac.unlock.price;
       actions.push(btn("secondary", "Close", close));
-      if (canBuy(p, ac)) {
+      if (waitingForOthers(p, ac)) {
+        const left = AIRCRAFT.filter((o) => o.id !== ac.id && !owns(p, o)).length;
+        note = `Super special! Buy every other playne first (${left} to go), then the ${ac.spoken} can be yours for ${price} Wings.`;
+        actions.push(h("button.btn.primary", { type: "button", disabled: true }, ["🔒 ", `${price} Wings`]));
+      } else if (canBuy(p, ac)) {
         note = `You have ${p.wings} Wings.`;
         actions.push(btn("primary.buy-btn", [h("span.wing-icon", { html: ICONS.wing }), `Buy for ${price} Wings`], () => {
           buy(p, ac);
@@ -412,6 +420,7 @@ export class Screens {
         h("div.plane-maker", {}, ac.maker),
         h("h2.plane-sheet-title", {}, ac.model),
         h("div.plane-facts", {}, (() => {
+          if (isHelicopter(ac)) return `${ac.category} · twin rotors`;
           const engine = ac.kind === "piston" ? "propeller" : ac.kind === "turboprop" ? "turboprop" : "jet";
           return ac.category.toLowerCase().includes(engine) ? ac.category : `${ac.category} · ${engine}`;
         })()),

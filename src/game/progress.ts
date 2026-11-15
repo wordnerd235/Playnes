@@ -19,6 +19,8 @@ export interface Progress {
   unlockAll: boolean;
   /** The interface tour has been shown once. */
   tourDone: boolean;
+  /** Seen the Chinook's helicopter tour. */
+  heliTourDone?: boolean;
   /** Charter routes completed ("TRI-CLT"): flown solo next time. */
   chartersDone: string[];
 }
@@ -87,8 +89,13 @@ export function owns(p: Progress, ac: AircraftDef): boolean {
   return p.unlockAll || p.planes.includes(ac.id);
 }
 
+/** The super-special playne (Chinook) waits until every other playne is in the hangar. */
+export function waitingForOthers(p: Progress, ac: AircraftDef): boolean {
+  return ac.unlock.type === "wings" && !!ac.unlock.afterAllOthers && AIRCRAFT.some((o) => o.id !== ac.id && !owns(p, o));
+}
+
 export function canBuy(p: Progress, ac: AircraftDef): boolean {
-  return ac.unlock.type === "wings" && !owns(p, ac) && p.wings >= ac.unlock.price;
+  return ac.unlock.type === "wings" && !owns(p, ac) && !waitingForOthers(p, ac) && p.wings >= ac.unlock.price;
 }
 
 export function buy(p: Progress, ac: AircraftDef): boolean {
@@ -151,6 +158,8 @@ export const REWARDS = {
   /** Flight School hoops: per hoop flown through, and a bonus for getting every one. */
   ring: 1,
   allRings: 5,
+  /** Free Flight: a safe emergency landing in a field (after a real flight, not a hop). */
+  emergencyLanding: 5,
 } as const;
 
 /** Wings for hoops flown through in a lesson. */
