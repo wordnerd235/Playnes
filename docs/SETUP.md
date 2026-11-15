@@ -45,7 +45,7 @@ Once you've successfully landed at an airport (by charter or in Free Flight), ev
 | Flight School lesson | 25 the first time (50 for the landing lesson), 5 for practice |
 
 All the numbers live in `REWARDS` in `src/game/progress.ts`.
-- Fly to the edge of the map and the co-pilot turns you around.
+- Fly to the edge of the map and the co-pilot takes the controls and turns you firmly around (a 60° bank, 75° in the F-16) until you're pointing back in and inside the map again; then the stick is yours.
 - **Crashes** are off by default (the co-pilot always pulls up). Turn on "Free Flight: allow crashes" in grown-up settings for a challenge; after a crash you restart at the nearest airport.
 - The **eye bubble** just above the yoke: drag it to look around. The ⟲ button next to it resets the view. The camera button switches between the chase view and the **cockpit** (window frame and instrument panel: round dials in the Cessna, glass screens in the turboprops and jets).
 - The stick is always yours. Full stick banks 35° in Flight School, 45° on charters and 60° in Free Flight (80° in the F-16). Slower = tighter turns, just like a real playne. Let go and the co-pilot gently follows the hoops or levels the wings.
@@ -61,7 +61,7 @@ All the numbers live in `REWARDS` in `src/game/progress.ts`.
 - The big map's **Clear route** button removes a destination you picked.
 - **Routes:** picking a destination draws the route on the minimap and big map the way a pilot would fly it: a turn toward it, then a smooth curve onto the runway's extended centreline about 6 km (3 nm) out, then straight in (the runway end that suits your direction of arrival). It re-plans if you wander more than about 2 km off it. On the way to an airport you've never landed at **in Free Flight** (charter landings don't count: they're heavily assisted), the same route also appears as a **faint glowing line in the sky** to follow: it eases to about 1,000 ft above the runway at the start of final, then down a normal 3° glide slope to the touchdown point. (The Chinook gets a straight line: helicopters don't need to line up.)
 - **Hangar 3D view:** tap any playne and its picture turns into the real 3D model. Drag a finger to spin it (sideways to turn, up and down to look over the top or under the belly), pinch to look closer, double-tap to see the whole playne again. Left alone, it turns slowly by itself.
-- **F-16 Fighting Falcon** (900 Wings): about Mach 1.2 down low and Mach 1.8 up high, 40,000 ft in under two minutes, and a sonic boom when you pass the speed of sound. One seat, so it's Free Flight only (charters use your best playne with seats).
+- **F-16 Fighting Falcon** (900 Wings): about Mach 1.2 down low and Mach 1.8 up high, 40,000 ft in under two minutes, and a sonic boom when you pass the speed of sound. Push the stick forward to **dive-bomb**: in the F-16 the stick sets the dive angle, and full forward points it nearly straight down. With crashes off, the co-pilot pulls you out in time (it starts early enough for the dive you're in); with crashes on, pulling out is up to you. One seat, so it's Free Flight only (charters use your best playne with seats).
 - **CH-47 Chinook** (1,500 Wings, the super-special one): it appears in the hangar with a gold frame but can only be bought once **every other playne** is in the hangar. It's a tandem-rotor helicopter and flies with its own controls (Free Flight only):
   - **Lever = lift.** Push it up to rise, the middle (marked HOVER) holds the height, pull it down to come down.
   - **Stick forward / back** speeds up / slows down (let go and it keeps its speed; pull back to stop in a hover). **Left / right** turns: on the spot when hovering, a banked turn when flying fast. Top speed about 160 kt, up to about 15,000 ft.
@@ -205,6 +205,7 @@ node tools/smoke-free.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # Free Flig
 node tools/smoke-spin.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # hangar 3D viewer
 node tools/smoke-heli.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # Chinook: unlock, tour, helicopter flying, landings
 node tools/smoke-route.cjs http://127.0.0.1:8765/dist/ /tmp/shots    # Free Flight routes and the sky guide line
+node tools/smoke-edge.cjs http://127.0.0.1:8765/dist/                # edge of the map turns the playne back
 ```
 
 These use the Playwright browser and fast-forward the physics, because software rendering is slow.

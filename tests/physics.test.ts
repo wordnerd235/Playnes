@@ -246,6 +246,45 @@ describe("real-world performance", () => {
     console.log(rows.join("\n"));
   });
 
+  it("the F-16 can dive-bomb: full forward stick points it nearly straight down", () => {
+    const ac = aircraftById("f16");
+    const p = perfFor(ac);
+    const s = createState({ lat: 35, lon: -81, alt: 20000 * 0.3048, heading: 0, onGround: false, speed: 450 * KT_, gearDown: false, flaps: 0 });
+    const mem = createMemory();
+    const g = baseGuidance({ landing: false, groundHeading: null, wantRotate: false, agl: 9000, powerGlide: true });
+    let steepest = 0;
+    for (let i = 0; i < 6 / DT; i++) {
+      const cmd = computeCommands(2, { roll: 0, pitch: -1, throttle: 0.5, brake: 0 }, g, s, p, mem, DT);
+      step(s, cmd, p, { groundHeight: -1e5 }, DT);
+      steepest = Math.min(steepest, s.gamma);
+    }
+    expect(steepest).toBeLessThan(-75);
+    // Half stick: a moderate dive, not a vertical one.
+    const s2 = createState({ lat: 35, lon: -81, alt: 6000, heading: 0, onGround: false, speed: 450 * KT_, gearDown: false, flaps: 0 });
+    for (let i = 0; i < 6 / DT; i++) step(s2, computeCommands(2, { roll: 0, pitch: -0.5, throttle: 0.5, brake: 0 }, g, s2, p, createMemory(), DT), p, { groundHeight: -1e5 }, DT);
+    expect(s2.gamma).toBeGreaterThan(-40);
+    expect(s2.gamma).toBeLessThan(-20);
+  });
+
+  it("the co-pilot's ground avoidance pulls out of a steep dive in time (crashes off)", () => {
+    for (const id of ["f16", "c172", "g700"]) {
+      const ac = aircraftById(id);
+      const p = perfFor(ac);
+      const fast = ac.kind === "fighter";
+      const s = createState({ lat: 35, lon: -81, alt: fast ? 3000 : 1200, heading: 0, onGround: false, speed: (fast ? 450 : ac.vclimb * 1.3) * KT_, gearDown: false, flaps: 0 });
+      s.gamma = fast ? -80 : -25;
+      const mem = createMemory();
+      let lowest = Infinity;
+      for (let i = 0; i < 40 / DT; i++) {
+        const g = baseGuidance({ landing: false, groundHeading: null, wantRotate: false, agl: s.alt, powerGlide: true });
+        const cmd = computeCommands(2, { roll: 0, pitch: -1, throttle: 0.3, brake: 0 }, g, s, p, mem, DT);
+        step(s, cmd, p, { groundHeight: 0 }, DT);
+        lowest = Math.min(lowest, s.alt);
+      }
+      expect(lowest, id).toBeGreaterThan(5);
+    }
+  });
+
   it("climbs near the book rate at full power and full pull", () => {
     const rows: string[] = [];
     for (const ac of AIRCRAFT) {

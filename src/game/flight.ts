@@ -299,7 +299,7 @@ export class FlightSession {
   private arrivedRunway: RunwayInUse | null = null;
   private lastMach = 0;
   private lastBoom = -100;
-  private edgeTimer = 0;
+  private edgeActive = false;
   private navTarget: Airport | null = null;
   /** Free Flight route to navTarget (curving onto the final approach), and how far along it we are. */
   private route: RoutePlan | null = null;
@@ -1096,22 +1096,18 @@ export class FlightSession {
     let pitch = c.pitch;
     let level = Math.max(2, this.d.assistLevel);
 
-    // Edge of the map: turn back toward the middle.
-    if (!s.onGround && !inRegion(s.lat, s.lon, 0.06) && this.edgeTimer <= 0) {
-      this.edgeTimer = 18;
-      void this.say(LINES.edge, true);
-    }
-    if (this.edgeTimer > 0) {
-      this.edgeTimer -= dt;
+    // Edge of the map: the co-pilot takes the controls and turns firmly back toward the middle.
+    const edgeErr = this.edgeTurn();
+    if (edgeErr !== null) {
       roll = 0;
-      g.targetHeading = bearing(s, { lat: (REGION.north + REGION.south) / 2, lon: (REGION.east + REGION.west) / 2 });
+      g.targetHeading = (s.heading + edgeErr + 360) % 360;
     }
 
     if (ap && !s.onGround) {
       roll = 0;
       pitch = 0;
       level = 1;
-      if (this.edgeTimer <= 0) g.targetHeading = ap.heading;
+      if (edgeErr === null) g.targetHeading = ap.heading;
       g.targetVs = clamp((ap.alt - s.alt) * 0.15, -5, 5);
       g.targetSpeed = ap.ias;
     }
@@ -1158,6 +1154,11 @@ export class FlightSession {
     }
 
     const cmd = computeCommands(level, { roll, pitch, throttle, brake }, g, s, p, this.mem, dt);
+    // Turning back from the edge: a firm banked turn (the gentle helper is far too slow at speed).
+    if (edgeErr !== null) {
+      const maxBank = this.ac.kind === "fighter" ? 75 : 60;
+      cmd.targetBank = clamp(edgeErr * 1.5, -maxBank, maxBank);
+    }
     this.slowingDown(cmd, landingZone, c.throttle);
     this.flapRelief();
     this.lastCmd = { targetBank: cmd.targetBank, targetVs: cmd.targetVs };
@@ -1251,15 +1252,8 @@ export class FlightSession {
       turn = clamp(angleDiff(ap.heading, s.heading) / 30, -1, 1);
       collective = clamp(0.5 + (ap.alt - s.alt) * 0.01, 0.1, 0.9);
     }
-    if (!s.onGround && !inRegion(s.lat, s.lon, 0.06) && this.edgeTimer <= 0) {
-      this.edgeTimer = 18;
-      void this.say(LINES.edge, true);
-    }
-    if (this.edgeTimer > 0) {
-      this.edgeTimer -= dt;
-      const home = bearing(s, { lat: (REGION.north + REGION.south) / 2, lon: (REGION.east + REGION.west) / 2 });
-      turn = clamp(angleDiff(home, s.heading) / 30, -1, 1);
-    }
+    const edgeErr = this.edgeTurn();
+    if (edgeErr !== null) turn = clamp(edgeErr / 20, -1, 1);
     const wasGround = s.onGround;
     const events = stepHeli(s, { collective, fwd, turn }, CHINOOK_PERF, { groundHeight: ground, cushion: !crashes }, dt);
     for (const e of events) {
@@ -1281,6 +1275,27 @@ export class FlightSession {
         }
       }
     }
+  }
+
+  /**
+   * Edge of the playable map: once the playne strays past it, the co-pilot holds the controls
+   * and turns back toward the middle until it's pointing inward and back inside (with some
+   * room to spare). Returns how far to turn (degrees, + = right), or null when not needed.
+   */
+  private edgeTurn(): number | null {
+    const s = this.s;
+    if (!s.onGround && !inRegion(s.lat, s.lon, 0.06) && !this.edgeActive) {
+      this.edgeActive = true;
+      void this.say(LINES.edge, true);
+    }
+    if (!this.edgeActive) return null;
+    const home = bearing(s, { lat: (REGION.north + REGION.south) / 2, lon: (REGION.east + REGION.west) / 2 });
+    const err = angleDiff(home, s.heading);
+    if (s.onGround || (inRegion(s.lat, s.lon, 0.12) && Math.abs(err) < 30)) {
+      this.edgeActive = false;
+      return null;
+    }
+    return err;
   }
 
   private airportWithin(m: number): Airport | null {

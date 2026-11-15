@@ -93,7 +93,8 @@ export function computeCommands(
     // Extra speed can be traded for height (a "zoom climb"): faster than climb speed, pulling
     // back climbs harder until the playne has slowed to its climb speed.
     const zoom = s.onGround ? 1 : clamp(indicated(s.speed, s.alt) / p.vclimb, 1, 1.8);
-    targetVs = input.pitch >= 0 ? input.pitch * p.climbMax * zoom : input.pitch * p.descentMax;
+    // Pushing forward: a descent rate, or for the fighter a dive angle (full stick = a dive-bomb).
+    targetVs = input.pitch >= 0 ? input.pitch * p.climbMax * zoom : p.diveByAngle ? input.pitch * Math.max(s.speed, 60) : input.pitch * p.descentMax;
     // Release-to-level, except on approach where letting go follows the glide path.
     if (Math.abs(input.pitch) < 0.08 && g.landing) targetVs = g.targetVs;
     // Power off with the stick centred: not enough thrust to hold this speed level, so the
@@ -122,7 +123,11 @@ export function computeCommands(
   // Ground Buddy: gentle automatic pull-up when getting close to terrain (not while landing).
   mem.terrainWarning = false;
   if (!s.onGround && !g.landing) {
-    if (g.agl < 120 && s.vs < 0.5) {
+    // Start early enough to pull out of the dive we're actually in: height lost while the
+    // nose comes back up to level is about v / turnRate * (1 - cos(dive angle)).
+    const dive = Math.max(0, -s.gamma) * (Math.PI / 180);
+    const pullout = (s.speed / (p.gammaRate * (Math.PI / 180))) * (1 - Math.cos(dive));
+    if (g.agl < Math.max(120, pullout * 1.35 + 60) && s.vs < 0.5) {
       targetVs = Math.max(targetVs, g.agl < 40 ? 6 : 3);
       mem.terrainWarning = true;
     }
