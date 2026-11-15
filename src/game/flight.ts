@@ -300,6 +300,7 @@ export class FlightSession {
   private lastMach = 0;
   private lastBoom = -100;
   private edgeActive = false;
+  private viewPlaced = false;
   private navTarget: Airport | null = null;
   /** Free Flight route to navTarget (curving onto the final approach), and how far along it we are. */
   private route: RoutePlan | null = null;
@@ -1669,6 +1670,12 @@ export class FlightSession {
     const dt = Math.min(dtRaw, 0.1);
     this.frame++;
     if (this.paused) {
+      // A flight can start paused (the tour, a resumed Free Flight): put the playne in place
+      // so it's on screen, not waiting for the first unpaused frame.
+      if (!this.viewPlaced && this.phase !== "crashed") {
+        this.viewPlaced = true;
+        this.view.update(this.s, 0, { roll: 0, pitch: 0, yaw: 0 }, this.groundHeightAt(this.s));
+      }
       this.updateCamera(dt);
       return;
     }
@@ -2106,6 +2113,7 @@ export class FlightSession {
     const yaw = s.onGround ? c.roll : rollCmd * 0.2;
     const ground = this.phase === "cruise" || this.phase === "toCruise" ? null : this.groundHeightAt(s);
     this.view.update(s, dt, { roll: rollCmd, pitch: pitchCmd, yaw }, ground);
+    this.viewPlaced = true;
   }
 
   private updateCamera(dt: number): void {

@@ -64,7 +64,18 @@ const path = require("path");
   const steps = [];
   for (let i = 0; i < 12 && (await page.$(".tour")); i++) {
     steps.push(await page.evaluate(() => document.querySelector(".tour-text").textContent));
-    if (i === 1) await shot("2-tour-lever");
+    if (i === 1) {
+      await shot("2-tour-lever");
+      // The Chinook is on screen during the tour (placed where it sits, not waiting to unpause).
+      const d = await page.evaluate(() => {
+        const f = window.playnes.flight;
+        const m = f.view.model.modelMatrix;
+        const C3 = window.playnes.world.widget.camera.position.constructor;
+        const at = C3.fromDegrees(f.s.lon, f.s.lat, f.s.alt);
+        return Math.hypot(m[12] - at.x, m[13] - at.y, m[14] - at.z);
+      });
+      check(d < 20, `the Chinook is in place during the tour (${d.toFixed(1)} m from where it sits)`);
+    }
     await page.evaluate(() => document.querySelector(".tour [data-t=next]").click());
     await page.waitForTimeout(250);
   }
@@ -89,7 +100,15 @@ const path = require("path");
   }, o);
   await page.evaluate(() => (window.playnes.flight.timeScale = 6));
   const startHdg = (await F()).hdg;
-  await set({ lever: 0.95 });
+  // Lift off with a real drag on the lever (finger/mouse), not by setting it in code.
+  const lev = await page.locator(".lever-track").boundingBox();
+  check(lev && lev.height > 100, `lever track has its normal size (${lev ? Math.round(lev.height) : 0} px tall)`);
+  await page.mouse.move(lev.x + lev.width / 2, lev.y + lev.height * 0.97);
+  await page.mouse.down();
+  await page.mouse.move(lev.x + lev.width / 2, lev.y + lev.height * 0.05, { steps: 8 });
+  await page.mouse.up();
+  const lever = await page.evaluate(() => window.playnes.controls.state.throttle);
+  check(lever > 0.85, `dragging the lever up raises it (${lever.toFixed(2)})`);
   await page.waitForFunction(() => { const f = window.playnes.flight; return !f.s.onGround && f.s.alt - f.groundHeightAt(f.s) > 60; }, null, { timeout: 240000 });
   let st = await F();
   check(!st.on && st.kt < 3, `lifted straight up (${st.agl.toFixed(0)} m, ${st.kt.toFixed(1)} kt)`);

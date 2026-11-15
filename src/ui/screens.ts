@@ -81,6 +81,8 @@ export class Screens {
     if (!this.fsListening) {
       this.fsListening = true;
       const sync = () => {
+        // Safari puts its own ✕ in the top-left corner in full screen: make room for it.
+        document.documentElement.classList.toggle("is-fullscreen", isFull());
         const b = this.fsButton;
         if (!b) return;
         b.innerHTML = isFull() ? shrink : expand;
