@@ -3,6 +3,7 @@
 
 import { AIRCRAFT } from "../data/aircraft.ts";
 import type { WorldMeta } from "../world/cartoon.ts";
+import { loadSatMeta, satTileUrls } from "../world/satellite.ts";
 
 function tileUrls(meta: WorldMeta): string[] {
   const urls: string[] = [];
@@ -23,6 +24,7 @@ function tileUrls(meta: WorldMeta): string[] {
 
 export async function saveForOffline(onProgress: (done: number, total: number) => void): Promise<{ ok: number; failed: number }> {
   const meta = (await (await fetch("./world/world.json")).json()) as WorldMeta;
+  const sat = await loadSatMeta();
   const manifest = (await (await fetch("./audio/voice/manifest.json")).json()) as Record<string, string>;
   const urls = [
     "./",
@@ -33,6 +35,7 @@ export async function saveForOffline(onProgress: (done: number, total: number) =
     "./models/thumbs/meet-c172.webp",
     ...AIRCRAFT.map((a) => `./models/thumbs/${a.id}.webp`),
     ...tileUrls(meta),
+    ...(sat ? satTileUrls(sat) : []),
     ...AIRCRAFT.map((a) => `./models/${a.id}.glb`),
     "./models/ring.glb",
     "./models/shadow.glb",

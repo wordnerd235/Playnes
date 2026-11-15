@@ -104,7 +104,7 @@ class Game implements ScreenHost {
     let kind = resolveWorld(this.settings);
     if (kind !== "basic" && !navigator.onLine) kind = "basic";
     try {
-      this.world = await createWorld(worldEl, kind, { googleKey: googleKey(this.settings), ionToken: ionToken(this.settings), quality: this.settings.quality });
+      this.world = await createWorld(worldEl, kind, { googleKey: googleKey(this.settings), ionToken: ionToken(this.settings), quality: this.settings.quality, extraDetail: this.settings.extraDetail });
     } catch (err) {
       console.warn("World failed to load, using the simple globe", err);
       const msg = err instanceof Error ? err.message : String(err);
@@ -112,7 +112,7 @@ class Game implements ScreenHost {
       const why = kind === "google" ? await googleRefusal(googleKey(this.settings)) : "";
       this.worldNote = `${kind === "google" ? "Google" : "Cesium ion"} didn't load (${msg.slice(0, 160)}), so the offline map is showing.${why ? ` Google says: "${why}"` : kind === "google" ? " Check the key, that the Map Tiles API is enabled, and that the key allows this website." : ""}`;
       this.world?.destroy();
-      this.world = await createWorld(worldEl, "basic", { quality: this.settings.quality });
+      this.world = await createWorld(worldEl, "basic", { quality: this.settings.quality, extraDetail: this.settings.extraDetail });
       kind = "basic";
     }
     this.worldKind = this.world.kind;
@@ -175,6 +175,7 @@ class Game implements ScreenHost {
     saveSettings(this.settings);
     this.audio.setVolume(this.settings.volume);
     this.applyControlSettings();
+    this.world?.setExtraDetail(this.settings.extraDetail !== false);
     if (this.settings.tilt) void Controls.requestMotionPermission();
     if (reloadWorld) {
       this.screens.loading("Changing the world map...");
