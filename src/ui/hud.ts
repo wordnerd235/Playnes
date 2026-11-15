@@ -169,7 +169,8 @@ export class Hud {
     );
     const flaps = this.buildFlapLever();
     this.lever = el("div", "lever");
-    this.lever.innerHTML = `<div class="lever-notches"><span>GO!</span><span></span><span></span><span>STOP</span></div><div class="lever-track"><div class="lever-fill"></div></div>`;
+    // Five notch labels: top, three between, bottom (the middle one is HOVER on the helicopter).
+    this.lever.innerHTML = `<div class="lever-notches"><span>GO!</span><span></span><span></span><span></span><span>STOP</span></div><div class="lever-track"><div class="lever-fill"></div></div>`;
     this.leverHandle = el("div", "lever-handle");
     this.lever.append(this.leverHandle);
     this.setupLever();
@@ -478,7 +479,8 @@ export class Hud {
     this.root.classList.toggle("heli", on);
     const notches = this.lever.querySelectorAll(".lever-notches span");
     if (notches[0]) notches[0].textContent = on ? "UP" : "GO!";
-    if (notches[3]) notches[3].textContent = on ? "DOWN" : "STOP";
+    if (notches[2]) notches[2].textContent = on ? "HOVER" : "";
+    if (notches[4]) notches[4].textContent = on ? "DOWN" : "STOP";
     const up = this.yoke.querySelector(".yoke-label.up");
     const down = this.yoke.querySelector(".yoke-label.down");
     if (up) up.textContent = on ? "fly forward" : "nose down";

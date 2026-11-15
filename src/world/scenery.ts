@@ -114,6 +114,14 @@ export class Scenery {
   private houses: string[] = [];
 
   /** 0..1 detail scale from the graphics setting. */
+  /** Real buildings to keep clear of (airport terminals and hangars): (lat, lon, radius m) => taken? */
+  blocked: (lat: number, lon: number, r: number) => boolean = () => false;
+
+  /** Re-place trees and houses on the next update (e.g. once the real buildings are known). */
+  refreshProps(): void {
+    this.propCenter = null;
+  }
+
   constructor(private scene: Scene, private data: CartoonData | null, private detail = 1) {
     this.clouds = scene.primitives.add(new SafeCloudCollection({ noiseDetail: 16 })) as SafeCloudCollection;
     this.props = scene.primitives.add(new BillboardCollection({ scene })) as BillboardCollection;
@@ -235,13 +243,17 @@ export class Scenery {
     if (land === LAND.town) {
       if (hash(k, 3) > 0.32) return null;
       const tall = 8 + hash(k, 4) * hash(k, 5) * hash(k, 12) * 60;
-      return { lat, lon, base: h - 1, width: 14 + hash(k, 7) * 10, height: tall, image: this.houses[Math.floor(hash(k, 6) * this.houses.length)] };
+      const width = 14 + hash(k, 7) * 10;
+      // Never inside (or touching) a real building.
+      if (this.blocked(lat, lon, width * 0.55 + 3)) return null;
+      return { lat, lon, base: h - 1, width, height: tall, image: this.houses[Math.floor(hash(k, 6) * this.houses.length)] };
     }
     const f = valueNoise(mx, my, 1800, 7) * 0.7 + valueNoise(mx, my, 500, 8) * 0.3;
     const thresh = Math.min(0.66, Math.max(0.2, 0.66 - h / 3600));
     const inForest = f > thresh;
     if (!inForest && hash(k, 8) > 0.04) return null; // a few lone trees in fields
     const size = 0.8 + hash(k, 9) * 0.6;
+    if (this.blocked(lat, lon, 11 * size * 0.55 + 2)) return null;
     const pine = h > 700 ? hash(k, 10) < 0.7 : hash(k, 10) < 0.3;
     const img = this.trees[(pine ? 2 : 0) + (hash(k, 11) < 0.5 ? 0 : 1)];
     return { lat, lon, base: h - 1.5, width: 11 * size, height: (pine ? 19 : 16) * size, image: img };

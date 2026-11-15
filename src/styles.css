@@ -507,8 +507,12 @@ svg { display: block; }
 .arrival-reward { display: inline-flex; align-items: center; gap: 6px; margin: 2px 0 6px; padding: 6px 14px; border-radius: 999px; background: #fff4c2; color: #6b4a00; font-weight: 900; font-size: 20px; }
 .arrival-reward .wing-icon { width: 26px; height: 26px; display: inline-flex; }
 .arrival-actions { flex-wrap: wrap; justify-content: center; }
-/* Keep the throttle's GO!/STOP labels clear of the flap lever. */
-.right-controls .lever { margin-left: 26px; }
+/* The throttle's labels (GO!/STOP, UP/HOVER/DOWN) sit in the gap to its left, clear of the
+   flap lever or the slide buttons. */
+.right-controls .lever { margin-left: 46px; }
+.lever-notches { width: 50px; left: -50px !important; text-align: right; padding-right: 4px !important; }
+.lever-notches span { white-space: nowrap; }
+.hud.heli .lever-notches span:nth-child(3) { color: #ffd34d; }
 
 /* Height bar: progress toward cruising altitude */
 .gauge-alt .alt-bar { width: 100%; height: 8px; margin-top: 5px; border-radius: 4px; background: rgba(255,255,255,.22); overflow: hidden; }
@@ -584,7 +588,6 @@ svg { display: block; }
 
 /* Helicopter (Chinook): no flaps, wheels or brakes; a HOVER mark in the middle of the lever. */
 .hud.heli #hud-flaps, .hud.heli #hud-gear, .hud.heli #hud-brake { display: none !important; }
-.hud.heli .lever-track::after { content: "HOVER"; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 2px 6px; border-radius: 8px; background: rgba(16, 35, 58, .7); color: #fff; font-size: 11px; font-weight: 900; letter-spacing: .04em; pointer-events: none; }
 
 /* Radio altimeter under HEIGHT: above the ground right below. */
 .alt-agl { margin-top: 4px; padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, .16); font-size: 12px; font-weight: 800; white-space: nowrap; text-align: center; }
@@ -620,3 +623,29 @@ svg { display: block; }
 .slide-btn span { font-size: 12px; letter-spacing: .04em; }
 .slide-btn.on { background: rgba(255, 204, 0, .85); color: #10233a; }
 @media (max-height: 700px) { .slide-btn { width: 68px; height: 64px; } }
+
+/* Phone held sideways (short screens): a compact flying layout so nothing overlaps. */
+@media (max-height: 520px) {
+  .minimap { width: 108px; height: 108px; top: calc(100px + var(--safe-t)); }
+  .minimap-label { font-size: 10px; bottom: 5px; padding: 1px 7px; }
+  .yoke { width: 150px; height: 150px; bottom: calc(14px + var(--safe-b)); }
+  .yoke-knob { width: 84px; }
+  .yoke-label { font-size: 10px; }
+  .look { left: calc(max(18px, var(--safe-l)) + 38px); bottom: calc(22px + 150px + var(--safe-b)); }
+  .look-pad { width: 70px !important; height: 70px !important; }
+  .look-pad svg { width: 30px; height: 30px; }
+  .look-reset { width: 46px; height: 46px; }
+  .right-controls { bottom: calc(12px + var(--safe-b)); gap: 12px; }
+  .hud-btn { width: 58px; height: 58px; border-radius: 18px; }
+  .hud-btn svg { width: 28px; height: 28px; }
+  .hud-btn span { font-size: 11px; }
+  .lever { height: 168px; width: 84px; }
+  .lever-handle { width: 72px; height: 36px; }
+  .flap-lever { height: 150px !important; width: 70px !important; }
+  .flap-handle { left: 4px; width: 24px; }
+  .flap-handle::before { width: 24px; height: 18px; }
+  .flap-detent { padding-right: 5px; }
+  .flap-detent span { font-size: 11px; }
+  .slide-btn { width: 56px; height: 52px; }
+  .lever-notches { font-size: 12px; }
+}

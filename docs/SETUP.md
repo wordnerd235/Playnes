@@ -160,6 +160,8 @@ node scripts/world/export-data.mjs ~/worldcache/data.json
 
 Runways in the cartoon world sit on a flat pad: the game flattens the terrain under each runway (plus shoulders and overruns) to the runway's own slope and blends it back into the hills over about 450 m (`CartoonData.height` in `src/world/cartoon.ts`), so the ground can't poke through the runway. The runway itself is drawn a hair closer to the camera with distance, so far-off simplified terrain can't hide it either.
 
+The cartoon trees and houses are never placed on (or within a few metres of) a real airport building.
+
 Real airport buildings (terminals, hangars, parking decks...) come from [Overture Maps](https://overturemaps.org/) (OpenStreetMap and other open footprints, ODbL). Only the parts of the dataset around the airports are downloaded:
 
 ```bash
@@ -206,6 +208,8 @@ node tools/smoke-spin.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # hangar 3D
 node tools/smoke-heli.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # Chinook: unlock, tour, helicopter flying, landings
 node tools/smoke-route.cjs http://127.0.0.1:8765/dist/ /tmp/shots    # Free Flight routes and the sky guide line
 node tools/smoke-edge.cjs http://127.0.0.1:8765/dist/                # edge of the map turns the playne back
+node tools/diag-labels.cjs http://127.0.0.1:8765/dist/ /tmp/shots   # flying-screen labels: overlaps / cut off, 3 screen sizes
+node tools/diag-props.cjs http://127.0.0.1:8765/dist/ CLT            # cartoon trees/houses inside real airport buildings (want 0)
 ```
 
 These use the Playwright browser and fast-forward the physics, because software rendering is slow.

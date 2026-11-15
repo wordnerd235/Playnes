@@ -210,6 +210,11 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
   const scenery = new Scenery(w.widget.scene, w.kind === "cartoon" ? cartoon : null, q === "high" ? 1 : q === "medium" ? 0.75 : 0.4);
   // Real airport buildings for the offline world (Google's 3D world already has them).
   const buildings = w.kind === "cartoon" && cartoon ? new AirportBuildings(w.widget.scene, cartoon) : null;
+  if (buildings) {
+    // Cartoon trees and houses never grow through the real terminals and hangars.
+    scenery.blocked = (lat, lon, r) => buildings.occupied(lat, lon, r);
+    buildings.onLoaded = () => scenery.refreshProps();
+  }
   // Star pins over the landmarks (every map type), standing on the ground below them.
   const markers = new LandmarkMarkers(w.widget.scene, (lat, lon) => cartoon?.height(lat, lon) ?? 0);
   installRecovery(w.widget, scenery);

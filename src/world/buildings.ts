@@ -100,8 +100,42 @@ export class AirportBuildings {
   /** Footprints of the built airports, for collisions (meters east/north of the airport). */
   private solids = new Map<string, { lat0: number; lon0: number; mlon: number; items: { ring: number[]; minX: number; minY: number; maxX: number; maxY: number; top: number }[] }>();
   private visible = true;
+  /** Every airport's footprints (meters east/north of it), made on first use; for keeping
+   *  the cartoon trees and houses from growing through real buildings. */
+  private footprints = new Map<string, { items: { ring: number[]; minX: number; minY: number; maxX: number; maxY: number }[]; mlon: number }>();
+  /** Called once the building data has loaded (the scenery re-places its trees and houses). */
+  onLoaded: () => void = () => {};
 
   constructor(private scene: Scene, private cartoon: CartoonData) {}
+
+  /** Is there a real building at (or within `r` m of) this spot? Works before the airport is built. */
+  occupied(lat: number, lon: number, r: number): boolean {
+    if (!this.data) return false;
+    for (const [code, ap] of Object.entries(this.data)) {
+      if (Math.abs(lat - ap.lat) > 0.07 || Math.abs(lon - ap.lon) > 0.09) continue;
+      let fp = this.footprints.get(code);
+      if (!fp) {
+        const mlon = 111320 * Math.cos((ap.lat * Math.PI) / 180);
+        fp = { mlon, items: [] };
+        for (const b of ap.b) {
+          const ring: number[] = [];
+          for (let k = 0; k + 1 < b.p.length; k += 2) ring.push((b.p[k] / 1e6) * mlon, (b.p[k + 1] / 1e6) * 111320);
+          if (ring.length < 6) continue;
+          const xs = ring.filter((_, k) => k % 2 === 0);
+          const ys = ring.filter((_, k) => k % 2 === 1);
+          fp.items.push({ ring, minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) });
+        }
+        this.footprints.set(code, fp);
+      }
+      const x = (lon - ap.lon) * fp.mlon;
+      const y = (lat - ap.lat) * 111320;
+      for (const b of fp.items) {
+        if (x < b.minX - r || x > b.maxX + r || y < b.minY - r || y > b.maxY + r) continue;
+        if (insideOrNear(b.ring, x, y, r)) return true;
+      }
+    }
+    return false;
+  }
 
   setVisible(v: boolean): void {
     this.visible = v;
@@ -136,6 +170,7 @@ export class AirportBuildings {
       if (!r.ok) return;
       const json = (await r.json()) as { airports: Record<string, AirportRec> };
       this.data = json.airports;
+      this.onLoaded();
     } catch {
       /* no building data: fine, the airports just stay flat */
     }
