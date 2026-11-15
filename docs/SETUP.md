@@ -102,6 +102,8 @@ Cesium ion gives satellite photos on real 3D terrain with simple 3D buildings, f
 | Google Photorealistic 3D | Real buildings, trees and terrain everywhere | Google key + billing account | No |
 | Cesium ion | Satellite photos on 3D terrain, grey buildings | Free Cesium account token | No |
 
+**iPhone and iPad.** Safari gives a web page far less memory than the device has, and reloads the page if it goes over (graphics memory counts too). The game keeps itself inside a budget per device: Google's 3D tiles get about 200 MB (+64 MB headroom) on iPhone, 300 MB (+96 MB) on iPad and 768 MB on a computer, and Cesium eases detail slightly when the budget is full instead of growing. Voice lines and map pictures are kept in small recent-use caches. An automatic **detail governor** watches the frame rate: in busy areas (cities in Google mode) it trades a little distant detail for smooth flying, and sharpens back up when there's headroom. If an older iPad still struggles, set **Graphics quality: Low (older iPad)** in grown-up settings.
+
 ---
 
 ## 3. Host it on GitHub Pages

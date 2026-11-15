@@ -18,22 +18,21 @@ export function deviceClass(): DeviceClass {
 }
 
 export interface DetailBudget {
-  /** Google 3D tiles: allowed blur, in screen pixels (lower = sharper, more memory). */
+  /** Google 3D tiles: allowed blur, in screen pixels (lower = sharper, more work). The detail
+   *  governor moves it between ~0.85x and 2.6x of this to keep frames smooth. */
   tilesSse: number;
   /** Google 3D tiles: graphics memory to keep, and the most it may briefly go over. */
   tilesCacheMB: number;
   tilesOverflowMB: number;
   /** Offline / ion globe: terrain tiles kept around after they leave the view. */
   globeTileCache: number;
-  /** Decoded voice lines kept in memory (each is ~0.5 MB of raw audio). */
-  voiceBuffers: number;
 }
 
 export function detailBudget(q: "high" | "medium" | "low", d: DeviceClass = deviceClass()): DetailBudget {
-  if (q === "low") return { tilesSse: 24, tilesCacheMB: 160, tilesOverflowMB: 48, globeTileCache: 150, voiceBuffers: 16 };
-  if (d === "phone") return { tilesSse: 14, tilesCacheMB: 200, tilesOverflowMB: 64, globeTileCache: 220, voiceBuffers: 20 };
-  if (d === "tablet") return { tilesSse: 12, tilesCacheMB: 300, tilesOverflowMB: 96, globeTileCache: 320, voiceBuffers: 30 };
+  if (q === "low") return { tilesSse: 24, tilesCacheMB: 160, tilesOverflowMB: 48, globeTileCache: 150 };
+  if (d === "phone") return { tilesSse: 16, tilesCacheMB: 200, tilesOverflowMB: 64, globeTileCache: 220 };
+  if (d === "tablet") return { tilesSse: 14, tilesCacheMB: 300, tilesOverflowMB: 96, globeTileCache: 320 };
   return q === "high"
-    ? { tilesSse: 8, tilesCacheMB: 768, tilesOverflowMB: 256, globeTileCache: 600, voiceBuffers: 60 }
-    : { tilesSse: 12, tilesCacheMB: 384, tilesOverflowMB: 128, globeTileCache: 400, voiceBuffers: 40 };
+    ? { tilesSse: 8, tilesCacheMB: 768, tilesOverflowMB: 256, globeTileCache: 600 }
+    : { tilesSse: 12, tilesCacheMB: 384, tilesOverflowMB: 128, globeTileCache: 400 };
 }

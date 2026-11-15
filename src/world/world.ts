@@ -22,6 +22,7 @@ import {
   sampleTerrainMostDetailed,
   Terrain,
   TileMapServiceImageryProvider,
+  type Scene,
   type TerrainProvider,
 } from "cesium";
 import type { LatLon } from "../sim/geo.ts";
@@ -31,6 +32,7 @@ import { Scenery } from "./scenery.ts";
 import { AirportBuildings } from "./buildings.ts";
 import { LandmarkMarkers } from "./landmarks.ts";
 import { detailBudget } from "./device.ts";
+import { DetailGovernor } from "./governor.ts";
 import { degrade, FEATURE_NAMES, gfxOn, type GfxFeature } from "./safety.ts";
 
 /** "cartoon" = offline cartoon world; "basic" = bare globe if the offline data is missing. */
@@ -118,6 +120,19 @@ function installCommandGuard(widget: CesiumWidget): void {
     const prims = scene.primitives;
     if (prims.length && prims.get(prims.length - 1) !== guard) prims.raiseToTop(guard);
   });
+}
+
+/** Runs the detail governor on every rendered frame; `apply` gets the new detail scale. */
+function installGovernor(scene: Scene, apply: (scale: number) => void): DetailGovernor {
+  const g = new DetailGovernor();
+  let last = performance.now();
+  scene.postRender.addEventListener(() => {
+    const now = performance.now();
+    const k = g.frame(now, now - last);
+    last = now;
+    if (k !== null) apply(k);
+  });
+  return g;
 }
 
 let cartoonCache: Promise<CartoonData | null> | null = null;
@@ -245,15 +260,21 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       skipScreenSpaceErrorFactor: 6,
       // Load the tiles beside the ones in view too, so turning doesn't reveal blurry ground.
       loadSiblings: true,
-      // Cesium normally only sharpens the middle of the screen while the camera moves and
-      // waits for it to stop before doing the edges. A flying camera never stops, so the
-      // sides stayed blurry and then snapped sharp as you turned toward them. Sharpen it all.
-      foveatedScreenSpaceError: false,
+      // Cesium normally loads the middle of the screen while the camera moves and waits for
+      // it to stop before loading the edges. A flying camera never stops, so the sides stayed
+      // blurry and then snapped sharp as you turned toward them. Keep "middle first", but
+      // load the edges right after instead of waiting.
+      foveatedScreenSpaceError: true,
+      foveatedConeSize: 0.3,
+      foveatedTimeDelay: 0,
       preloadWhenHidden: false,
       dynamicScreenSpaceError: true,
     },
   );
   scene.primitives.add(tileset);
+  // Busy areas (cities) can mean more tiles than the device can keep up with: ease detail a
+  // little while frames are dropping, sharpen again when smooth.
+  installGovernor(scene, (k) => (tileset.maximumScreenSpaceError = b.tilesSse * k));
   // With no globe, Cesium leaves out the blue sky (you'd see stars at noon): turn it back on.
   if (scene.skyAtmosphere) scene.skyAtmosphere.show = true;
   if (scene.skyBox) scene.skyBox.show = false;
@@ -310,16 +331,21 @@ async function createIonWorld(container: HTMLElement, token: string, q: "high" |
   const b = detailBudget(q);
   scene.globe.tileCacheSize = b.globeTileCache;
   scene.globe.preloadSiblings = true;
+  const globeSse = scene.globe.maximumScreenSpaceError;
   let buildings: Cesium3DTileset | undefined;
   try {
     buildings = await createOsmBuildingsAsync();
     buildings.cacheBytes = Math.round(b.tilesCacheMB / 3) * 1024 * 1024;
     buildings.maximumCacheOverflowBytes = Math.round(b.tilesOverflowMB / 3) * 1024 * 1024;
-    buildings.foveatedScreenSpaceError = false;
+    buildings.foveatedTimeDelay = 0;
     scene.primitives.add(buildings);
   } catch {
     /* buildings are optional */
   }
+  installGovernor(scene, (k) => {
+    scene.globe.maximumScreenSpaceError = globeSse * Math.min(k, 2);
+    if (buildings) buildings.maximumScreenSpaceError = 16 * k;
+  });
   return {
     kind: "ion",
     widget,
@@ -366,6 +392,8 @@ async function createBasicWorld(container: HTMLElement, q: "high" | "medium" | "
     scene.globe.tileCacheSize = detailBudget(q).globeTileCache;
     // Keep the neighbours of tiles in view loaded, so turning doesn't show blurry patches.
     scene.globe.preloadSiblings = true;
+    const globeSse = scene.globe.maximumScreenSpaceError;
+    installGovernor(scene, (k) => (scene.globe.maximumScreenSpaceError = globeSse * Math.min(k, 2)));
   }
   return {
     kind: cartoon ? "cartoon" : "basic",
