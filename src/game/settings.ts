@@ -19,6 +19,8 @@ export interface Settings {
   crashes: boolean;
   /** Free Flight: the lever picks a speed and the co-pilot works the engine (off = real throttle). */
   freeAutoSpeed: boolean;
+  /** Charters already completed are flown solo (no tips or co-pilot help). */
+  soloCharters: boolean;
 }
 
 const KEY = "playnes.settings.v1";
@@ -36,6 +38,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sessionMinutes: 0,
   crashes: false,
   freeAutoSpeed: false,
+  soloCharters: true,
 };
 
 export function loadSettings(): Settings {

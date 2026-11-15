@@ -28,7 +28,7 @@ The purple **Free Flight** card on the home screen is an open sandbox:
 
 ### Solo charters
 
-Once a charter route has been completed (say Tri-Cities to Charlotte), the next time it's flown it's **solo**: the co-pilot gives no tips or button prompts, doesn't steer toward the hoops or the runway, doesn't hold the climb or glide path (you fly up and down yourself; letting go holds level flight) and doesn't flare for you. The tower still talks on the radio, and power is still managed. As a last resort the co-pilot still quietly steps in if you'd otherwise be stuck (it waits much longer first). Solo routes show a "Solo flight" badge on the charter card.
+Once a charter route has been completed (say Tri-Cities to Charlotte), the next time it's flown it's **solo**: the co-pilot gives no tips or button prompts, doesn't steer toward the hoops or the runway, doesn't hold the climb or glide path (you fly up and down yourself; letting go holds level flight) and doesn't flare for you. The tower still talks on the radio, and power is still managed. As a last resort the co-pilot still quietly steps in if you'd otherwise be stuck (it waits much longer first). Solo routes show a "Solo flight" badge on the charter card. To turn solo off (the co-pilot always helps), untick "Charters already flown are solo" in grown-up settings.
 
 ### Wings (rewards)
 

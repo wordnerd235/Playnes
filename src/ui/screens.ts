@@ -204,7 +204,7 @@ export class Screens {
       const nm = Math.round(distance(here, a) / NM);
       const reward = charterRewards({ from: here.code, to: a.code, distanceNm: nm, seats: plane.seats, stars: 0, butter: false, newLanding: false })[0].wings;
       const firstVisit = !p.airportsVisited.includes(a.code);
-      const solo = p.chartersDone.includes(charterKey(here.code, a.code));
+      const solo = this.host.settings.soloCharters !== false && p.chartersDone.includes(charterKey(here.code, a.code));
       const mission: Mission = { kind: "charter", from: here.code, to: a.code, passenger: pax };
       const card = h("button.charter-card", { type: "button" }, [
         h("div.charter-top", {}, [h("span.charter-pax", {}, pax.icon), h("span.charter-dest", {}, a.icon)]),
@@ -533,6 +533,7 @@ export class Screens {
     const flip = check("set-flip", s.tiltFlipPitch);
     const crashes = check("set-crashes", s.crashes);
     const autoSpeed = check("set-autospeed", s.freeAutoSpeed);
+    const solo = check("set-solo", s.soloCharters !== false);
     const unlock = check("set-unlock", p.unlockAll);
     const volume = h("input", { id: "set-volume", type: "range", min: "0", max: "1", step: "0.05", value: String(s.volume) });
     const minutes = sel("set-minutes", String(s.sessionMinutes), [["0", "Off"], ["15", "15 minutes"], ["20", "20 minutes"], ["30", "30 minutes"], ["45", "45 minutes"]]);
@@ -552,6 +553,7 @@ export class Screens {
       s.tiltFlipPitch = flip.checked;
       s.crashes = crashes.checked;
       s.freeAutoSpeed = autoSpeed.checked;
+      s.soloCharters = solo.checked;
       s.volume = Number(volume.value);
       s.sessionMinutes = Number(minutes.value);
       p.unlockAll = unlock.checked;
@@ -567,7 +569,7 @@ export class Screens {
         resetBtn.textContent = "Tap again to erase everything";
         return;
       }
-      Object.assign(p, { wings: 0, planes: ["c172"], selectedPlane: "c172", lessonsDone: [], graduated: false, airportsVisited: ["TRI"], currentAirport: "TRI", flights: 0, butterLandings: 0, unlockAll: false });
+      Object.assign(p, { wings: 0, planes: ["c172"], selectedPlane: "c172", lessonsDone: [], graduated: false, airportsVisited: ["TRI"], airportsDeparted: [], chartersDone: [], tourDone: false, currentAirport: "TRI", flights: 0, butterLandings: 0, unlockAll: false });
       this.host.saveProgress();
       msg.textContent = "Progress reset.";
       resetBtn.textContent = "Reset all progress";
@@ -609,7 +611,7 @@ export class Screens {
               if (!rep.lastError && !frameErr) return h("p.field-help", {}, "Graphics: no problems recorded.");
               const box = h("div.gfx-report", {}, [
                 h("p.field-help", {}, `Graphics safety: ${rep.off.length ? `turned off ${rep.off.map((f) => FEATURE_NAMES[f]).join(", ")}` : "nothing turned off"}.`),
-                rep.lastError ? h("p.field-help", {}, `Last rendering error: ${rep.lastError}`) : null,
+                rep.lastError ? h("p.field-help", {}, `Last rendering error${rep.when ? ` (${new Date(rep.when).toLocaleString()}, version ${rep.build ?? "?"})` : ""}: ${rep.lastError}`) : null,
                 frameErr ? h("p.field-help", {}, `Last game error: ${frameErr}`) : null,
                 h("button.btn.secondary", {
                   type: "button",
@@ -635,6 +637,7 @@ export class Screens {
             h("label.check", {}, [invert, "Invert up/down on the yoke"]),
             h("label.check", {}, [crashes, "Free Flight: allow crashes (off = the co-pilot always saves the playne)"]),
             h("label.check", {}, [autoSpeed, "Free Flight: co-pilot holds the speed (off = the lever is a real throttle)"]),
+            h("label.check", {}, [solo, "Charters already flown are solo: no tips or co-pilot help (off = the co-pilot always helps)"]),
             field("Volume", volume),
             field("Break reminder", minutes),
           ]),

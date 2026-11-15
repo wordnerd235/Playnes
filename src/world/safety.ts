@@ -11,12 +11,21 @@ const KEY = "playnes.gfxsafety.v1";
 interface SafetyState {
   off: GfxFeature[];
   lastError: string;
+  /** When the last error happened (ms since 1970) and in which game version. */
+  when?: number;
+  build?: string;
 }
 
 function load(): SafetyState {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { off: [], lastError: "", ...JSON.parse(raw) };
+    if (raw) {
+      const st = { off: [], lastError: "", ...JSON.parse(raw) } as SafetyState;
+      // Records from before versions were stored come from bugs that have since been fixed
+      // (e.g. the iPad cloud crash): start fresh. New errors are recorded with their version.
+      if (st.lastError && !st.build) return { off: [], lastError: "" };
+      return st;
+    }
   } catch {
     /* storage unavailable */
   }
@@ -41,19 +50,23 @@ export function gfxOn(f: GfxFeature): boolean {
 export function degrade(error: unknown): GfxFeature | null {
   const msg = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
   state.lastError = msg.slice(0, 400);
+  state.when = Date.now();
+  state.build = typeof __BUILD__ === "string" ? __BUILD__ : undefined;
   const next = ORDER.find((f) => !state.off.includes(f)) ?? null;
   if (next) state.off.push(next);
   save();
   return next;
 }
 
-export function safetyReport(): { off: GfxFeature[]; lastError: string } {
-  return { off: [...state.off], lastError: state.lastError };
+export function safetyReport(): { off: GfxFeature[]; lastError: string; when?: number; build?: string } {
+  return { off: [...state.off], lastError: state.lastError, when: state.when, build: state.build };
 }
 
 export function resetSafety(): void {
   state.off = [];
   state.lastError = "";
+  state.when = undefined;
+  state.build = undefined;
   save();
 }
 
