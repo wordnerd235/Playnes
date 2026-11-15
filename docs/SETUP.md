@@ -14,7 +14,7 @@ The game is a web app. Once it's hosted (section 3), open the link on the iPad i
 
 Without a map key the game runs in the **cartoon world**: a bundled, offline map of the playable region (Tennessee, the Carolinas, north Georgia and southwest Virginia) with real mountains, rivers, lakes, roads, towns, farm fields, trees and clouds, plus crisp runways at all 12 airports. Everything works in it, including Free Flight. Add a Google key (section 2) for the photoreal 3D world.
 
-**Offline play (car trips, real flights):** in grown-up settings, tap **Save for offline play** once on Wi-Fi (about 25 MB; 4 MB more with the satellite photos switched on). After that, the cartoon world works with no internet. Google and Cesium maps always need internet.
+**Offline play (car trips, real flights):** in grown-up settings, tap **Save for offline play** once on Wi-Fi (about 25 MB). After that, the cartoon world works with no internet. Google and Cesium maps always need internet.
 
 ### Free Flight
 
@@ -98,7 +98,7 @@ Cesium ion gives satellite photos on real 3D terrain with simple 3D buildings, f
 
 | Map | Looks | Needs | Works offline |
 |-----|-------|-------|---------------|
-| Cartoon world (default) | Bright cartoon: real terrain, rivers, towns, trees (optional satellite photos around Tri-Cities) | Nothing | Yes, after "Save for offline play" |
+| Cartoon world (default) | Bright cartoon: real terrain, rivers, towns, trees | Nothing | Yes, after "Save for offline play" |
 | Google Photorealistic 3D | Real buildings, trees and terrain everywhere | Google key + billing account | No |
 | Cesium ion | Satellite photos on 3D terrain, grey buildings | Free Cesium account token | No |
 
@@ -152,15 +152,6 @@ python3 -m venv ~/ovenv && ~/ovenv/bin/pip install pyarrow requests shapely
 ~/ovenv/bin/python scripts/world/airport_buildings.py ~/worldcache/data.json   # ~5 minutes, writes public/world/buildings.json
 ```
 
-Satellite photos (test patch): around Tri-Cities (Kingsport, Johnson City, Bristol, about 50 x 50 km) the cartoon map is overlaid with real satellite photos from [Copernicus Sentinel-2](https://registry.opendata.aws/sentinel-2-l2a-cogs/) (free, 10 m per pixel, October 2025, about 4 MB). The edges fade into the cartoon map. It is off by default: switch it on in grown-up settings ("Extra map detail (test)"). To rebuild it, or move or grow the patch (`PATCH` and `SCENES` at the top of the script):
-
-```bash
-python3 -m venv ~/satenv && ~/satenv/bin/pip install rasterio pillow numpy
-~/satenv/bin/python scripts/world/satellite_patch.py    # ~2 minutes, writes public/world/sat/
-```
-
-Each extra 50 x 50 km patch is about 4 MB. Sentinel-2 is the sharpest imagery that is free with no account; US aerial photos (NAIP, about 1 m) are sharper but their download servers weren't reachable from the build machine.
-
 ### Regenerate the playne pictures (hangar tiles and "Meet your playne")
 
 After changing the models, serve the repo root on port 8765 and run `node tools/render-planes.cjs` (it renders each model with three.js in headless Chromium and writes `public/models/thumbs/` and the lesson's tap spots in `src/data/meetSpots.ts`), then convert the PNGs to WebP with the one-liner at the top of that script.
@@ -197,7 +188,6 @@ node tools/smoke-lessons.cjs http://127.0.0.1:8765/dist/ /tmp/shots
 node tools/smoke-touch.cjs http://127.0.0.1:8765/dist/ /tmp/shots    # on-screen controls only
 node tools/smoke-free.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # Free Flight: maps, autopilot, landing, crash
 node tools/smoke-spin.cjs http://127.0.0.1:8765/dist/ /tmp/shots     # hangar 3D viewer
-node tools/smoke-sat.cjs http://127.0.0.1:8765/dist/ /tmp/shots      # satellite-photo switch
 ```
 
 These use the Playwright browser and fast-forward the physics, because software rendering is slow.

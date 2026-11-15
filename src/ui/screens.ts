@@ -541,7 +541,6 @@ export class Screens {
     const crashes = check("set-crashes", s.crashes);
     const autoSpeed = check("set-autospeed", s.freeAutoSpeed);
     const solo = check("set-solo", s.soloCharters !== false);
-    const detail = check("set-detail", s.satellitePhotos === true);
     const unlock = check("set-unlock", p.unlockAll);
     const volume = h("input", { id: "set-volume", type: "range", min: "0", max: "1", step: "0.05", value: String(s.volume) });
     const minutes = sel("set-minutes", String(s.sessionMinutes), [["0", "Off"], ["15", "15 minutes"], ["20", "20 minutes"], ["30", "30 minutes"], ["45", "45 minutes"]]);
@@ -562,7 +561,6 @@ export class Screens {
       s.crashes = crashes.checked;
       s.freeAutoSpeed = autoSpeed.checked;
       s.soloCharters = solo.checked;
-      s.satellitePhotos = detail.checked;
       s.volume = Number(volume.value);
       s.sessionMinutes = Number(minutes.value);
       p.unlockAll = unlock.checked;
@@ -596,7 +594,6 @@ export class Screens {
             field("Google Maps API key", gkey, "See docs/SETUP.md. Restrict the key to https://<you>.github.io/* and the Map Tiles API."),
             field("Cesium ion token (optional)", ion),
             field("Graphics quality", quality),
-            h("label.check", {}, [detail, "Extra map detail (test): real satellite photos around Tri-Cities on the offline cartoon map. Off by default; works offline too"]),
             h("div.code-row", {}, [
               h("button.btn.secondary", {
                 type: "button",
@@ -604,7 +601,7 @@ export class Screens {
                   const btn = e.currentTarget as HTMLButtonElement;
                   btn.disabled = true;
                   offlineMsg.textContent = "Downloading the map, playnes and voices...";
-                  const r = await saveForOffline((d, t) => (offlineMsg.textContent = `Saving for offline: ${d} of ${t}...`), { satellite: detail.checked });
+                  const r = await saveForOffline((d, t) => (offlineMsg.textContent = `Saving for offline: ${d} of ${t}...`));
                   offlineMsg.textContent = r.failed ? `Saved ${r.ok} files; ${r.failed} failed. Try again on Wi-Fi.` : `All set! The cartoon world now works with no internet (${r.ok} files).`;
                   btn.disabled = false;
                 },
@@ -689,7 +686,7 @@ export class Screens {
             resetBtn,
           ]),
           h("div.parent-actions", {}, [h("button.btn.primary", { type: "button", onclick: save }, "Save")]),
-          h("p.field-help", {}, `Playnes is a private family game. Map data © Google or Cesium as credited on screen; offline map from AWS Terrain Tiles and Natural Earth; satellite photos contain modified Copernicus Sentinel data (2025); airport buildings © OpenStreetMap contributors via Overture Maps. Version ${__BUILD__}.`),
+          h("p.field-help", {}, `Playnes is a private family game. Map data © Google or Cesium as credited on screen; offline map from AWS Terrain Tiles and Natural Earth; airport buildings © OpenStreetMap contributors via Overture Maps. Version ${__BUILD__}.`),
         ]),
       ]),
     );

@@ -28,7 +28,6 @@ import type { Quality } from "../game/settings.ts";
 import { CartoonData } from "./cartoon.ts";
 import { Scenery } from "./scenery.ts";
 import { AirportBuildings } from "./buildings.ts";
-import { addSatelliteLayer } from "./satellite.ts";
 import { LandmarkMarkers } from "./landmarks.ts";
 import { degrade, FEATURE_NAMES, gfxOn, type GfxFeature } from "./safety.ts";
 
@@ -53,8 +52,6 @@ export interface World {
   updateScenery(p: LatLon, alt: number, agl: number): void;
   /** Top (ellipsoid height) of a tree, house or airport building within `radius` m of p, or null. */
   obstacleTop(p: LatLon, radius: number): number | null;
-  /** Offline map only: show or hide the satellite-photo test patch. */
-  setExtraDetail(v: boolean): void;
   destroy(): void;
 }
 
@@ -135,8 +132,6 @@ export interface WorldOptions {
   googleKey?: string;
   ionToken?: string;
   quality: Quality;
-  /** Offline map: lay the satellite-photo test patch over the cartoon map. */
-  extraDetail?: boolean;
 }
 
 function isTouchDevice(): boolean {
@@ -185,7 +180,7 @@ function baseWidget(container: HTMLElement, kind: WorldKind, q: "high" | "medium
 export async function createWorld(container: HTMLElement, kind: WorldKind, opts: WorldOptions): Promise<World> {
   const q = qualityLevel(opts.quality);
   const cartoon = await loadCartoon();
-  let w: Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setExtraDetail">;
+  let w: Omit<World, "cartoon" | "updateScenery" | "obstacleTop">;
   if (kind === "google") w = await createGoogleWorld(container, opts.googleKey ?? "", q);
   else if (kind === "ion") w = await createIonWorld(container, opts.ionToken ?? "", q);
   else w = await createBasicWorld(container, q, cartoon);
@@ -196,18 +191,6 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
   const markers = new LandmarkMarkers(w.widget.scene, (lat, lon) => cartoon?.height(lat, lon) ?? 0);
   installRecovery(w.widget, scenery);
   installCommandGuard(w.widget);
-  // Satellite photos around Tri-Cities on top of the cartoon map (switchable in grown-up settings).
-  // Loaded only once switched on, so the default cartoon map never fetches any of it.
-  let extraDetail = opts.extraDetail === true;
-  let satLayer: Promise<ImageryLayer | null> | null = null;
-  const showSat = () => {
-    if (w.kind !== "cartoon" || (!extraDetail && !satLayer)) return;
-    satLayer ??= addSatelliteLayer(w.widget.scene, extraDetail);
-    void satLayer.then((l) => {
-      if (l && !l.isDestroyed()) l.show = extraDetail;
-    });
-  };
-  showSat();
   const setGround = w.setGroundVisible.bind(w);
   const destroy = w.destroy.bind(w);
   return {
@@ -228,10 +211,6 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
       const b = buildings ? buildings.obstacleTop(p, radius) : null;
       return a === null ? b : b === null ? a : Math.max(a, b);
     },
-    setExtraDetail(v) {
-      extraDetail = v;
-      showSat();
-    },
     destroy() {
       scenery.destroy();
       buildings?.destroy();
@@ -241,7 +220,7 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
   };
 }
 
-async function createGoogleWorld(container: HTMLElement, key: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setExtraDetail">> {
+async function createGoogleWorld(container: HTMLElement, key: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop">> {
   const widget = baseWidget(container, "google", q, { globe: false, baseLayer: false });
   const scene = widget.scene;
   const tileset: Cesium3DTileset = await createGooglePhotorealistic3DTileset(
@@ -290,7 +269,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   };
 }
 
-async function createIonWorld(container: HTMLElement, token: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setExtraDetail">> {
+async function createIonWorld(container: HTMLElement, token: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop">> {
   Ion.defaultAccessToken = token;
   const widget = baseWidget(container, "ion", q, {
     terrain: Terrain.fromWorldTerrain(),
@@ -334,7 +313,7 @@ async function createIonWorld(container: HTMLElement, token: string, q: "high" |
   };
 }
 
-async function createBasicWorld(container: HTMLElement, q: "high" | "medium" | "low", cartoon: CartoonData | null): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setExtraDetail">> {
+async function createBasicWorld(container: HTMLElement, q: "high" | "medium" | "low", cartoon: CartoonData | null): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop">> {
   const provider = await TileMapServiceImageryProvider.fromUrl(buildModuleUrl("Assets/Textures/NaturalEarthII"), {
     credit: new Credit("Natural Earth II"),
   });
