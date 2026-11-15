@@ -108,7 +108,9 @@ class Game implements ScreenHost {
     } catch (err) {
       console.warn("World failed to load, using the simple globe", err);
       const msg = err instanceof Error ? err.message : String(err);
-      this.worldNote = `${kind === "google" ? "Google" : "Cesium ion"} didn't load (${msg.slice(0, 160)}), so the offline map is showing.${kind === "google" ? " Check the key, that the Map Tiles API is enabled, and that the key allows this website." : ""}`;
+      // Google says exactly why it refused (blocked website, API not enabled, billing...): ask it.
+      const why = kind === "google" ? await googleRefusal(googleKey(this.settings)) : "";
+      this.worldNote = `${kind === "google" ? "Google" : "Cesium ion"} didn't load (${msg.slice(0, 160)}), so the offline map is showing.${why ? ` Google says: "${why}"` : kind === "google" ? " Check the key, that the Map Tiles API is enabled, and that the key allows this website." : ""}`;
       this.world?.destroy();
       this.world = await createWorld(worldEl, "basic", { quality: this.settings.quality });
       kind = "basic";
@@ -450,6 +452,19 @@ class Game implements ScreenHost {
       () => this.screens.parentCorner(() => this.screens.home()),
       () => this.screens.home(),
     );
+  }
+}
+
+/** Google's own error message for a refused Map Tiles request ("" if none). */
+async function googleRefusal(key: string): Promise<string> {
+  if (!key) return "No key is set.";
+  try {
+    const r = await fetch(`https://tile.googleapis.com/v1/3dtiles/root.json?key=${encodeURIComponent(key)}`);
+    if (r.ok) return "";
+    const body = (await r.json().catch(() => null)) as { error?: { message?: string } } | null;
+    return (body?.error?.message ?? `HTTP ${r.status}`).slice(0, 300);
+  } catch {
+    return "";
   }
 }
 

@@ -78,7 +78,7 @@ On the home screen, **press and hold the gear icon** (top left) for about 2 seco
 2. Set up billing for the project. Photorealistic 3D Tiles includes **1,000 free sessions a month**; the game uses about one per launch, so a family should stay well inside it. Check the current [pricing page](https://developers.google.com/maps/billing-and-pricing/pricing).
 3. Enable the **Map Tiles API** (APIs & Services → Library → "Map Tiles API").
 4. Create an API key (APIs & Services → Credentials → Create credentials → API key), then **restrict it**:
-   - **Application restrictions → Websites:** add your game's address, e.g. `https://<your-github-user>.github.io/Playnes/*`, plus `http://localhost:5173/*` for local testing.
+   - **Application restrictions → Websites:** add `https://<your-github-user>.github.io/*` (the whole site: some browsers only tell Google the site, not the page), plus `http://localhost:5173/*` for local testing. If Google still refuses, grown-up settings show Google's own reason under Map source.
    - **API restrictions → Restrict key:** select only **Map Tiles API**.
 5. Protect against surprises:
    - Billing → Budgets & alerts → create a **$5 budget** with email alerts.
