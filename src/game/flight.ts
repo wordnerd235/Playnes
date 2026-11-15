@@ -197,6 +197,8 @@ export interface FlightDeps {
   autoSpeed: boolean;
   /** Charter to an airport landed at before: no rings, tips or co-pilot assistance (silent last-resort help only). */
   solo?: boolean;
+  /** Free Flight: co-pilot helps with landings and takeoffs (glide path, flare, centreline, speedbrakes). */
+  freeHelp?: boolean;
   /** Free Flight: never landed at this airport in Free Flight yet (shows the sky guide line on the way). */
   firstLanding?: (code: string) => boolean;
 }
@@ -1081,7 +1083,8 @@ export class FlightSession {
       agl,
       runwayAgl: landingZone ? rwyAgl : landingConfig ? agl : null,
       landing: crashes || landingZone || landingConfig,
-      autoFlare: this.d.assistLevel <= 3,
+      // Free Flight: the co-pilot only flares for you if the grown-up setting allows it.
+      autoFlare: this.d.assistLevel <= 3 && !!this.d.freeHelp,
       groundHeading: null,
       wantRotate: true,
       autoRotate: false,
@@ -1120,8 +1123,8 @@ export class FlightSession {
         throttle = 0;
         brake = 1;
       }
-      // Centerline helper on a runway when the stick is centred.
-      if (overRunway && rwHdg !== null && Math.abs(roll) < 0.1) g.groundHeading = rwHdg;
+      // Centerline helper on a runway when the stick is centred (if the co-pilot helps).
+      if (this.d.freeHelp && overRunway && rwHdg !== null && Math.abs(roll) < 0.1) g.groundHeading = rwHdg;
       // Taking off (power up, past rotation speed): hint to pull back.
       if (s.speed > p.vr && c.throttle > 0.5 && !this.said.has("pullHint")) {
         this.said.add("pullHint");
@@ -1142,7 +1145,7 @@ export class FlightSession {
       // Otherwise the lever is the real throttle: idle power and the plane slows, then glides down.
       this.freeFlightHints(agl);
       // Lined up with a runway and stick centred: help down the glide path (unless powering up to go around).
-      if (landingZone && near && Math.abs(pitch) < 0.08 && !ap && c.throttle < 0.8) {
+      if (this.d.freeHelp && landingZone && near && Math.abs(pitch) < 0.08 && !ap && c.throttle < 0.8) {
         this.sayOnce(`land-${near.r.airport.code}-${Math.floor(this.time / 60)}`, LINES.landingHelp);
         const dir = rwHdg === near.r.heading ? 1 : -1;
         const sTd = dir > 0 ? near.s - AIM : near.r.length - AIM - near.s;
@@ -1383,7 +1386,7 @@ export class FlightSession {
         this.said.add("tooFast");
         void this.say(p.speedbrakes ? LINES.tooFastBrakes : LINES.tooFast);
       }
-      if (p.speedbrakes) this.speedbrakeOut = true;
+      if (p.speedbrakes && (this.mission.kind !== "sandbox" || this.d.freeHelp)) this.speedbrakeOut = true;
     }
     if (!landingZone) this.said.delete("tooFast");
     // Pushing the power up puts the speedbrakes away, as on real jets.

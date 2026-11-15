@@ -25,7 +25,11 @@ const path = require("path");
   await page.click(".big-go");
   await page.waitForSelector(".home-grid", { timeout: 60000 });
   // The interface tour is checked on its own; skip it here.
-  await page.evaluate(() => (window.playnes.progress.tourDone = true));
+  await page.evaluate(() => {
+    window.playnes.progress.tourDone = true;
+    // This test uses the co-pilot's landing help (a grown-up setting, off by default).
+    window.playnes.settings.freeLandingHelp = true;
+  });
   await shot("0-home");
   await page.evaluate(() => localStorage.setItem("playnes.freeSave.v1", ""));
   await page.click(".home-card.free", { force: true });

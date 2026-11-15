@@ -21,6 +21,9 @@ export interface Settings {
   freeAutoSpeed: boolean;
   /** Charters already completed are flown solo (no tips or co-pilot help). */
   soloCharters: boolean;
+  /** Free Flight: the co-pilot lines up, holds the glide path, flares and keeps the takeoff
+   *  roll straight (off = you fly it all; autobrakes still stop you after touchdown). */
+  freeLandingHelp: boolean;
 }
 
 const KEY = "playnes.settings.v1";
@@ -39,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   crashes: false,
   freeAutoSpeed: false,
   soloCharters: true,
+  freeLandingHelp: false,
 };
 
 export function loadSettings(): Settings {

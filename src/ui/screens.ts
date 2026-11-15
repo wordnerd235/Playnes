@@ -550,6 +550,7 @@ export class Screens {
     const crashes = check("set-crashes", s.crashes);
     const autoSpeed = check("set-autospeed", s.freeAutoSpeed);
     const solo = check("set-solo", s.soloCharters !== false);
+    const freeHelp = check("set-freehelp", s.freeLandingHelp === true);
     const unlock = check("set-unlock", p.unlockAll);
     const volume = h("input", { id: "set-volume", type: "range", min: "0", max: "1", step: "0.05", value: String(s.volume) });
     const minutes = sel("set-minutes", String(s.sessionMinutes), [["0", "Off"], ["15", "15 minutes"], ["20", "20 minutes"], ["30", "30 minutes"], ["45", "45 minutes"]]);
@@ -570,6 +571,7 @@ export class Screens {
       s.crashes = crashes.checked;
       s.freeAutoSpeed = autoSpeed.checked;
       s.soloCharters = solo.checked;
+      s.freeLandingHelp = freeHelp.checked;
       s.volume = Number(volume.value);
       s.sessionMinutes = Number(minutes.value);
       p.unlockAll = unlock.checked;
@@ -654,6 +656,7 @@ export class Screens {
             h("label.check", {}, [invert, "Invert up/down on the yoke"]),
             h("label.check", {}, [crashes, "Free Flight: allow crashes (off = the co-pilot always saves the playne)"]),
             h("label.check", {}, [autoSpeed, "Free Flight: co-pilot holds the speed (off = the lever is a real throttle)"]),
+            h("label.check", {}, [freeHelp, "Free Flight: co-pilot helps land and take off: lines up, holds the glide path, flares, keeps the takeoff straight (off = you fly it; the brakes still stop you after touchdown)"]),
             h("label.check", {}, [solo, "Charters to an airport you've landed at before are solo: no rings, tips or co-pilot help (off = the co-pilot always helps)"]),
             field("Volume", volume),
             field("Break reminder", minutes),
