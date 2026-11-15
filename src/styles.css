@@ -76,7 +76,17 @@ svg { display: block; }
 .screen-layer { min-height: 100%; padding: calc(16px + var(--safe-t)) max(20px, var(--safe-r)) calc(24px + var(--safe-b)) max(20px, var(--safe-l)); display: flex; flex-direction: column; }
 .screen-layer > div { flex: 1; display: flex; flex-direction: column; gap: 18px; }
 
+/* The top bar (back button, title, Wings) stays put while the screen scrolls under it. */
+.screen-layer .topbar {
+  position: sticky; top: 0; z-index: 20;
+  margin: calc(-16px - var(--safe-t)) calc(-1 * max(20px, var(--safe-r))) 0 calc(-1 * max(20px, var(--safe-l)));
+  padding: calc(12px + var(--safe-t)) max(20px, var(--safe-r)) 12px max(20px, var(--safe-l));
+  background: linear-gradient(180deg, #123e6b, #184a7c);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .18);
+}
 .topbar { display: flex; align-items: center; gap: 14px; }
+.round-btn.fs-btn svg { width: 26px; height: 26px; }
+.tip-card { position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); transform: translateX(-50%); z-index: 40; width: min(520px, calc(100% - 32px)); padding: 14px 18px; border-radius: 18px; background: rgba(16, 35, 58, .92); color: #fff; font-size: 17px; font-weight: 700; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,.35); pointer-events: auto; }
 .screen-title { flex: 1; margin: 0; color: var(--paper); font-size: clamp(26px, 4vw, 40px); font-weight: 800; text-shadow: 0 2px 8px rgba(0,0,0,.35); text-wrap: balance; }
 .round-btn, .parent-btn {
   width: 64px; height: 64px; border-radius: 50%; border: none;

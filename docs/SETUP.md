@@ -14,6 +14,8 @@ The game is a web app. Once it's hosted (section 3), open the link on the iPad i
 
 Without a map key the game runs in the **cartoon world**: a bundled, offline map of the playable region (Tennessee, the Carolinas, north Georgia and southwest Virginia) with real mountains, rivers, lakes, roads, towns, farm fields, trees and clouds, plus crisp runways at all 12 airports. Everything works in it, including Free Flight. Add a Google key (section 2) for the photoreal 3D world.
 
+**Full screen:** on the home screen, tap the ⛶ button (next to your Wings) to hide Safari's tabs and address bar on an iPad (tap it again, or Safari's ✕, to leave). iPhone Safari doesn't let web pages go full screen, so there the button explains the iPhone way: Share → **Add to Home Screen**, then open Playnes from its icon (it runs full screen like an app, and that's also how offline play works). The button hides itself when Playnes is already running from the Home Screen.
+
 **Offline play (car trips, real flights):** in grown-up settings, tap **Save for offline play** once on Wi-Fi (about 25 MB). After that, the cartoon world works with no internet. Google and Cesium maps always need internet.
 
 ### Free Flight

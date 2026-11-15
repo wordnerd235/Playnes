@@ -58,6 +58,64 @@ export class Screens {
     this.layer.append(content);
   }
 
+  /**
+   * Full screen (no Safari tabs or address bar). iPad Safari can do it for the page; iPhone
+   * Safari can't, so there the button explains Add to Home Screen. Hidden when already
+   * running from the Home Screen (it's full screen already).
+   */
+  private fsButton: HTMLElement | null = null;
+  private fsListening = false;
+
+  private fullscreenButton(): HTMLElement | null {
+    const standalone = matchMedia("(display-mode: standalone)").matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
+    if (standalone) return null;
+    const doc = document as Document & { webkitFullscreenEnabled?: boolean; webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void };
+    const root = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void };
+    const can = !!(doc.fullscreenEnabled || doc.webkitFullscreenEnabled);
+    const isFull = () => !!(doc.fullscreenElement || doc.webkitFullscreenElement);
+    const expand = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const shrink = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const btn = h("button.round-btn.fs-btn", { type: "button", "aria-label": "Full screen", html: isFull() ? shrink : expand });
+    // One listener for the whole game; it updates whichever button is on screen now.
+    this.fsButton = btn;
+    if (!this.fsListening) {
+      this.fsListening = true;
+      const sync = () => {
+        const b = this.fsButton;
+        if (!b) return;
+        b.innerHTML = isFull() ? shrink : expand;
+        b.setAttribute("aria-label", isFull() ? "Leave full screen" : "Full screen");
+      };
+      document.addEventListener("fullscreenchange", sync);
+      document.addEventListener("webkitfullscreenchange", sync);
+    }
+    btn.addEventListener("click", () => {
+      this.host.sfx("click");
+      if (!can) {
+        this.showTip("For full screen on iPhone: tap Share, then Add to Home Screen, and open Playnes from there.");
+        return;
+      }
+      try {
+        if (isFull()) {
+          if (doc.exitFullscreen) void doc.exitFullscreen();
+          else doc.webkitExitFullscreen?.();
+        } else if (root.requestFullscreen) void root.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
+        else root.webkitRequestFullscreen?.();
+      } catch {
+        /* the browser said no */
+      }
+    });
+    return btn;
+  }
+
+  /** A short message card that goes away on its own (or with a tap). */
+  private showTip(text: string): void {
+    this.layer.querySelector(".tip-card")?.remove();
+    const tip = h("div.tip-card", { role: "status", onclick: () => tip.remove() }, text);
+    this.layer.append(tip);
+    setTimeout(() => tip.remove(), 6000);
+  }
+
   private topBar(title: string, back?: () => void): HTMLElement {
     const p = this.host.progress;
     return h("div.topbar", {}, [
@@ -101,7 +159,7 @@ export class Screens {
     holdToOpen(gate, onParent);
     this.show(
       h("div.home", {}, [
-        h("div.topbar", {}, [gate, h("h1.screen-title", {}, `At ${ap.spoken}`), h("div.wings-pill", {}, [h("span.wing-icon", { html: ICONS.wing }), h("b", {}, String(p.wings))])]),
+        h("div.topbar", {}, [gate, h("h1.screen-title", {}, `At ${ap.spoken}`), this.fullscreenButton(), h("div.wings-pill", {}, [h("span.wing-icon", { html: ICONS.wing }), h("b", {}, String(p.wings))])]),
         h("div.home-grid", {}, [
           card("school", ICONS.school, "Flight School", nextLesson ? `Next: ${nextLesson.title}` : "All done! ⭐", () => this.school()),
           card("charter", ICONS.map, "Charter Flights", p.graduated ? "Fly passengers" : "Fly passengers", () => this.charters()),
