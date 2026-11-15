@@ -53,7 +53,7 @@ All the numbers live in `REWARDS` in `src/game/progress.ts`.
 - **Camera button:** chase view → cockpit → passenger window → chase.
 - **? button** (next to Pause, or the H key): a quick tour of every gauge and control, read out by the co-pilot. It also runs once automatically on the very first flight.
 - **Landmarks** (the stars on the minimap) have a golden star pin and name floating over them when you're within about 30 km.
-- The **HEIGHT** gauge has a bar that fills toward the playne's cruising altitude and turns green ("cruising!") when you get there.
+- The **HEIGHT** gauge shows feet above sea level, like a real altimeter, with a bar that fills toward the playne's cruising altitude and turns green ("cruising!") when you get there. Within 2,500 ft of the ground a **radio altimeter** appears under it: "↓ 350 ft above ground", orange below 500 ft and red below 150 ft (mountains around here are 2,000-6,000 ft above sea level, so the big number alone can mislead). The small number under SPEED is ground speed, also in knots.
 - The big map's **Clear route** button removes a destination you picked.
 - **Hangar 3D view:** tap any playne and its picture turns into the real 3D model. Drag a finger to spin it (sideways to turn, up and down to look over the top or under the belly), pinch to look closer, double-tap to see the whole playne again. Left alone, it turns slowly by itself.
 - **F-16 Fighting Falcon** (900 Wings): about Mach 1.2 down low and Mach 1.8 up high, 40,000 ft in under two minutes, and a sonic boom when you pass the speed of sound. One seat, so it's Free Flight only (charters use your best playne with seats).

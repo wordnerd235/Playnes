@@ -37,6 +37,8 @@ export interface HudData {
   hoopsLeft: number | null;
   /** Cruising altitude for this playne/flight (feet): the height bar fills toward it. */
   cruiseAltFt: number;
+  /** Height above the ground right below, feet (null = don't show: on the ground or high up). */
+  aglFt: number | null;
   /** Speedbrakes: null = this playne has none, else whether they're out. */
   airbrake: boolean | null;
   /** Fastest indicated airspeed (kt) allowed for flap notches 1, 2 and FULL. */
@@ -73,6 +75,7 @@ export class Hud {
   private altFill!: HTMLElement;
   private altTarget!: HTMLElement;
   private flapHandle!: HTMLElement;
+  private altAgl!: HTMLElement;
   private leverFill: HTMLElement | null = null;
   private flapDetents: { det: HTMLElement; hint: HTMLElement | null }[] | null = null;
   private flapLevel = 0;
@@ -129,11 +132,12 @@ export class Hud {
     center.append(this.fromLabel, track, this.toLabel);
 
     const right = el("div", "hud-instruments right");
-    const altBox = el("div", "gauge gauge-alt", `<div class="gauge-k">HEIGHT</div><div class="gauge-v">0</div><div class="gauge-u">feet</div><div class="alt-bar"><div class="alt-fill"></div></div><div class="alt-target"></div>`);
+    const altBox = el("div", "gauge gauge-alt", `<div class="gauge-k">HEIGHT</div><div class="gauge-v">0</div><div class="gauge-u">feet</div><div class="alt-bar"><div class="alt-fill"></div></div><div class="alt-target"></div><div class="alt-agl" hidden></div>`);
     this.alt = altBox.querySelector(".gauge-v") as HTMLElement;
     this.altBox = altBox;
     this.altFill = altBox.querySelector(".alt-fill") as HTMLElement;
     this.altTarget = altBox.querySelector(".alt-target") as HTMLElement;
+    this.altAgl = altBox.querySelector(".alt-agl") as HTMLElement;
     const pause = this.button("pause", ICONS.pause, "Pause", "small");
     const help = this.button("help", `<svg viewBox="0 0 24 24" aria-hidden="true"><text x="12" y="18" text-anchor="middle" font-size="18" font-weight="900" fill="currentColor" font-family="system-ui, sans-serif">?</text></svg>`, "Help", "small");
     right.append(altBox, help, pause);
@@ -538,6 +542,15 @@ export class Hud {
     const cruising = frac >= 0.97;
     this.altBox.classList.toggle("cruising", cruising);
     setText(this.altTarget, cruising ? "cruising!" : `cruise ${d.cruiseAltFt >= 18000 ? `FL${Math.round(d.cruiseAltFt / 100)}` : d.cruiseAltFt.toLocaleString()}`);
+    // Radio altimeter: how high above the ground right below (the big number is above sea level).
+    const agl = d.aglFt;
+    this.altAgl.hidden = agl === null;
+    if (agl !== null) {
+      const shown = agl < 100 ? Math.max(0, Math.round(agl / 5) * 5) : Math.round(agl / 10) * 10;
+      setText(this.altAgl, `↓ ${shown.toLocaleString()} ft above ground`);
+      this.altAgl.classList.toggle("low", agl < 500 && agl >= 150);
+      this.altAgl.classList.toggle("danger", agl < 150);
+    }
     setAttr(this.ball, "transform", `rotate(${(-d.bank).toFixed(1)}) translate(0 ${Math.max(-40, Math.min(40, d.pitch * 1.6)).toFixed(1)})`);
     if (d.progress !== null) {
       const pct = (Math.max(0, Math.min(1, d.progress)) * 100).toFixed(1);

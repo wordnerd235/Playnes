@@ -106,7 +106,7 @@ export const LINES = {
   tourIntro: c("Let's learn the buttons and gauges! Tap Next to see each one."),
   tourSpeed: c("This is our speed, in knots. The small number underneath is how fast we cross the ground."),
   tourBall: c("This ball shows the sky and the ground. It tells us if our wings are level and if the nose is up or down."),
-  tourHeight: c("This is our height, in feet. The bar fills up as we climb to cruising height."),
+  tourHeight: c("This is our height above the sea, in feet. The bar fills up as we climb to cruising height. When we're close to the ground, the arrow shows how high we are above it. Orange means low, red means very low!"),
   tourRoute: c("This shows our trip. The little playne moves from where we started to where we're going."),
   tourMap: c("The map shows airports and fun places nearby. Tap it to open the big map."),
   tourYoke: c("This is the yoke. Slide it left or right to turn. Pull it down to climb, push it up to go down."),

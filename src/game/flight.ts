@@ -2056,10 +2056,15 @@ export class FlightSession {
     const ref = this.arr && this.cruiseProgressFraction() > 0.5 ? this.arr : this.dep;
     const altFt = (s.alt + ref.mslOffset) / FT;
     const inCruise = this.phase === "cruise";
+    // Above the ground right below: shown in the air within 2,500 ft of it (not in the
+    // charter's fast-forwarded cruise, which flies at a pretend height).
+    const aglFt = (s.alt - this.groundHeightAt(s)) / FT;
+    const showAgl = !s.onGround && !inCruise && this.phase !== "crashed" && aglFt < 2500;
     this.d.hud.update({
       speedKt: indicated(s.speed, s.alt) / KT,
       groundKt: s.speed * Math.cos(s.gamma * DEG) / KT,
       altFt: inCruise ? this.ac.cruiseAltFt + this.cruise.altOffset / FT : altFt,
+      aglFt: showAgl ? Math.max(0, aglFt) : null,
       heading: s.heading,
       bank: s.bank,
       pitch: s.pitch,
