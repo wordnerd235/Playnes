@@ -33,7 +33,6 @@ export interface HudData {
   from: string;
   to: string;
   warp: boolean;
-  terrain: boolean;
   hoopsLeft: number | null;
   /** Cruising altitude for this playne/flight (feet): the height bar fills toward it. */
   cruiseAltFt: number;
@@ -82,7 +81,6 @@ export class Hud {
   private airMode = false;
   private toastEl: HTMLElement;
   private whiteEl: HTMLElement;
-  private terrainEl: HTMLElement;
   private warpEl: HTMLElement;
   private hoopsEl: HTMLElement;
   private hintEl: HTMLElement;
@@ -179,8 +177,6 @@ export class Hud {
 
     this.toastEl = el("div", "toast");
     this.whiteEl = el("div", "whiteout");
-    this.terrainEl = el("div", "terrain-warn", "PULL UP!");
-    this.terrainEl.hidden = true;
     this.warpEl = el("div", "warp", "▶▶ zooming");
     this.warpEl.hidden = true;
     this.hoopsEl = el("div", "hoops-left");
@@ -228,7 +224,7 @@ export class Hud {
     this.minimap.el.hidden = true;
     this.bigmap = new BigMap(parent);
 
-    this.root.append(top, this.caption, this.yoke, rightCtl, look, this.minimap.el, this.toastEl, this.terrainEl, this.warpEl, this.hoopsEl, this.hintEl);
+    this.root.append(top, this.caption, this.yoke, rightCtl, look, this.minimap.el, this.toastEl, this.warpEl, this.hoopsEl, this.hintEl);
     parent.append(this.root, this.whiteEl);
   }
 
@@ -238,6 +234,7 @@ export class Hud {
     b.id = `hud-${id}`;
     b.addEventListener("pointerdown", (e) => {
       e.preventDefault();
+      if (b.classList.contains("off")) return;
       if (id === "brake") {
         // On the ground: wheel brakes (hold). In the air: speedbrakes (tap to toggle).
         if (this.airMode) {
@@ -446,6 +443,14 @@ export class Hud {
    * Helicopter controls: the lever is UP / HOVER / DOWN (lift), the stick is forward / slow
    * down and turn, and there are no flaps, wheel or brake buttons.
    */
+  /** The radio is greyed out (and does nothing) until the co-pilot asks you to use it. */
+  setRadioEnabled(on: boolean): void {
+    const b = this.buttons.radio;
+    if (!b) return;
+    b.classList.toggle("off", !on);
+    b.setAttribute("aria-disabled", on ? "false" : "true");
+  }
+
   setHeli(on: boolean): void {
     this.root.classList.toggle("heli", on);
     const notches = this.lever.querySelectorAll(".lever-notches span");
@@ -459,6 +464,7 @@ export class Hud {
 
   show(from: string, to: string): void {
     this.setHeli(false);
+    this.setRadioEnabled(true);
     this.root.hidden = false;
     this.lookReset.hidden = true;
     this.fromLabel.textContent = from;
@@ -586,7 +592,6 @@ export class Hud {
     }
     this.buttons.brake.classList.toggle("gone", air && d.airbrake === null);
     this.buttons.brake.classList.toggle("on", air && d.airbrake === true);
-    this.terrainEl.hidden = !d.terrain;
     this.warpEl.hidden = !d.warp;
     if (d.hoopsLeft !== null && d.hoopsLeft > 0) {
       this.hoopsEl.hidden = false;

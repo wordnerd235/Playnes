@@ -62,7 +62,6 @@ export const LINES = {
   firm: c("Firm landing! We're down safe."),
   brakes: c("Now let's slow down and stop."),
   goAround: c("Let's go around and try again. Real pilots do that when it doesn't look right!"),
-  terrain: c("Terrain! Pull up!"),
   wingsEarned: c("You earned Wings!"),
   newStamp: c("A new passport stamp!"),
   graduation: c("Congratulations, Captain! You graduated from Flight School! Here are your gold wings, and your very first jet!"),

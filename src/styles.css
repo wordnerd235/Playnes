@@ -326,7 +326,6 @@ svg { display: block; }
 .toast.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 .whiteout { position: fixed; inset: 0; background: #f4f8fc; opacity: 0; pointer-events: none; transition-property: opacity; transition-timing-function: ease-in-out; }
 .whiteout.on { opacity: 1; }
-.terrain-warn { position: absolute; inset: 0; display: grid; place-items: center; font-size: 64px; font-weight: 900; color: #fff; text-shadow: 0 4px 0 #8a1010; border: 14px solid rgba(230, 40, 40, .8); animation: flash .5s steps(2) infinite; pointer-events: none; }
 @keyframes flash { 50% { border-color: rgba(230,40,40,.2); } }
 .warp { position: absolute; top: calc(124px + var(--safe-t)); right: max(16px, var(--safe-r)); padding: 6px 14px; border-radius: 999px; background: #ff3ea5; color: #fff; font-weight: 900; font-size: 18px; pointer-events: none; }
 .hoops-left { position: absolute; top: calc(124px + var(--safe-t)); left: max(16px, var(--safe-l)); padding: 6px 14px; border-radius: 999px; background: var(--sun); color: var(--ink); font-weight: 900; font-size: 20px; pointer-events: none; }
@@ -579,3 +578,6 @@ svg { display: block; }
 .alt-agl.danger { background: #ff3b30; color: #fff; animation: agl-blink .7s steps(2) infinite; }
 @keyframes agl-blink { 50% { opacity: .55; } }
 @media (prefers-reduced-motion: reduce) { .alt-agl.danger { animation: none; } }
+
+/* Radio waiting for the co-pilot's cue: greyed out. */
+.hud-btn.off { opacity: .4; filter: grayscale(1); }

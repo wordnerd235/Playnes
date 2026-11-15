@@ -557,16 +557,29 @@ export class FlightSession {
     if (m.kind === "lesson" && m.lesson === "l3") void this.say(LINES.l3Intro);
     if (m.kind === "charter") void this.say(tpl.nextStop(airportByCode(m.to).spoken));
     if (this.solo) void this.say(LINES.soloCharter);
-    void this.say(LINES.lineup);
-    this.ask("radio", 12, () => false, () => this.radioTakeoff());
+    // The radio wakes up once the co-pilot has asked for it (not while still talking).
+    this.setRadio(false);
+    void this.say(LINES.lineup).then(() => {
+      if (this.destroyed || this.phase !== "lineup" || this.radioDone) return;
+      this.setRadio(true);
+      this.ask("radio", 12, () => false, () => this.radioTakeoff());
+    });
     this.buildClimbHoops(m.kind === "lesson" ? 3 : 9);
   }
 
   private radioDone = false;
 
+  /** Charters and lessons: the radio only works when the co-pilot has asked you to call. */
+  private radioReady = false;
+  private setRadio(on: boolean): void {
+    this.radioReady = on;
+    this.d.hud.setRadioEnabled(on);
+  }
+
   private radioTakeoff(): void {
     if (this.radioDone) return;
     this.radioDone = true;
+    this.setRadio(false);
     this.timed = null;
     this.hudPrompt(null);
     const tower = this.dep.airport.towerName;
@@ -682,6 +695,10 @@ export class FlightSession {
   private startApproach(fresh: boolean): void {
     const r = this.arr!;
     this.approachStarts++;
+    if (!this.landingCleared) {
+      this.setRadio(false);
+      this.radioAsked = false;
+    }
     const dA = Math.max(2 * NM, this.p.vapp * 95);
     const pos = runwayPoint(r, AIM - dA);
     const alt = runwayHeight(r, 0) + dA * Math.tan(GLIDE);
@@ -1090,7 +1107,6 @@ export class FlightSession {
     this.lastCmd = { targetBank: cmd.targetBank, targetVs: cmd.targetVs };
     const wasGround = s.onGround;
     const events = step(s, cmd, p, { groundHeight: ground, surface: overRunway || !s.onGround ? "runway" : "grass" }, dt);
-    if (this.mem.terrainWarning) this.sayOnce(`terrain${Math.floor(this.time / 8)}`, LINES.terrain);
 
     for (const e of events) {
       if (e.type === "liftoff") {
@@ -1510,6 +1526,8 @@ export class FlightSession {
         this.onHelp();
         break;
       case "radio":
+        // Only once the co-pilot has asked for the call.
+        if (!this.radioReady) break;
         if (this.phase === "lineup") this.radioTakeoff();
         else if (this.phase === "approach") this.radioLanding();
         break;
@@ -1559,9 +1577,12 @@ export class FlightSession {
 
   private landingCleared = false;
 
+  private radioAsked = false;
+
   private radioLanding(): void {
     if (this.landingCleared || !this.arr) return;
     this.landingCleared = true;
+    this.setRadio(false);
     if (this.timed?.prompt === "radio") {
       this.timed = null;
       this.hudPrompt(null);
@@ -1745,9 +1766,13 @@ export class FlightSession {
         g.targetHeading = r.heading - clamp(x * 0.12, -25, 25);
         g.targetSpeed = s.flaps >= 3 ? p.vapp : p.vapp + 12 * KT;
         throttle = null;
-        if (distAim < 2600 && !this.landingCleared && !this.timed) {
-          void this.say(LINES.radioPrompt);
-          this.ask("radio", 7, () => this.landingCleared, () => this.radioLanding());
+        if (distAim < 2600 && !this.landingCleared && !this.timed && !this.radioAsked) {
+          this.radioAsked = true;
+          void this.say(LINES.radioPrompt).then(() => {
+            if (this.destroyed || this.phase !== "approach" || this.landingCleared) return;
+            this.setRadio(true);
+            this.ask("radio", 7, () => this.landingCleared, () => this.radioLanding());
+          });
         }
         if (distAim < 1500 && this.landingCleared) this.sayOnce("papi", LINES.papi);
         if (g.runwayAgl < 15 && along > -200) {
@@ -1794,7 +1819,6 @@ export class FlightSession {
       if (e.type === "liftoff") this.onLiftoff();
       if (e.type === "touchdown") this.onTouchdown(e.sinkFpm);
     }
-    if (this.mem.terrainWarning) this.sayOnce(`terrain${Math.floor(this.time / 8)}`, LINES.terrain);
 
     this.checkHoops();
     this.phaseLogic();
@@ -2077,7 +2101,6 @@ export class FlightSession {
       from: this.dep.airport.code,
       to: (this.arr ?? this.dep).airport.code,
       warp: inCruise && this.cruise.moment === 0,
-      terrain: this.mem.terrainWarning,
       hoopsLeft: this.hoops.length ? this.hoops.length - this.hoopIndex : null,
       airbrake: this.p.speedbrakes ? this.speedbrakeOut : null,
       cruiseAltFt: this.ac.cruiseAltFt,
