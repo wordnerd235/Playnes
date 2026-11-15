@@ -195,9 +195,9 @@ export interface FlightDeps {
   crashes: boolean;
   /** Free Flight only: the lever picks a speed and the co-pilot works the power. */
   autoSpeed: boolean;
-  /** Charter route already completed: no tips, no co-pilot assistance (silent last-resort help only). */
+  /** Charter to an airport landed at before: no rings, tips or co-pilot assistance (silent last-resort help only). */
   solo?: boolean;
-  /** Free Flight: never landed at this airport yet (shows the sky guide line on the way). */
+  /** Free Flight: never landed at this airport in Free Flight yet (shows the sky guide line on the way). */
   firstLanding?: (code: string) => boolean;
 }
 
@@ -573,7 +573,8 @@ export class FlightSession {
       this.setRadio(true);
       this.ask("radio", 12, () => false, () => this.radioTakeoff());
     });
-    this.buildClimbHoops(m.kind === "lesson" ? 3 : 9);
+    // Solo charters (destination landed at before): no rings to follow.
+    if (!this.solo) this.buildClimbHoops(m.kind === "lesson" ? 3 : 9);
   }
 
   private radioDone = false;
@@ -724,7 +725,7 @@ export class FlightSession {
     this.clearHoops();
     const radius = this.hoopRadius();
     const spacing = Math.max(300, this.p.vapp * 6);
-    for (let d = dA - spacing; d > 250; d -= spacing) {
+    for (let d = dA - spacing; d > 250 && !this.solo; d -= spacing) {
       const p = runwayPoint(r, AIM - d);
       this.hoops.push({ pos: p, alt: runwayHeight(r, 0) + d * Math.tan(GLIDE) + 3, heading: r.heading, pitch: -3, radius, model: null, state: "ahead" });
     }

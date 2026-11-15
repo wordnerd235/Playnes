@@ -1,4 +1,4 @@
-// Dev tool: a charter route already flown is flown solo (no tips, no co-pilot help).
+// Dev tool: a charter to an airport landed at before is flown solo (no rings, tips or co-pilot help).
 // Usage: node tools/smoke-solo.cjs <base-url> <out-dir>
 const { chromium } = require("playwright");
 const path = require("path");
@@ -17,11 +17,11 @@ const path = require("path");
   await page.goto(base);
   await page.click(".big-go");
   await page.waitForSelector(".home-grid", { timeout: 60000 });
-  // TRI -> CLT already completed once.
+  // Landed at Charlotte before (any way), never at Asheville.
   await page.evaluate(() => {
     const p = window.playnes.progress;
     p.tourDone = true;
-    p.chartersDone = ["TRI-CLT"];
+    p.landedAt = ["CLT"];
     window.playnes.screens.charters();
   });
   await page.waitForTimeout(800);
@@ -34,6 +34,7 @@ const path = require("path");
   const caption = await page.evaluate(() => document.querySelector(".caption")?.textContent ?? "");
   const said = await page.evaluate(() => window.playnes.flight.solo);
   check(said, "flight knows it is solo");
+  check(await page.evaluate(() => window.playnes.flight.hoops.length === 0), "no rings to fly through on a solo charter");
   await page.waitForTimeout(6000);
   const pulses = await page.evaluate(() => document.querySelectorAll(".hud .pulse").length);
   check(pulses === 0, `no flashing button prompts (${pulses})`);

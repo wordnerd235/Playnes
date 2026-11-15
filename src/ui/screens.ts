@@ -5,7 +5,7 @@ import { AIRCRAFT, aircraftById, carriesPassengers, isHelicopter, type AircraftD
 import { AIRPORTS, airportByCode } from "../data/airports.ts";
 import { LINES, PASSENGERS, tpl, type Line, type Passenger } from "../data/lines.ts";
 import type { FlightResult, FreeSnapshot, LessonId, Mission } from "../game/flight.ts";
-import { buy, canBuy, charterKey, charterPlaneId, charterRewards, exportCode, REWARDS, importCode, owns, waitingForOthers, type Progress, type Reward } from "../game/progress.ts";
+import { buy, canBuy, charterKey, charterPlaneId, charterRewards, exportCode, REWARDS, importCode, landedBefore, owns, waitingForOthers, type Progress, type Reward } from "../game/progress.ts";
 import type { Settings } from "../game/settings.ts";
 import { distance, NM } from "../sim/geo.ts";
 import { saveForOffline } from "../game/offline.ts";
@@ -205,7 +205,7 @@ export class Screens {
       const nm = Math.round(distance(here, a) / NM);
       const reward = charterRewards({ from: here.code, to: a.code, distanceNm: nm, seats: plane.seats, stars: 0, butter: false, newLanding: false })[0].wings;
       const firstVisit = !p.airportsVisited.includes(a.code);
-      const solo = this.host.settings.soloCharters !== false && p.chartersDone.includes(charterKey(here.code, a.code));
+      const solo = this.host.settings.soloCharters !== false && landedBefore(p, a.code);
       const mission: Mission = { kind: "charter", from: here.code, to: a.code, passenger: pax };
       const card = h("button.charter-card", { type: "button" }, [
         h("div.charter-top", {}, [h("span.charter-pax", {}, pax.icon), h("span.charter-dest", {}, a.icon)]),
@@ -213,7 +213,7 @@ export class Screens {
         h("div.charter-name", {}, a.spoken),
         h("div.charter-blurb", {}, a.blurb),
         h("div.charter-meta", {}, [h("span", {}, `${nm} nm`), h("span.reward", {}, [h("span.wing-icon", { html: ICONS.wing }), `+${reward}${firstVisit ? ` +${REWARDS.newLanding}` : ""}`])]),
-        solo ? h("div.charter-solo", { title: "You've flown this trip: no co-pilot help this time" }, "✈ Solo flight") : null,
+        solo ? h("div.charter-solo", { title: "You've landed here before: no rings or co-pilot help this time" }, "✈ Solo flight") : null,
         h("div.charter-go", {}, "Let's go!"),
       ]);
       let armed = false;
@@ -585,7 +585,7 @@ export class Screens {
         resetBtn.textContent = "Tap again to erase everything";
         return;
       }
-      Object.assign(p, { wings: 0, planes: ["c172"], selectedPlane: "c172", lessonsDone: [], graduated: false, airportsVisited: ["TRI"], airportsDeparted: [], chartersDone: [], tourDone: false, currentAirport: "TRI", flights: 0, butterLandings: 0, unlockAll: false });
+      Object.assign(p, { wings: 0, planes: ["c172"], selectedPlane: "c172", lessonsDone: [], graduated: false, airportsVisited: ["TRI"], airportsDeparted: [], chartersDone: [], landedAt: [], freeLandedAt: [], tourDone: false, heliTourDone: false, currentAirport: "TRI", flights: 0, butterLandings: 0, unlockAll: false });
       this.host.saveProgress();
       msg.textContent = "Progress reset.";
       resetBtn.textContent = "Reset all progress";
@@ -654,7 +654,7 @@ export class Screens {
             h("label.check", {}, [invert, "Invert up/down on the yoke"]),
             h("label.check", {}, [crashes, "Free Flight: allow crashes (off = the co-pilot always saves the playne)"]),
             h("label.check", {}, [autoSpeed, "Free Flight: co-pilot holds the speed (off = the lever is a real throttle)"]),
-            h("label.check", {}, [solo, "Charters already flown are solo: no tips or co-pilot help (off = the co-pilot always helps)"]),
+            h("label.check", {}, [solo, "Charters to an airport you've landed at before are solo: no rings, tips or co-pilot help (off = the co-pilot always helps)"]),
             field("Volume", volume),
             field("Break reminder", minutes),
           ]),

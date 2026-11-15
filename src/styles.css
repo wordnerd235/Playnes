@@ -519,7 +519,9 @@ svg { display: block; }
   position: fixed; background: var(--card); color: var(--ink); border-radius: 22px; padding: 16px 18px 12px;
   box-shadow: 0 14px 40px rgba(0,0,0,.35); display: flex; flex-direction: column; gap: 10px;
 }
-.tour-text { font-size: 19px; font-weight: 800; line-height: 1.3; }
+.tour-close { position: absolute; top: 8px; right: 8px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(16, 35, 58, .08); color: var(--ink); font-size: 20px; font-weight: 900; cursor: pointer; }
+.tour-close:active { transform: scale(.94); }
+.tour-text { padding-right: 34px; font-size: 19px; font-weight: 800; line-height: 1.3; }
 .tour-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .tour-count { font-size: 14px; font-weight: 800; color: var(--ink-soft); }
 .tour-btns { display: flex; gap: 10px; }

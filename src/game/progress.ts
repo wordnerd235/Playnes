@@ -21,8 +21,13 @@ export interface Progress {
   tourDone: boolean;
   /** Seen the Chinook's helicopter tour. */
   heliTourDone?: boolean;
-  /** Charter routes completed ("TRI-CLT"): flown solo next time. */
+  /** Charter routes completed ("TRI-CLT"). */
   chartersDone: string[];
+  /** Airports actually landed at, by charter or in Free Flight: charters there are flown solo. */
+  landedAt: string[];
+  /** Airports landed at in Free Flight (charters are heavily assisted, so they don't count):
+   *  the sky guide line shows on the way to any other airport. */
+  freeLandedAt: string[];
 }
 
 const KEY = "playnes.progress.v1";
@@ -43,7 +48,20 @@ export function newProgress(): Progress {
     unlockAll: false,
     tourDone: false,
     chartersDone: [],
+    landedAt: [],
+    freeLandedAt: [],
   };
+}
+
+/** Landed at this airport before (charter or Free Flight)? Charters there are flown solo. */
+export function landedBefore(p: Progress, code: string): boolean {
+  return p.landedAt.includes(code);
+}
+
+/** Record a successful landing (Free Flight landings also count for the sky guide rule). */
+export function recordLanding(p: Progress, code: string, freeFlight: boolean): void {
+  if (!p.landedAt.includes(code)) p.landedAt.push(code);
+  if (freeFlight && !p.freeLandedAt.includes(code)) p.freeLandedAt.push(code);
 }
 
 function sanitize(p: Partial<Progress>): Progress {
@@ -54,6 +72,13 @@ function sanitize(p: Partial<Progress>): Progress {
   if (!out.planes.includes(out.selectedPlane)) out.selectedPlane = "c172";
   out.airportsDeparted = Array.isArray(out.airportsDeparted) ? out.airportsDeparted : [];
   out.chartersDone = Array.isArray(out.chartersDone) ? out.chartersDone : [];
+  if (!Array.isArray(p.landedAt)) {
+    // Older saves: charter destinations and passport stamps (Tri-Cities is stamped from the
+    // start, so it only counts if a charter landed there).
+    const charterDest = out.chartersDone.map((k) => k.split("-")[1]).filter(Boolean);
+    out.landedAt = Array.from(new Set([...out.airportsVisited.filter((c) => c !== "TRI"), ...charterDest]));
+  }
+  out.freeLandedAt = Array.isArray(out.freeLandedAt) ? out.freeLandedAt : [];
   return out;
 }
 

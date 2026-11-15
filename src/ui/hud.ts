@@ -351,7 +351,7 @@ export class Hud {
       }
       function show(): void {
         const st = live[i];
-        bubble.innerHTML = `<div class="tour-text">${st.line.text}</div><div class="tour-foot"><span class="tour-count">${i + 1} / ${live.length}</span><span class="tour-btns">${i > 0 ? '<button type="button" class="btn secondary" data-t="back">Back</button>' : '<button type="button" class="btn link" data-t="skip">Skip</button>'}<button type="button" class="btn primary" data-t="next">${i === live.length - 1 ? "Let's fly!" : "Next"}</button></span></div>`;
+        bubble.innerHTML = `<button type="button" class="tour-close" data-t="skip" aria-label="Close the tour">✕</button><div class="tour-text">${st.line.text}</div><div class="tour-foot"><span class="tour-count">${i + 1} / ${live.length}</span><span class="tour-btns">${i > 0 ? '<button type="button" class="btn secondary" data-t="back">Back</button>' : '<button type="button" class="btn link" data-t="skip">Skip</button>'}<button type="button" class="btn primary" data-t="next">${i === live.length - 1 ? "Let's fly!" : "Next"}</button></span></div>`;
         place();
         say(st.line);
       }

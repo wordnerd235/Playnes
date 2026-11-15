@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { AIRCRAFT } from "../src/data/aircraft.ts";
 import { AIRPORTS, airportByCode } from "../src/data/airports.ts";
 import { allLines, lineKey, speakable, LINES } from "../src/data/lines.ts";
-import { buy, canBuy, charterRewards, exportCode, freeLandingRewards, importCode, newProgress, ringRewards, takeoffBonus, total } from "../src/game/progress.ts";
+import { buy, canBuy, charterRewards, exportCode, freeLandingRewards, importCode, landedBefore, newProgress, recordLanding, ringRewards, takeoffBonus, total } from "../src/game/progress.ts";
 import { makeRunway, pickEnd, runwayCoords, runwayPoint } from "../src/game/runway.ts";
 import { bearing, distance, NM } from "../src/sim/geo.ts";
 
@@ -125,5 +125,30 @@ describe("voice lines", () => {
 
   it("makes the callsign pronounceable", () => {
     expect(speakable("Playnes one two three")).toBe("Planes one two three");
+  });
+});
+
+describe("landing records (solo charters and the sky guide)", () => {
+  it("a charter landing makes the next charter there solo but keeps the Free Flight sky guide", () => {
+    const p = newProgress();
+    expect(landedBefore(p, "TRI")).toBe(false); // home base is stamped, but not landed at
+    recordLanding(p, "CLT", false);
+    expect(landedBefore(p, "CLT")).toBe(true);
+    expect(p.freeLandedAt.includes("CLT")).toBe(false);
+    recordLanding(p, "AVL", true);
+    expect(landedBefore(p, "AVL")).toBe(true);
+    expect(p.freeLandedAt).toEqual(["AVL"]);
+  });
+
+  it("older saves carry charter destinations and passport stamps over (not the home stamp)", () => {
+    const old = { ...newProgress(), airportsVisited: ["TRI", "AVL"], chartersDone: ["AVL-TRI"] } as Record<string, unknown>;
+    delete old.landedAt;
+    delete old.freeLandedAt;
+    const p = importCode(exportCode(old as never))!;
+    expect(p.landedAt.sort()).toEqual(["AVL", "TRI"]);
+    expect(p.freeLandedAt).toEqual([]);
+    const fresh = { ...newProgress(), airportsVisited: ["TRI"] } as Record<string, unknown>;
+    delete fresh.landedAt;
+    expect(importCode(exportCode(fresh as never))!.landedAt).toEqual([]);
   });
 });

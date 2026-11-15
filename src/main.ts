@@ -9,7 +9,7 @@ import { airportByCode, type Airport } from "./data/airports.ts";
 import { LINES, type Line } from "./data/lines.ts";
 import { Audio } from "./audio/audio.ts";
 import { FlightSession, type FlightResult, type FreeLanding, type FreeSnapshot, type Mission } from "./game/flight.ts";
-import { charterKey, charterPlaneId, charterRewards, freeLandingRewards, landingRewards, loadProgress, REWARDS, ringRewards, takeoffBonus, total, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
+import { charterKey, charterPlaneId, charterRewards, freeLandingRewards, landedBefore, landingRewards, loadProgress, recordLanding, REWARDS, ringRewards, takeoffBonus, total, requestPersistence, saveProgress, type Progress, type Reward } from "./game/progress.ts";
 import { googleKey, ionToken, loadSettings, resolveWorld, saveSettings, type Settings } from "./game/settings.ts";
 import { Controls } from "./input/controls.ts";
 import { destination } from "./sim/geo.ts";
@@ -191,7 +191,7 @@ class Game implements ScreenHost {
     const planeId = m.kind === "lesson" ? "c172" : m.kind === "sandbox" ? (m.resume ? m.resume.aircraft : this.progress.selectedPlane) : charterPlaneId(this.progress);
     const ac = aircraftById(planeId);
     const flight = new FlightSession(
-      { world: this.world, audio: this.audio, controls: this.controls, hud: this.hud, aircraft: ac, assistLevel: this.settings.assistLevel, crashes: this.settings.crashes, autoSpeed: this.settings.freeAutoSpeed, solo: m.kind === "charter" && this.settings.soloCharters !== false && this.progress.chartersDone.includes(charterKey(m.from, m.to)), firstLanding: (code) => !this.progress.airportsVisited.includes(code) },
+      { world: this.world, audio: this.audio, controls: this.controls, hud: this.hud, aircraft: ac, assistLevel: this.settings.assistLevel, crashes: this.settings.crashes, autoSpeed: this.settings.freeAutoSpeed, solo: m.kind === "charter" && this.settings.soloCharters !== false && landedBefore(this.progress, m.to), firstLanding: (code) => !this.progress.freeLandedAt.includes(code) },
       m,
     );
     this.flight = flight;
@@ -263,9 +263,10 @@ class Game implements ScreenHost {
         newLanding: newStamp,
       });
       if (newStamp) p.airportsVisited.push(r.mission.to);
-      // Next time on this route: solo (no tips or co-pilot help).
       const key = charterKey(r.mission.from, r.mission.to);
       if (!p.chartersDone.includes(key)) p.chartersDone.push(key);
+      // Next charter to this airport: solo (no rings, tips or co-pilot help).
+      recordLanding(p, r.mission.to, false);
       p.currentAirport = r.mission.to;
       p.flights++;
       if (r.landing === "butter") p.butterLandings++;
@@ -308,6 +309,7 @@ class Game implements ScreenHost {
   private freeLanding(l: FreeLanding): void {
     const p = this.progress;
     const first = !p.airportsVisited.includes(l.airport.code);
+    recordLanding(p, l.airport.code, true);
     const rewards = freeLandingRewards({
       from: l.from?.code ?? null,
       to: l.airport.code,
@@ -413,12 +415,14 @@ class Game implements ScreenHost {
     const heli = isHelicopter(aircraftById(this.flightPlane));
     // The first time ever, the general tour comes first; the Chinook's own tour after it.
     const steps = heli && this.progress.tourDone ? HELI_TOUR : heli ? [...TOUR.filter((st) => st.target !== ".yoke" && st.target !== ".lever" && st.line !== LINES.tourDone), ...HELI_TOUR.slice(1)] : TOUR;
-    await this.hud.runTour(steps, (line) => void this.audio.say(line, { interrupt: true }));
-    this.audio.stopVoice();
-    this.touring = false;
+    // Seen once is enough: even if the flight is left mid-tour it won't pop up again
+    // (the ? button brings it back any time; ✕ closes it).
     this.progress.tourDone = true;
     if (heli) this.progress.heliTourDone = true;
     this.saveProgress();
+    await this.hud.runTour(steps, (line) => void this.audio.say(line, { interrupt: true }));
+    this.audio.stopVoice();
+    this.touring = false;
     if (this.flight === flight && !this.pauseEl) flight.setPaused(false);
   }
 

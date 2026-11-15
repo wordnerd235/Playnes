@@ -45,9 +45,14 @@ const path = require("path");
   await page.click("#hud-help", { force: true, timeout: 60000 });
   await page.waitForSelector(".tour", { timeout: 60000 });
   check(true, "the ? button shows the tour again");
-  await page.click(".tour [data-t=skip]", { timeout: 60000 });
+  // The ✕ closes it from any step, not just the first.
+  await page.evaluate(() => document.querySelector(".tour [data-t=next]").click());
+  await page.evaluate(() => document.querySelector(".tour [data-t=next]").click());
+  await page.waitForTimeout(250);
+  check(!!(await page.$(".tour .tour-close")), "close button on a middle step");
+  await page.click(".tour .tour-close", { timeout: 60000 });
   await page.waitForTimeout(300);
-  check(!(await page.$(".tour")), "skip closes the tour");
+  check(!(await page.$(".tour")), "the close button ends the tour");
   // Height bar: fill = height / cruising height.
   const bar = await page.evaluate(() => {
     const f = window.playnes.flight;
