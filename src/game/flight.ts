@@ -927,6 +927,7 @@ export class FlightSession {
   private lineUp(r: RunwayInUse): void {
     const ap = r.airport;
     this.dep = r;
+    this.d.world.afterTeleport?.();
     const pos = runwayPoint(r, 60);
     this.s = createState({ lat: pos.lat, lon: pos.lon, alt: this.groundHeightAt(pos), heading: r.heading, flaps: this.heli ? 0 : 1, gearDown: true, onGround: true });
     this.view.resetCameraHeading(r.heading);

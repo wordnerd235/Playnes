@@ -56,6 +56,8 @@ export interface World {
   updateScenery(p: LatLon, alt: number, agl: number): void;
   /** Top (ellipsoid height) of a tree, house or airport building within `radius` m of p, or null. */
   obstacleTop(p: LatLon, radius: number): number | null;
+  /** The playne jumped somewhere new (respawn, line-up): let go of map tiles from the old spot. */
+  afterTeleport?(): void;
   destroy(): void;
 }
 
@@ -311,6 +313,11 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
     },
     setGroundVisible(v) {
       tileset.show = v;
+    },
+    afterTeleport() {
+      // Old tiles out of view are unloaded on the next frame instead of being evicted bit by
+      // bit while the new area streams in (that overlap is what made respawns choppy).
+      tileset.trimLoadedTiles();
     },
     groundReady() {
       return tileset.tilesLoaded;
