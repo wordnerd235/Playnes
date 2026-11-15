@@ -18,6 +18,7 @@ import {
   Ion,
   ImageryLayer,
   JulianDate,
+  RequestScheduler,
   sampleTerrainMostDetailed,
   Terrain,
   TileMapServiceImageryProvider,
@@ -29,6 +30,7 @@ import { CartoonData } from "./cartoon.ts";
 import { Scenery } from "./scenery.ts";
 import { AirportBuildings } from "./buildings.ts";
 import { LandmarkMarkers } from "./landmarks.ts";
+import { detailBudget } from "./device.ts";
 import { degrade, FEATURE_NAMES, gfxOn, type GfxFeature } from "./safety.ts";
 
 /** "cartoon" = offline cartoon world; "basic" = bare globe if the offline data is missing. */
@@ -156,8 +158,12 @@ function baseWidget(container: HTMLElement, kind: WorldKind, q: "high" | "medium
     ...extra,
   });
   const scene = widget.scene;
+  // Aerial haze, like real distance: far-off ground fades into the sky colour. It hides the
+  // lower-detail tiles that are always used far away (and their switch to sharper ones as
+  // you get closer). About 25% haze at 30 km and 60% at 60 km from 1,000 m up; thinner higher.
   scene.fog.enabled = true;
-  scene.fog.density = kind === "google" ? 1.2e-4 : kind === "cartoon" ? 1.4e-4 : 2.0e-4;
+  scene.fog.density = kind === "basic" ? 2.0e-4 : 5.0e-4;
+  scene.fog.visualDensityScalar = 0.18;
   scene.postProcessStages.fxaa.enabled = q !== "high";
   scene.screenSpaceCameraController.enableInputs = false;
   // The real Moon is drawn where it really is; near new moon it shows as a black disc in the
@@ -223,13 +229,26 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
 async function createGoogleWorld(container: HTMLElement, key: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop">> {
   const widget = baseWidget(container, "google", q, { globe: false, baseLayer: false });
   const scene = widget.scene;
+  const b = detailBudget(q);
+  // Google serves over HTTP/2: more requests at once means tiles arrive sooner.
+  RequestScheduler.requestsByServer["tile.googleapis.com:443"] = 24;
   const tileset: Cesium3DTileset = await createGooglePhotorealistic3DTileset(
     { key },
     {
-      maximumScreenSpaceError: q === "high" ? 12 : q === "medium" ? 18 : 28,
-      cacheBytes: (q === "high" ? 768 : q === "medium" ? 384 : 256) * 1024 * 1024,
-      maximumCacheOverflowBytes: 128 * 1024 * 1024,
+      // Memory: Cesium keeps the tiles in view within this budget by easing detail a little
+      // when it's tight, instead of growing until iOS reloads the page.
+      maximumScreenSpaceError: b.tilesSse,
+      cacheBytes: b.tilesCacheMB * 1024 * 1024,
+      maximumCacheOverflowBytes: b.tilesOverflowMB * 1024 * 1024,
       skipLevelOfDetail: true,
+      // Smaller jumps from blurry to sharp (Cesium's default skips more levels at once).
+      skipScreenSpaceErrorFactor: 6,
+      // Load the tiles beside the ones in view too, so turning doesn't reveal blurry ground.
+      loadSiblings: true,
+      // Cesium normally only sharpens the middle of the screen while the camera moves and
+      // waits for it to stop before doing the edges. A flying camera never stops, so the
+      // sides stayed blurry and then snapped sharp as you turned toward them. Sharpen it all.
+      foveatedScreenSpaceError: false,
       preloadWhenHidden: false,
       dynamicScreenSpaceError: true,
     },
@@ -240,13 +259,25 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   if (scene.skyBox) scene.skyBox.show = false;
   scene.backgroundColor = Color.fromCssColorString("#8ec5f2");
   const exclude: object[] = [];
+  const heightMemo: { lat: number; lon: number; h: number | undefined; t: number }[] = Array.from({ length: 4 }, () => ({ lat: 0, lon: 0, h: undefined, t: -1e9 }));
+  let memoNext = 0;
   return {
     kind: "google",
     widget,
     exclude,
     groundHeight(p) {
       if (!tileset.show || !scene.sampleHeightSupported) return undefined;
-      return scene.sampleHeight(Cartographic.fromDegrees(p.lon, p.lat), exclude, 1);
+      // Each reading is an extra small render of the tiles below the point. The physics and
+      // the camera both ask about nearly the same spots several times a second: share the
+      // answers for a moment instead of re-rendering for each.
+      const now = performance.now();
+      for (const m of heightMemo) {
+        if (now - m.t < 150 && Math.abs(m.lat - p.lat) < 6e-5 && Math.abs(m.lon - p.lon) < 6e-5) return m.h;
+      }
+      const h = scene.sampleHeight(Cartographic.fromDegrees(p.lon, p.lat), exclude, 1);
+      heightMemo[memoNext] = { lat: p.lat, lon: p.lon, h, t: now };
+      memoNext = (memoNext + 1) % heightMemo.length;
+      return h;
     },
     async sampleHeights(points) {
       const carts = points.map((p) => Cartographic.fromDegrees(p.lon, p.lat));
@@ -276,9 +307,15 @@ async function createIonWorld(container: HTMLElement, token: string, q: "high" |
     baseLayer: ImageryLayer.fromWorldImagery({}),
   });
   const scene = widget.scene;
+  const b = detailBudget(q);
+  scene.globe.tileCacheSize = b.globeTileCache;
+  scene.globe.preloadSiblings = true;
   let buildings: Cesium3DTileset | undefined;
   try {
     buildings = await createOsmBuildingsAsync();
+    buildings.cacheBytes = Math.round(b.tilesCacheMB / 3) * 1024 * 1024;
+    buildings.maximumCacheOverflowBytes = Math.round(b.tilesOverflowMB / 3) * 1024 * 1024;
+    buildings.foveatedScreenSpaceError = false;
     scene.primitives.add(buildings);
   } catch {
     /* buildings are optional */
@@ -326,7 +363,9 @@ async function createBasicWorld(container: HTMLElement, q: "high" | "medium" | "
     scene.imageryLayers.addImageryProvider(cartoon.imageryProvider());
     scene.globe.depthTestAgainstTerrain = gfxOn("terrainDepth");
     scene.globe.maximumScreenSpaceError = q === "high" ? 1.5 : 2.5;
-    scene.globe.tileCacheSize = 200;
+    scene.globe.tileCacheSize = detailBudget(q).globeTileCache;
+    // Keep the neighbours of tiles in view loaded, so turning doesn't show blurry patches.
+    scene.globe.preloadSiblings = true;
   }
   return {
     kind: cartoon ? "cartoon" : "basic",

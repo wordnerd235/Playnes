@@ -4,6 +4,7 @@
 import type { Line } from "../data/lines.ts";
 import type { Controls } from "../input/controls.ts";
 import { ICONS } from "./icons.ts";
+import { setAttr, setStyle, setText } from "./dom.ts";
 import { BigMap, Minimap, type MapState } from "./maps.ts";
 import type { Airport } from "../data/airports.ts";
 
@@ -72,6 +73,8 @@ export class Hud {
   private altFill!: HTMLElement;
   private altTarget!: HTMLElement;
   private flapHandle!: HTMLElement;
+  private leverFill: HTMLElement | null = null;
+  private flapDetents: { det: HTMLElement; hint: HTMLElement | null }[] | null = null;
   private flapLevel = 0;
   private airMode = false;
   private toastEl: HTMLElement;
@@ -509,44 +512,41 @@ export class Hud {
   }
 
   update(d: HudData): void {
-    this.speed.textContent = String(Math.round(d.speedKt));
-    this.groundSpeed.textContent = `ground ${Math.round(d.groundKt)}`;
-    this.alt.textContent = d.altFt >= 18000 ? `FL${Math.round(d.altFt / 100)}` : String(Math.round(d.altFt / 10) * 10);
+    // Only changed values are written (see dom.ts): this runs every frame.
+    setText(this.speed, String(Math.round(d.speedKt)));
+    setText(this.groundSpeed, `ground ${Math.round(d.groundKt)}`);
+    setText(this.alt, d.altFt >= 18000 ? `FL${Math.round(d.altFt / 100)}` : String(Math.round(d.altFt / 10) * 10));
     // Progress toward cruising height.
     const frac = Math.max(0, Math.min(1, d.altFt / Math.max(1, d.cruiseAltFt)));
-    this.altFill.style.width = `${Math.round(frac * 100)}%`;
+    setStyle(this.altFill, "width", `${Math.round(frac * 100)}%`);
     const cruising = frac >= 0.97;
     this.altBox.classList.toggle("cruising", cruising);
-    this.altTarget.textContent = cruising ? "cruising!" : `cruise ${d.cruiseAltFt >= 18000 ? `FL${Math.round(d.cruiseAltFt / 100)}` : d.cruiseAltFt.toLocaleString()}`;
-    this.ball.setAttribute("transform", `rotate(${-d.bank}) translate(0 ${Math.max(-40, Math.min(40, d.pitch * 1.6))})`);
+    setText(this.altTarget, cruising ? "cruising!" : `cruise ${d.cruiseAltFt >= 18000 ? `FL${Math.round(d.cruiseAltFt / 100)}` : d.cruiseAltFt.toLocaleString()}`);
+    setAttr(this.ball, "transform", `rotate(${(-d.bank).toFixed(1)}) translate(0 ${Math.max(-40, Math.min(40, d.pitch * 1.6)).toFixed(1)})`);
     if (d.progress !== null) {
-      const pct = Math.max(0, Math.min(1, d.progress)) * 100;
-      this.progressBar.style.width = `${pct}%`;
-      this.progressPlane.style.left = `${pct}%`;
+      const pct = (Math.max(0, Math.min(1, d.progress)) * 100).toFixed(1);
+      setStyle(this.progressBar, "width", `${pct}%`);
+      setStyle(this.progressPlane, "left", `${pct}%`);
     }
-    if (!this.leverDragging) {
-      this.leverHandle.style.bottom = `calc(${d.throttle * 100}% * 0.86 + 2%)`;
-      (this.lever.querySelector(".lever-fill") as HTMLElement).style.height = `${d.throttle * 100}%`;
-    } else {
-      this.leverHandle.style.bottom = `calc(${this.controls.state.throttle * 100}% * 0.86 + 2%)`;
-      (this.lever.querySelector(".lever-fill") as HTMLElement).style.height = `${this.controls.state.throttle * 100}%`;
-    }
+    const thr = ((this.leverDragging ? this.controls.state.throttle : d.throttle) * 100).toFixed(1);
+    setStyle(this.leverHandle, "bottom", `calc(${thr}% * 0.86 + 2%)`);
+    this.leverFill ??= this.lever.querySelector(".lever-fill") as HTMLElement;
+    setStyle(this.leverFill, "height", `${thr}%`);
     this.buttons.gear.classList.toggle("on", d.gearDown);
     this.buttons.gear.classList.toggle("fixed", d.fixedGear);
     this.flapLevel = d.flaps;
-    this.flapLever.dataset.level = String(d.flaps);
+    setAttr(this.flapLever, "data-level", String(d.flaps));
     // Show which notches the current speed allows: too fast = red, with the speed to slow to.
-    const detents = this.flapLever.querySelectorAll<HTMLElement>(".flap-detent");
+    this.flapDetents ??= [...this.flapLever.querySelectorAll<HTMLElement>(".flap-detent")].map((det) => ({ det, hint: det.querySelector("em") }));
     for (let n = 1; n <= 3; n++) {
       const lim = d.flapLimitsKt[n - 1];
       const blocked = !d.onGround && d.speedKt > lim;
-      const det = detents[n];
+      const det = this.flapDetents[n];
       if (!det) continue;
-      det.classList.toggle("blocked", blocked);
-      const hint = det.querySelector("em");
-      if (hint) hint.textContent = blocked ? `slow to ${Math.floor(lim / 5) * 5}` : `${Math.floor(lim / 5) * 5} kt`;
+      det.det.classList.toggle("blocked", blocked);
+      if (det.hint) setText(det.hint, blocked ? `slow to ${Math.floor(lim / 5) * 5}` : `${Math.floor(lim / 5) * 5} kt`);
     }
-    this.flapHandle.style.top = `${d.flaps * 25}%`;
+    setStyle(this.flapHandle, "top", `${d.flaps * 25}%`);
     // The brakes button: wheel brakes on the ground, speedbrakes in the air (if the playne has
     // them). Fades out but keeps its spot otherwise, so the other buttons don't jump.
     const air = !d.onGround;
@@ -561,7 +561,7 @@ export class Hud {
     this.warpEl.hidden = !d.warp;
     if (d.hoopsLeft !== null && d.hoopsLeft > 0) {
       this.hoopsEl.hidden = false;
-      this.hoopsEl.textContent = `◯ × ${d.hoopsLeft}`;
+      setText(this.hoopsEl, `◯ × ${d.hoopsLeft}`);
     } else this.hoopsEl.hidden = true;
   }
 

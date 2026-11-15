@@ -3,6 +3,7 @@
 // Piston playnes get classic round dials; turboprops and jets get glass screens.
 
 import type { AircraftDef } from "../data/aircraft.ts";
+import { setAttr, setText } from "./dom.ts";
 
 export interface CockpitData {
   iasKt: number;
@@ -267,15 +268,16 @@ export class Cockpit {
     const deg = (v: number) => v;
     // Horizon: rotate opposite the bank, move with pitch.
     const ppd = this.glass ? 6 : 3.2;
-    this.horizon.setAttribute("transform", `rotate(${-d.bank} ${this.horizonClipCx} ${this.horizonClipCy}) translate(0 ${d.pitch * ppd})`);
-    this.rose.setAttribute("transform", `rotate(${-d.heading} ${this.roseC.x} ${this.roseC.y})`);
-    this.texts.ias.textContent = String(Math.round(d.iasKt));
-    this.texts.alt.textContent = String(Math.round(d.altFt / 10) * 10);
-    if (this.texts.gear) this.texts.gear.textContent = d.fixedGear ? "" : d.gearDown ? "WHEELS DOWN" : "WHEELS UP";
-    if (this.texts.gear) this.texts.gear.setAttribute("fill", d.gearDown ? "#38d36b" : "#cfd8e3");
+    // Only changed values are written (see dom.ts): this runs every frame.
+    setAttr(this.horizon, "transform", `rotate(${(-d.bank).toFixed(1)} ${this.horizonClipCx} ${this.horizonClipCy}) translate(0 ${(d.pitch * ppd).toFixed(1)})`);
+    setAttr(this.rose, "transform", `rotate(${(-d.heading).toFixed(1)} ${this.roseC.x} ${this.roseC.y})`);
+    setText(this.texts.ias, String(Math.round(d.iasKt)));
+    setText(this.texts.alt, String(Math.round(d.altFt / 10) * 10));
+    if (this.texts.gear) setText(this.texts.gear, d.fixedGear ? "" : d.gearDown ? "WHEELS DOWN" : "WHEELS UP");
+    if (this.texts.gear) setAttr(this.texts.gear, "fill", d.gearDown ? "#38d36b" : "#cfd8e3");
     const rot = (id: string, a: number) => {
       const n = this.needles[id];
-      if (n) n.el.setAttribute("transform", `rotate(${deg(a)} ${n.cx} ${n.cy})`);
+      if (n) setAttr(n.el, "transform", `rotate(${deg(a).toFixed(1)} ${n.cx} ${n.cy})`);
     };
     rot("ias", Math.min(d.iasKt, 200) * 1.6 - 160 + 160);
     rot("alt100", ((d.altFt % 1000) / 1000) * 360);
@@ -287,8 +289,8 @@ export class Cockpit {
       const full = this.glass ? 180 : 220;
       const h = full * Math.max(0, Math.min(1, d.throttle));
       const y0 = this.glass ? 880 : 920;
-      bar.setAttribute("height", String(h));
-      bar.setAttribute("y", String(y0 - h));
+      setAttr(bar, "height", h.toFixed(1));
+      setAttr(bar, "y", (y0 - h).toFixed(1));
     }
   }
 }

@@ -3,6 +3,12 @@
 // so `unlock()` is called from the "Tap to fly" button.
 
 import { lineKey, speakable, type Line } from "../data/lines.ts";
+import { deviceClass } from "../world/device.ts";
+
+// A decoded voice line is raw audio (~0.5 MB for a few seconds). Keeping every line ever said
+// adds up to 100+ MB over a long session, which on iPhone/iPad can make Safari reload the page.
+// Keep only the most recent ones; older lines reload from the (cached) file if needed again.
+const MAX_BUFFERS = { phone: 20, tablet: 30, desktop: 60 }[deviceClass()];
 
 type Caption = (line: Line | null) => void;
 
@@ -63,7 +69,11 @@ export class Audio {
 
   private load(id: string): Promise<AudioBuffer | null> {
     let p = this.buffers.get(id);
-    if (!p) {
+    if (p) {
+      // Most recently used goes to the end.
+      this.buffers.delete(id);
+      this.buffers.set(id, p);
+    } else {
       const file = this.manifest[id];
       p = file && this.ctx
         ? fetch(`./audio/voice/${file}`)
@@ -72,8 +82,18 @@ export class Audio {
             .catch(() => null)
         : Promise.resolve(null);
       this.buffers.set(id, p);
+      this.trimBuffers();
     }
     return p;
+  }
+
+  private trimBuffers(): void {
+    if (this.buffers.size <= MAX_BUFFERS) return;
+    const keep = new Set(this.queue.map((q) => lineKey(q.line)));
+    for (const id of this.buffers.keys()) {
+      if (this.buffers.size <= MAX_BUFFERS) break;
+      if (!keep.has(id)) this.buffers.delete(id);
+    }
   }
 
   /** Warm the cache for lines that will be needed soon. */

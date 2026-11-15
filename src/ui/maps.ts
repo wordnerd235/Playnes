@@ -13,16 +13,32 @@ function px(lat: number, lon: number, z: number): { x: number; y: number } {
   return { x: ((lon + 180) / 360) * n, y: ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n };
 }
 
+/**
+ * Map pictures for the minimap and big map. Each decoded tile is ~256 KB, so only the most
+ * recently drawn ones are kept (enough for the big map's full screen); the rest reload from
+ * the cached file when needed again.
+ */
 class TileCache {
   private imgs = new Map<string, HTMLImageElement>();
+  private static readonly MAX = 160;
   get(z: number, x: number, y: number, onload: () => void): HTMLImageElement | null {
     const key = `${z}/${x}/${y}`;
     let img = this.imgs.get(key);
-    if (!img) {
+    if (img) {
+      this.imgs.delete(key);
+    } else {
       img = new Image();
+      img.decoding = "async";
       img.onload = onload;
       img.src = `./world/tiles/${key}.webp`;
-      this.imgs.set(key, img);
+    }
+    this.imgs.set(key, img);
+    if (this.imgs.size > TileCache.MAX) {
+      const oldest = this.imgs.keys().next().value as string;
+      const old = this.imgs.get(oldest)!;
+      old.onload = null;
+      old.src = "";
+      this.imgs.delete(oldest);
     }
     return img.complete && img.naturalWidth > 0 ? img : null;
   }
