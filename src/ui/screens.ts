@@ -535,13 +535,13 @@ export class Screens {
     const crashes = check("set-crashes", s.crashes);
     const autoSpeed = check("set-autospeed", s.freeAutoSpeed);
     const solo = check("set-solo", s.soloCharters !== false);
-    const detail = check("set-detail", s.extraDetail !== false);
+    const detail = check("set-detail", s.satellitePhotos === true);
     const unlock = check("set-unlock", p.unlockAll);
     const volume = h("input", { id: "set-volume", type: "range", min: "0", max: "1", step: "0.05", value: String(s.volume) });
     const minutes = sel("set-minutes", String(s.sessionMinutes), [["0", "Off"], ["15", "15 minutes"], ["20", "20 minutes"], ["30", "30 minutes"], ["45", "45 minutes"]]);
     const code = h("textarea", { id: "set-code", rows: 3, spellcheck: false, placeholder: "Backup code" });
     const msg = h("p.field-msg", { role: "status" });
-    const offlineMsg = h("p.field-msg", { role: "status" }, "Downloads about 30 MB so the cartoon world works in the car or on a playne. Install to the Home Screen first.");
+    const offlineMsg = h("p.field-msg", { role: "status" }, "Downloads about 25 MB so the cartoon world works in the car or on a playne. Install to the Home Screen first.");
 
     const save = () => {
       const worldChanged = world.value !== s.world || gkey.value !== s.googleKey || ion.value !== s.ionToken || quality.value !== s.quality;
@@ -556,7 +556,7 @@ export class Screens {
       s.crashes = crashes.checked;
       s.freeAutoSpeed = autoSpeed.checked;
       s.soloCharters = solo.checked;
-      s.extraDetail = detail.checked;
+      s.satellitePhotos = detail.checked;
       s.volume = Number(volume.value);
       s.sessionMinutes = Number(minutes.value);
       p.unlockAll = unlock.checked;
@@ -590,7 +590,7 @@ export class Screens {
             field("Google Maps API key", gkey, "See docs/SETUP.md. Restrict the key to https://<you>.github.io/* and the Map Tiles API."),
             field("Cesium ion token (optional)", ion),
             field("Graphics quality", quality),
-            h("label.check", {}, [detail, "Extra map detail (test): real satellite photos around Tri-Cities on the offline cartoon map. Works offline too; off = plain cartoon look"]),
+            h("label.check", {}, [detail, "Extra map detail (test): real satellite photos around Tri-Cities on the offline cartoon map. Off by default; works offline too"]),
             h("div.code-row", {}, [
               h("button.btn.secondary", {
                 type: "button",
@@ -598,7 +598,7 @@ export class Screens {
                   const btn = e.currentTarget as HTMLButtonElement;
                   btn.disabled = true;
                   offlineMsg.textContent = "Downloading the map, playnes and voices...";
-                  const r = await saveForOffline((d, t) => (offlineMsg.textContent = `Saving for offline: ${d} of ${t}...`));
+                  const r = await saveForOffline((d, t) => (offlineMsg.textContent = `Saving for offline: ${d} of ${t}...`), { satellite: detail.checked });
                   offlineMsg.textContent = r.failed ? `Saved ${r.ok} files; ${r.failed} failed. Try again on Wi-Fi.` : `All set! The cartoon world now works with no internet (${r.ok} files).`;
                   btn.disabled = false;
                 },

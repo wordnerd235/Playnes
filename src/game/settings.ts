@@ -22,7 +22,7 @@ export interface Settings {
   /** Charters already completed are flown solo (no tips or co-pilot help). */
   soloCharters: boolean;
   /** Offline map: satellite photos around Tri-Cities (test patch). */
-  extraDetail: boolean;
+  satellitePhotos: boolean;
 }
 
 const KEY = "playnes.settings.v1";
@@ -41,7 +41,7 @@ export const DEFAULT_SETTINGS: Settings = {
   crashes: false,
   freeAutoSpeed: false,
   soloCharters: true,
-  extraDetail: true,
+  satellitePhotos: false,
 };
 
 export function loadSettings(): Settings {

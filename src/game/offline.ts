@@ -22,9 +22,10 @@ function tileUrls(meta: WorldMeta): string[] {
   return Array.from(new Set(urls));
 }
 
-export async function saveForOffline(onProgress: (done: number, total: number) => void): Promise<{ ok: number; failed: number }> {
+export async function saveForOffline(onProgress: (done: number, total: number) => void, opts: { satellite?: boolean } = {}): Promise<{ ok: number; failed: number }> {
   const meta = (await (await fetch("./world/world.json")).json()) as WorldMeta;
-  const sat = await loadSatMeta();
+  // Satellite photos only when that grown-up switch is on (saves ~4 MB otherwise).
+  const sat = opts.satellite ? await loadSatMeta() : null;
   const manifest = (await (await fetch("./audio/voice/manifest.json")).json()) as Record<string, string>;
   const urls = [
     "./",

@@ -22,10 +22,12 @@ const path = require("path");
   await page.click(".big-go");
   await page.waitForSelector(".home-grid", { timeout: 60000 });
   check(await page.evaluate(() => window.playnes.worldKind === "cartoon"), "offline cartoon world loaded");
-  // The switch is in grown-up settings, on by default.
+  // The switch is in grown-up settings, off by default (cartoon map first).
   await page.evaluate(() => window.playnes.screens.parentCorner(() => window.playnes.screens.home()));
   const box = await page.$("#set-detail");
-  check(!!box && (await box.isChecked()), "grown-up settings have the extra-detail switch, on by default");
+  check(!!box && !(await box.isChecked()), "grown-up settings have the extra-detail switch, off by default");
+  check(satReqs.size === 0, `no satellite tiles load by default (${satReqs.size})`);
+  await page.evaluate(() => window.playnes.world.setExtraDetail(true));
   await page.evaluate(() => window.playnes.screens.home());
 
   // Look at the patch from the air: over Boone Lake towards the airport, then the patch edge.

@@ -197,7 +197,7 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
   installRecovery(w.widget, scenery);
   installCommandGuard(w.widget);
   // Satellite photos around Tri-Cities on top of the cartoon map (switchable in grown-up settings).
-  let extraDetail = opts.extraDetail !== false;
+  let extraDetail = opts.extraDetail === true;
   const satLayer = w.kind === "cartoon" ? addSatelliteLayer(w.widget.scene, extraDetail) : Promise.resolve(null);
   const setGround = w.setGroundVisible.bind(w);
   const destroy = w.destroy.bind(w);
