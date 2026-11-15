@@ -21,7 +21,10 @@ const path = require("path");
   await page.evaluate(() => {
     const p = window.playnes.progress;
     p.tourDone = true;
-    p.airportsVisited = ["TRI", "AVL"];
+    p.airportsVisited = ["TRI", "AVL", "GSP"];
+    // Landed at GSP only by charter (doesn't count), at TRI and AVL in Free Flight.
+    p.landedAt = ["TRI", "AVL", "GSP"];
+    p.freeLandedAt = ["TRI", "AVL"];
     p.selectedPlane = "c172";
     localStorage.setItem("playnes.freeSave.v1", "");
   });
@@ -60,7 +63,7 @@ const path = require("path");
   check(r.n > 20, `route to GSP has a curve (${r.n} points)`);
   check(diff(r.startBrg, 0) < 25, `route leaves along the playne's heading (${r.startBrg.toFixed(0)}°)`);
   check(diff(r.finalBrg, r.rwyHdg) < 2, `route ends lined up with the runway (${r.finalBrg.toFixed(0)}° vs ${r.rwyHdg.toFixed(0)}°)`);
-  check(r.guide, "first landing at GSP: sky guide line is drawn");
+  check(r.guide, "GSP landed at only by charter: the sky guide line still shows");
   await page.screenshot({ path: path.join(out, "route-sky.png") });
   await page.locator(".minimap").screenshot({ path: path.join(out, "route-minimap.png") }).catch(() => {});
   // Big map shows the same curved route.
@@ -77,7 +80,7 @@ const path = require("path");
     f.setNavTarget(f.allRunways.find((r) => r.airport.code === "TRI").airport);
   });
   await page.waitForTimeout(800);
-  check(await page.evaluate(() => !!window.playnes.flight.route && !window.playnes.flight.skyGuide.line), "airport already visited (TRI): route but no sky guide");
+  check(await page.evaluate(() => !!window.playnes.flight.route && !window.playnes.flight.skyGuide.line), "landed at TRI in Free Flight before: route but no sky guide");
   await page.evaluate(() => window.playnes.flight.setNavTarget(null));
   check(await page.evaluate(() => !window.playnes.flight.route), "clearing the route removes it");
   console.log(errors.length ? `page errors: ${errors.join(" | ")}` : "no page errors");
