@@ -264,7 +264,10 @@ export class PlaneView {
     let g: number | undefined;
     if (globe) g = globe.show ? globe.getHeight(Cartographic.fromDegrees(lon, lat)) : undefined;
     else {
-      if (this.tileGroundAge++ % 8 === 0) this.tileGround = this.world.groundHeight({ lat, lon });
+      // Only matters when the camera is near the ground: high up, check once a second.
+      const clearance = this.tileGround === undefined ? 0 : h - this.tileGround;
+      const every = clearance < 60 ? 8 : clearance < 300 ? 20 : 60;
+      if (this.tileGroundAge++ % every === 0) this.tileGround = this.world.groundHeight({ lat, lon });
       g = this.tileGround;
     }
     return g !== undefined && Number.isFinite(g) ? Math.max(h, g + 1.2) : h;

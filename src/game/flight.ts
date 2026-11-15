@@ -1713,7 +1713,11 @@ export class FlightSession {
     // a stale height from somewhere else could put the ground above the playne.
     const gc = this.groundCache;
     const moved = gc.valid ? Math.abs(p.lat - gc.lat) * 111320 + Math.abs(p.lon - gc.lon) * 91000 : Infinity;
-    if (this.frame - gc.frame >= 6 || !gc.valid || moved > 200) {
+    // How often to re-read: often near the ground, rarely high up (in Google's 3D world every
+    // reading is an extra render of the tiles below, which adds up on an iPad).
+    const agl = gc.valid && this.s ? this.s.alt - gc.h : 0;
+    const every = agl < 80 ? 6 : agl < 400 ? 12 : 60;
+    if (this.frame - gc.frame >= every || !gc.valid || moved > (agl < 400 ? 200 : 2500)) {
       const h = this.d.world.groundHeight(p);
       this.groundCache.frame = this.frame;
       gc.lat = p.lat;
