@@ -1,6 +1,7 @@
 <!doctype html>
 <!-- Dev tool: look at one model from any direction, with parts posed.
      ?id=f16&dir=-1,0.4,0.8&zoom=1&rot=gearL:60,ailL:-20&hide=burner&bg=8fb7dc
+     ?id=f16&eye=0,2.81,3.3&at=0,2.6,10&fov=60&hide=pilot,canopy   (from the pilot's eyes)
      (glTF coords: nose +Z, up +Y, left +X; rot turns a node about its own X axis, degrees) -->
 <html>
 <head>
@@ -52,6 +53,14 @@ new GLTFLoader().load(`../public/models/${id}.glb?${Date.now()}`, (g) => {
   const dist = (radius / Math.sin((cam.fov * Math.PI) / 360)) * 0.6 / zoom;
   cam.position.copy(centre).addScaledVector(d, dist);
   cam.lookAt(centre);
+  // eye=x,y,z&at=x,y,z&fov=60: look from a point inside the model instead.
+  if (q.get("eye")) {
+    cam.fov = Number(q.get("fov") || 60);
+    cam.near = 0.05;
+    cam.updateProjectionMatrix();
+    cam.position.set(...q.get("eye").split(",").map(Number));
+    cam.lookAt(new THREE.Vector3(...(q.get("at") || "0,0,100").split(",").map(Number)));
+  }
   renderer.render(scene, cam);
   document.title = "ready";
 });

@@ -52,6 +52,18 @@ const path = require("path");
   await shot("cruise-front");
   await look(0, 0);
   await shot("cruise-chase");
+  // From the cockpit: ahead (banked a little, so the horizon shows on the HUD), then around.
+  await page.evaluate(() => { const f = window.playnes.flight; f.view.mode = "cockpit"; });
+  await look(0, 0);
+  await shot("cockpit-ahead");
+  await look(0, -32);
+  await shot("cockpit-panel");
+  await look(-70, -25);
+  await shot("cockpit-left");
+  await look(75, -28);
+  await shot("cockpit-right");
+  await look(150, 5);
+  await shot("cockpit-back");
   console.log(errors.length ? `page errors: ${[...new Set(errors)].join(" | ")}` : "no page errors");
   await browser.close();
 })();

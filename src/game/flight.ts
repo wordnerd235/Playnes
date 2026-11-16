@@ -51,6 +51,7 @@ import {
 } from "../sim/geo.ts";
 import { hoopGuidance, sTurnCourse } from "../sim/course.ts";
 import { Cockpit, PassengerWindow } from "../ui/cockpit.ts";
+import { HudGlass } from "../ui/hudGlass.ts";
 import { createState, densityRatio, indicated, perfFor, speedOfSound, step, type Commands, type FlightState, type Perf } from "../sim/physics.ts";
 import type { Hud, Prompt } from "../ui/hud.ts";
 import { CloudDeck } from "../world/clouds.ts";
@@ -244,6 +245,7 @@ export class FlightSession {
   private time = 0;
   private view: PlaneView;
   private cockpit: Cockpit;
+  private hudGlass: HudGlass;
   private paxWindow: PassengerWindow;
   private lastCmd = { targetBank: 0, targetVs: 0 };
   private hoops: Hoop[] = [];
@@ -333,6 +335,7 @@ export class FlightSession {
     this.clouds = new CloudDeck(deps.world.widget.scene);
     this.view = new PlaneView(deps.world, deps.aircraft);
     this.cockpit = new Cockpit(deps.hud.root, deps.aircraft);
+    this.hudGlass = new HudGlass(deps.hud.root);
     this.paxWindow = new PassengerWindow(deps.hud.root);
     deps.hud.onLook = (dy, dp) => this.view.addLook(dy, dp);
     deps.hud.onLookReset = () => this.view.resetLook();
@@ -2170,12 +2173,28 @@ export class FlightSession {
   private updateCockpit(): void {
     const s = this.s;
     const inside = this.view.mode === "cockpit";
-    if (this.cockpit.visible !== inside) this.cockpit.show(inside);
+    // A modelled cockpit is looked at directly (with figures on its HUD glass); the others get
+    // the drawn panel over the view, with the model hidden.
+    const real = this.view.has3dCockpit;
+    const drawn = inside && !real;
+    if (this.cockpit.visible !== drawn) this.cockpit.show(drawn);
     const pax = this.view.mode === "window";
     if (this.paxWindow.visible !== pax) this.paxWindow.show(pax);
-    if (this.view.model) this.view.model.show = !inside;
+    if (this.view.model) this.view.model.show = !inside || real;
+    this.hudGlass.place(inside && real && !this.paused ? this.view.hudOnScreen() : null);
     if (!inside) return;
     const ref = this.arr && this.cruiseProgressFraction() > 0.5 ? this.arr : this.dep;
+    if (real) {
+      this.hudGlass.update({
+        iasKt: indicated(s.speed, s.alt) / KT,
+        altFt: this.phase === "cruise" ? this.ac.cruiseAltFt + this.cruise.altOffset / FT : (s.alt + ref.mslOffset) / FT,
+        heading: s.heading,
+        pitch: s.pitch,
+        bank: s.bank,
+        mach: s.speed / speedOfSound(s.alt),
+      });
+      return;
+    }
     this.cockpit.update({
       iasKt: indicated(s.speed, s.alt) / KT,
       altFt: this.phase === "cruise" ? this.ac.cruiseAltFt + this.cruise.altOffset / FT : (s.alt + ref.mslOffset) / FT,
@@ -2253,6 +2272,7 @@ export class FlightSession {
   destroy(): void {
     this.destroyed = true;
     this.cockpit.el.remove();
+    this.hudGlass.el.remove();
     this.paxWindow.el.remove();
     this.unsub();
     this.d.audio.stopEngine();

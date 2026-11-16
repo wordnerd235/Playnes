@@ -660,3 +660,7 @@ svg { display: block; }
 .tour-keys td:last-child { font-weight: 700; }
 .tour-keys kbd { display: inline-block; min-width: 22px; padding: 1px 6px; border-radius: 6px; border: 1px solid #b9c6d6; border-bottom-width: 3px; background: #f4f7fb; font: 800 12px/1.5 inherit; text-align: center; color: #10233a; }
 .tour-keys span { color: #6a7d92; font-size: 12px; font-weight: 700; }
+
+/* Figures on the HUD glass of a 3D cockpit (placed over the glass every frame). */
+.hud-glass { position: absolute; pointer-events: none; overflow: hidden; }
+.hud-glass svg { width: 100%; height: 100%; display: block; overflow: hidden; }

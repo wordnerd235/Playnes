@@ -60,7 +60,7 @@ export class PlaneView {
     scene.primitives.add(this.model);
     this.world.exclude.push(this.model);
     this.model.readyEvent.addEventListener(() => {
-      for (const n of ["gear", "prop", "flapL", "flapR", "ailL", "ailR", "elevL", "elevR", "rudder", "beacon", "strobe", "rotorF", "rotorR", "gearL", "gearR", "gearN", "wheelL", "wheelR", "wheelN", "gearDoors", "brakeLU", "brakeLD", "brakeRU", "brakeRD", "burner"]) {
+      for (const n of ["gear", "prop", "flapL", "flapR", "ailL", "ailR", "elevL", "elevR", "rudder", "beacon", "strobe", "rotorF", "rotorR", "gearL", "gearR", "gearN", "wheelL", "wheelR", "wheelN", "gearDoors", "brakeLU", "brakeLD", "brakeRU", "brakeRD", "burner", "pilot", "canopy"]) {
         try {
           const node = this.model!.getNode(n) ?? null;
           this.nodes[n] = node;
@@ -189,11 +189,37 @@ export class PlaneView {
     }
   }
 
+  /** This playne has a modelled cockpit to sit in (the cockpit view shows the model itself). */
+  get has3dCockpit(): boolean {
+    return !!RIGS[this.ac.id]?.eye;
+  }
+
+  /** Where the HUD glass is on screen right now (null if it isn't in view). */
+  hudOnScreen(): { x: number; y: number; half: number; degHalf: number } | null {
+    const rig = RIGS[this.ac.id];
+    if (!rig?.hud || !rig.eye || !this.model) return null;
+    const scene = this.world.widget.scene;
+    // Model coordinates (x left, y up, z forward) -> Cesium's model frame (x forward, y left, z up).
+    const toScreen = (p: number[]) => scene.cartesianToCanvasCoordinates(Matrix4.multiplyByPoint(this.model!.modelMatrix, new Cartesian3(p[2], p[0], p[1]), new Cartesian3()));
+    const c = rig.hud.centre;
+    const a = toScreen(c);
+    const b = toScreen([c[0], c[1] + rig.hud.halfHeight, c[2]]);
+    if (!a || !b) return null;
+    const dist = Math.hypot(c[0] - rig.eye[0], c[1] - rig.eye[1], c[2] - rig.eye[2]);
+    return { x: a.x, y: a.y, half: Math.hypot(b.x - a.x, b.y - a.y), degHalf: Math.atan(rig.hud.halfHeight / dist) / DEG };
+  }
+
   /** Detailed models: legs that fold away, wheels that turn, speedbrakes, afterburner. */
   private updateRig(s: FlightState, dt: number, input: SurfaceInputs): void {
     const rig = RIGS[this.ac.id];
     if (!rig) return;
     const n = this.nodes;
+    // Looking out through the pilot's eyes: no pilot in the way, and no tint from the glass.
+    if (rig.eye) {
+      const inside = this.mode === "cockpit";
+      if (n.pilot) n.pilot.show = !inside;
+      if (n.canopy) n.canopy.show = !inside;
+    }
     // Legs take about 2.5 s to travel. (dt 0 = placing the model: jump to where it should be.)
     const want = s.gearDown ? 1 : 0;
     this.gearT = dt === 0 ? want : clamp(this.gearT + Math.sign(want - this.gearT) * (dt / 2.5), 0, 1);
@@ -282,9 +308,13 @@ export class PlaneView {
     if (this.mode === "cockpit") {
       const f = frameVectors(s, s.alt, s.heading + this.lookYaw, s.pitch + this.lookPitch - (lookDown ? 35 : 0), s.bank);
       const base = frameVectors(s, s.alt, s.heading, s.pitch, s.bank);
+      // A 3D cockpit has a real seat to look out from; the others use a spot above the nose.
+      const at = RIGS[this.ac.id]?.eye;
+      const ahead = at ? at[2] : L * 0.36;
+      const above = at ? at[1] : this.ac.shape.fuselageDiameter * 0.75 + 0.9;
       const eye = Cartesian3.add(
         base.pos,
-        Cartesian3.add(Cartesian3.multiplyByScalar(base.fwd, L * 0.36, new Cartesian3()), Cartesian3.multiplyByScalar(base.up, this.ac.shape.fuselageDiameter * 0.75 + 0.9, new Cartesian3()), new Cartesian3()),
+        Cartesian3.add(Cartesian3.multiplyByScalar(base.fwd, ahead, new Cartesian3()), Cartesian3.multiplyByScalar(base.up, above, new Cartesian3()), new Cartesian3()),
         new Cartesian3(),
       );
       const ec = Cartographic.fromCartesian(eye);
