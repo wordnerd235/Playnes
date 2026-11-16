@@ -18,6 +18,8 @@
 //   beacon strobe            blink
 //   pilot canopy             hidden when the camera is inside (rig.eye, rig.windowEye)
 
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+
 export function buildC172(ac, kit) {
   const { THREE, V, C, T, RX, RZ, lerp, MAT, MATERIALS, loft, smooth, surface, controlSurface, lathe, cylinderBetween, registration, REGISTRATION, part, sheet, curve, asNode } = kit;
 
@@ -350,6 +352,8 @@ export function buildC172(ac, kit) {
   // ---- inside: floor, walls, ceiling, instrument panel, yokes, seats
   const cCarpet = C("#3b3e43"), cWall = C("#b9b3a7"), cCeiling = C("#d9d5cc"), cPanel = C("#34373b"), cSeat = C("#6d6458"), cSeatDark = C("#4f4840");
   const box = (w, h, d, x, y, z, rx = 0) => new THREE.BoxGeometry(w, h, d).applyMatrix4(new THREE.Matrix4().compose(V(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, 0, 0)), V(1, 1, 1)));
+  /** A padded shape (seats): a box with soft rounded edges. */
+  const pad = (w, h, d, x, y, z, rx = 0, r = 0.035) => new RoundedBoxGeometry(w, h, d, 3, Math.min(r, w / 2.2, h / 2.2, d / 2.2)).applyMatrix4(new THREE.Matrix4().compose(V(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, 0, 0)), V(1, 1, 1)));
   add("body", part(box(1.04, 0.03, 2.1, 0, 0.84, 0.2), XMAT.fabric, cCarpet, INSIDE));
   for (const side of [1, -1]) add("body", part(box(0.02, SILL - 0.84, 2.1, side * 0.528, (SILL + 0.84) / 2, 0.2), XMAT.fabric, cWall, INSIDE));
   add("body", part(box(1.06, 0.015, 1.68, 0, ROOF - 0.03, 0.03), XMAT.fabric, cCeiling, INSIDE));
@@ -416,15 +420,17 @@ export function buildC172(ac, kit) {
     for (const s of [-1, 1]) add("body", part(cylinderBetween(V(x + s * 0.13, 1.13, 0.98), V(x + s * 0.14, 1.24, 0.98), 0.019, 10), MAT.dark, cBlack, INSIDE));
     for (const s of [-1, 1]) add("body", part(box(0.08, 0.13, 0.02, x + s * 0.09, 0.95, 1.12, -0.5), MAT.metal, C("#5c6066"), INSIDE));
   }
-  // Seats: two in front, a bench behind.
+  // Seats: two in front, a bench behind. Backs recline (a negative turn about x tips the top
+  // toward the tail).
   for (const x of [0.27, -0.27]) {
-    add("body", part(box(0.42, 0.1, 0.46, x, 0.98, 0.5), XMAT.fabric, cSeat, INSIDE));
-    add("body", part(box(0.42, 0.62, 0.09, x, 1.32, 0.24, 0.2), XMAT.fabric, cSeat, INSIDE));
-    add("body", part(box(0.26, 0.13, 0.08, x, 1.69, 0.17, 0.2), XMAT.fabric, cSeatDark, INSIDE));
+    add("body", part(pad(0.42, 0.11, 0.46, x, 0.98, 0.5), XMAT.fabric, cSeat, INSIDE));
+    add("body", part(pad(0.42, 0.62, 0.1, x, 1.32, 0.24, -0.2), XMAT.fabric, cSeat, INSIDE));
+    add("body", part(pad(0.26, 0.14, 0.09, x, 1.69, 0.17, -0.2, 0.04), XMAT.fabric, cSeatDark, INSIDE));
     add("body", part(box(0.38, 0.12, 0.4, x, 0.9, 0.5), MAT.dark, C("#2b2d30"), INSIDE));
   }
-  add("body", part(box(0.98, 0.1, 0.44, 0, 0.95, -0.42), XMAT.fabric, cSeat, INSIDE));
-  add("body", part(box(0.98, 0.56, 0.09, 0, 1.24, -0.66, 0.18), XMAT.fabric, cSeat, INSIDE));
+  // The rear bench: one cushion, a back split in two (each side folds on the real one).
+  add("body", part(pad(0.98, 0.11, 0.44, 0, 0.95, -0.42), XMAT.fabric, cSeat, INSIDE));
+  for (const x of [0.245, -0.245]) add("body", part(pad(0.47, 0.56, 0.1, x, 1.24, -0.66, -0.18), XMAT.fabric, cSeat, INSIDE));
 
   // ---- the pilot, in the left seat with a headset, hands on the control wheel
   {
@@ -433,7 +439,7 @@ export function buildC172(ac, kit) {
     const limb = (a, b, r, c) => pp.push(part(cylinderBetween(a, b, r, 10), XMAT.fabric, c, INSIDE));
     const ball = (p, r, c, mat = XMAT.fabric) => pp.push(part(new THREE.SphereGeometry(r, 14, 10).applyMatrix4(T(p.x, p.y, p.z)), mat, c, INSIDE));
     const x = 0.27;
-    pp.push(part(new THREE.SphereGeometry(1, 16, 12).applyMatrix4(new THREE.Matrix4().compose(V(x, 1.29, 0.36), new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.15, 0, 0)), V(0.18, 0.26, 0.12))), XMAT.fabric, cShirt, INSIDE));
+    pp.push(part(new THREE.SphereGeometry(1, 16, 12).applyMatrix4(new THREE.Matrix4().compose(V(x, 1.29, 0.39), new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.15, 0, 0)), V(0.18, 0.26, 0.12))), XMAT.fabric, cShirt, INSIDE));
     const head = V(x, 1.63, 0.38);
     ball(head, 0.1, cSkin);
     pp.push(part(new THREE.SphereGeometry(0.104, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.45).applyMatrix4(new THREE.Matrix4().compose(head.clone().add(V(0, 0.005, -0.012)), new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.35, 0, 0)), V(1, 1, 1))), XMAT.fabric, cHair, INSIDE));
@@ -455,7 +461,12 @@ export function buildC172(ac, kit) {
   }
 
   // Where the pilot's eyes are, and a passenger's in the left rear seat (looking out the window).
-  rig.eye = [0.27, 1.65, 0.46];
-  rig.windowEye = [0.22, 1.56, -0.42];
+  // Where a seated person's eyes are: the pilot sits back against the seat, about 0.2 m above
+  // the glareshield; the passenger on the left of the rear bench. A wide view (degrees, across
+  // the longer side of the screen) takes in the panel, both windshield posts and the roof edge,
+  // as a person sitting there sees them.
+  rig.eye = [0.27, 1.62, 0.38];
+  rig.windowEye = [0.2, 1.55, -0.45];
+  rig.fov = 85;
   return { nodes, extraMaterials, rig };
 }

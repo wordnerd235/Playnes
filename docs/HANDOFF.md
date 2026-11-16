@@ -179,6 +179,14 @@ stays in pixels even when the size is in metres), which is why the frames are la
   the shadow bake then "sees" the cabin interior and darkens the skin. Run the ring the other
   way (the Cessna's `uRing` returns its points reversed).
 - **A still frame of a propeller is a frozen blade.** Fast props need a blur disc (`propDisc`).
+- **Seat views felt like a camera floating outside** (owner's report on the Cessna). The game
+  camera's usual 60-degree view crops a roomy cabin down to sky and nose. A rig can set `fov`
+  (degrees across the longer side of the screen); the Cessna uses 85 from both seats, which
+  shows the panel, yoke, windshield posts, roof edge and wing as a person in the seat sees
+  them. The F-16 keeps 60. `PlaneView.updateCamera` applies it and puts 60 back otherwise.
+- **Seat backs leaned forward.** In these models a positive turn about x tips the top toward
+  the nose; reclining backs need a negative angle. Check seats from the side before trusting
+  the eye position.
 - **Paint looks darker in the game than in the preview tool.** The game's lighting is harsher
   than the preview's. Judge colours from `tools/shot-plane.cjs`, not the preview.
 - **The game hid the whole model in cockpit view** (the old flat-panel approach). Anything with

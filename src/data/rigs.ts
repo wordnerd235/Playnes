@@ -11,6 +11,8 @@ export interface Rig {
   hud?: { centre: number[]; halfHeight: number };
   /** A passenger's eye, for the window view from a modelled cabin. */
   windowEye?: number[];
+  /** Field of view from the seats, degrees across the longer side of the screen (default 60). */
+  fov?: number;
 }
 
 export const RIGS: Record<string, Rig> = {
@@ -25,14 +27,15 @@ export const RIGS: Record<string, Rig> = {
     },
     "eye": [
       0.27,
-      1.65,
-      0.46
+      1.62,
+      0.38
     ],
     "windowEye": [
-      0.22,
-      1.56,
-      -0.42
-    ]
+      0.2,
+      1.55,
+      -0.45
+    ],
+    "fov": 85
   },
   "f16": {
     "retractDeg": {

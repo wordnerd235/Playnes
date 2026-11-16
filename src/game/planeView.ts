@@ -2,7 +2,7 @@
 // shadow, and the camera (chase / cockpit, with drag-to-look offsets).
 
 import { asset } from "../assets.ts";
-import { Cartesian3, Cartesian4, Cartographic, Color, Matrix3, Matrix4, Model, Transforms, type ModelNode } from "cesium";
+import { Cartesian3, Cartesian4, Cartographic, Color, Matrix3, Matrix4, Model, Transforms, type ModelNode, type PerspectiveFrustum } from "cesium";
 import { RIGS } from "../data/rigs.ts";
 import type { AircraftDef } from "../data/aircraft.ts";
 import { angleDiff, clamp, DEG, destination, type LatLon } from "../sim/geo.ts";
@@ -311,6 +311,12 @@ export class PlaneView {
     const L = this.ac.shape.length;
     const k = dt === 0 ? 1 : 1 - Math.exp(-dt * 2.5);
     this.camHeading += angleDiff(s.heading, this.camHeading) * k;
+    // A modelled cabin is seen with a person's wide view from the seats (the chase view and the
+    // other playnes keep the usual 60 degrees).
+    const seatFov = this.mode !== "chase" ? RIGS[this.ac.id]?.fov : undefined;
+    const fov = (seatFov ?? 60) * DEG;
+    const frustum = scene.camera.frustum as PerspectiveFrustum;
+    if (frustum.fov !== undefined && Math.abs(frustum.fov - fov) > 1e-6) frustum.fov = fov;
 
     if (this.mode === "window") {
       // A passenger's seat: left side of the cabin, ahead of the wing, looking out and back.
@@ -405,6 +411,8 @@ export class PlaneView {
 
   destroy(): void {
     const scene = this.world.widget.scene;
+    const frustum = scene.camera.frustum as PerspectiveFrustum;
+    if (frustum.fov !== undefined) frustum.fov = 60 * DEG;
     if (this.model) scene.primitives.remove(this.model);
     if (this.shadow) scene.primitives.remove(this.shadow);
     if (this.vapor) scene.primitives.remove(this.vapor);
