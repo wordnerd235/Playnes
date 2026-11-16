@@ -612,6 +612,7 @@ export class Screens {
     const autoSpeed = check("set-autospeed", s.freeAutoSpeed);
     const solo = check("set-solo", s.soloCharters !== false);
     const freeHelp = check("set-freehelp", s.freeLandingHelp === true);
+    const clouds = check("set-clouds", s.clouds !== false);
     const unlock = check("set-unlock", p.unlockAll);
     const volume = h("input", { id: "set-volume", type: "range", min: "0", max: "1", step: "0.05", value: String(s.volume) });
     const minutes = sel("set-minutes", String(s.sessionMinutes), [["0", "Off"], ["15", "15 minutes"], ["20", "20 minutes"], ["30", "30 minutes"], ["45", "45 minutes"]]);
@@ -633,6 +634,7 @@ export class Screens {
       s.freeAutoSpeed = autoSpeed.checked;
       s.soloCharters = solo.checked;
       s.freeLandingHelp = freeHelp.checked;
+      s.clouds = clouds.checked;
       s.volume = Number(volume.value);
       s.sessionMinutes = Number(minutes.value);
       p.unlockAll = unlock.checked;
@@ -666,6 +668,7 @@ export class Screens {
             field("Google Maps API key", gkey, "See docs/SETUP.md. Restrict the key to https://<you>.github.io/* and the Map Tiles API."),
             field("Cesium ion token (optional)", ion),
             field("Graphics quality", quality),
+            h("label.check", {}, [clouds, "Clouds (puffy clouds and the cloud layer on long charters)"]),
             h("div.code-row", {}, [
               h("button.btn.secondary", {
                 type: "button",

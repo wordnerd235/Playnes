@@ -60,6 +60,8 @@ export interface World {
   afterTeleport?(): void;
   /** How fast the playne is going (m/s): streaming maps ease detail at jet speed. */
   setMotion?(speed: number): void;
+  /** The grown-up "Clouds" setting: puffy clouds and the cruise cloud layer on or off. */
+  setClouds(on: boolean): void;
   destroy(): void;
 }
 
@@ -217,7 +219,7 @@ function baseWidget(container: HTMLElement, kind: WorldKind, q: "high" | "medium
 export async function createWorld(container: HTMLElement, kind: WorldKind, opts: WorldOptions): Promise<World> {
   const q = qualityLevel(opts.quality);
   const cartoon = await loadCartoon();
-  let w: Omit<World, "cartoon" | "updateScenery" | "obstacleTop">;
+  let w: Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setClouds">;
   if (kind === "google") w = await createGoogleWorld(container, opts.googleKey ?? "", q);
   else if (kind === "ion") w = await createIonWorld(container, opts.ionToken ?? "", q);
   else w = await createBasicWorld(container, q, cartoon);
@@ -244,6 +246,9 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
       buildings?.setVisible(v);
       markers.setVisible(v);
     },
+    setClouds(on: boolean) {
+      scenery.setClouds(on);
+    },
     updateScenery(p, alt, agl) {
       scenery.update(p, alt, agl);
       buildings?.update(p);
@@ -262,7 +267,7 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
   };
 }
 
-async function createGoogleWorld(container: HTMLElement, key: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop">> {
+async function createGoogleWorld(container: HTMLElement, key: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setClouds">> {
   const widget = baseWidget(container, "google", q, { globe: false, baseLayer: false });
   const scene = widget.scene;
   const b = detailBudget(q);
@@ -435,7 +440,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   };
 }
 
-async function createIonWorld(container: HTMLElement, token: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop">> {
+async function createIonWorld(container: HTMLElement, token: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setClouds">> {
   Ion.defaultAccessToken = token;
   const widget = baseWidget(container, "ion", q, {
     terrain: Terrain.fromWorldTerrain(),
@@ -490,7 +495,7 @@ async function createIonWorld(container: HTMLElement, token: string, q: "high" |
   };
 }
 
-async function createBasicWorld(container: HTMLElement, q: "high" | "medium" | "low", cartoon: CartoonData | null): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop">> {
+async function createBasicWorld(container: HTMLElement, q: "high" | "medium" | "low", cartoon: CartoonData | null): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setClouds">> {
   const provider = await TileMapServiceImageryProvider.fromUrl(buildModuleUrl("Assets/Textures/NaturalEarthII"), {
     credit: new Credit("Natural Earth II"),
   });

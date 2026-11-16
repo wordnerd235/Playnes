@@ -24,6 +24,8 @@ export interface Settings {
   /** Free Flight: the co-pilot lines up, holds the glide path, flares and keeps the takeoff
    *  roll straight (off = you fly it all; autobrakes still stop you after touchdown). */
   freeLandingHelp: boolean;
+  /** Puffy clouds and the cruise cloud layer. */
+  clouds: boolean;
 }
 
 const KEY = "playnes.settings.v1";
@@ -43,6 +45,7 @@ export const DEFAULT_SETTINGS: Settings = {
   freeAutoSpeed: false,
   soloCharters: true,
   freeLandingHelp: false,
+  clouds: true,
 };
 
 export function loadSettings(): Settings {

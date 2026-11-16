@@ -142,6 +142,7 @@ class Game implements ScreenHost {
       kind = "basic";
     }
     this.worldKind = this.world.kind;
+    this.world.setClouds(this.settings.clouds !== false);
     this.world.widget.scene.preUpdate.addEventListener(() => {
       // A bug in game code must never stop the 3D view from rendering.
       try {
@@ -201,6 +202,7 @@ class Game implements ScreenHost {
     saveSettings(this.settings);
     this.audio.setVolume(this.settings.volume);
     this.applyControlSettings();
+    this.world?.setClouds(this.settings.clouds !== false);
     if (this.settings.tilt) void Controls.requestMotionPermission();
     if (reloadWorld) {
       this.screens.loading("Changing the world map...");
