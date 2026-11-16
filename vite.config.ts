@@ -1,11 +1,12 @@
 import { defineConfig, type Plugin } from "vite";
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 // Content fingerprints for the playne models and pictures, so a changed file gets a new
-// address and the iPad's offline cache can't keep showing the old one ("models/ch47.glb" ->
-// "models/ch47.glb?v=1a2b3c4d"). Unchanged files keep their address (no re-download).
+// address and no cache can keep showing the old one: the build writes each file a second time
+// under a name with its fingerprint ("models/ch47.glb" -> "models/ch47.1a2b3c4d.glb", see
+// src/assets.ts). Unchanged files keep their address (no re-download).
 function assetVersions(dir = "public/models", prefix = "models"): Record<string, string> {
   const out: Record<string, string> = {};
   for (const name of readdirSync(dir)) {
@@ -42,13 +43,33 @@ function testServiceWorker(): Plugin {
   };
 }
 
+const ASSET_V = { ...assetVersions(), ...assetVersions("public/sprites", "sprites") };
+
+/** Write a copy of every fingerprinted file under its fingerprinted name. */
+function fingerprintedCopies(): Plugin {
+  let outDir = "dist";
+  return {
+    name: "playnes-fingerprinted-assets",
+    apply: "build",
+    configResolved(c) {
+      outDir = c.build.outDir;
+    },
+    closeBundle() {
+      for (const [key, v] of Object.entries(ASSET_V)) {
+        const from = join(outDir, key);
+        if (existsSync(from)) copyFileSync(from, join(outDir, key.replace(/(\.[a-z0-9]+)$/i, `.${v}$1`)));
+      }
+    },
+  };
+}
+
 export default defineConfig({
   base: "./",
-  plugins: [testServiceWorker()],
+  plugins: [testServiceWorker(), fingerprintedCopies()],
   define: {
     __TEST__: JSON.stringify(testCopy),
     __BUILD__: JSON.stringify(`${sha} · ${date} UTC`),
-    __ASSET_V__: JSON.stringify({ ...assetVersions(), ...assetVersions("public/sprites", "sprites") }),
+    __ASSET_V__: JSON.stringify(ASSET_V),
   },
   build: {
     target: "es2022",
