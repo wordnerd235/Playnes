@@ -27,11 +27,33 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - name: Build
-        run: npm run build
+      # The newest code is published as the TEST copy at .../Playnes/test/ (own saved progress,
+      # no offline cache). The game at .../Playnes/ is the STABLE version: the commit named in
+      # .stable-ref. To promote the test copy, put its commit there.
+      - name: Build the test copy
+        run: npm run build -- --outDir dist-test
         env:
+          PLAYNES_TEST: "1"
           # Optional. If set, anyone who opens the site uses this key (see docs/SETUP.md).
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+      - id: stable
+        run: echo "ref=$(cat .stable-ref)" >> "$GITHUB_OUTPUT"
+      - name: Check out the stable version
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.stable.outputs.ref }}
+          path: stable
+      - name: Build the stable version
+        working-directory: stable
+        run: |
+          npm ci
+          GITHUB_SHA=${{ steps.stable.outputs.ref }} npm run build
+        env:
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+      - name: Put them together
+        run: |
+          mv stable/dist dist
+          mv dist-test dist/test
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

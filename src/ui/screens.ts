@@ -172,7 +172,7 @@ export class Screens {
         h("div.logo", {}, [h("span.logo-word", {}, "Playnes")]),
         h("p.tagline", {}, "Fly real playnes across North America"),
         btn,
-        h("p.version", {}, `Version ${__BUILD__}`),
+        h("p.version", {}, `${__TEST__ ? "TEST COPY · " : ""}Version ${__BUILD__}`),
       ]),
     );
   }

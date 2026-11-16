@@ -1,4 +1,5 @@
 // Playnes entry point: boots the world, menus, flights and saving.
+import "./testCopy.ts";
 import "./cesium-base.ts";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "./styles.css";
