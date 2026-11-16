@@ -187,6 +187,8 @@ class Game implements ScreenHost {
       `${avg ? Math.round(1000 / avg) : 0} fps  slowest ${Math.round(worst)} ms  ${mins}:${String(secs).padStart(2, "0")}  ${this.world.kind}`,
       ...(this.world.perfStats ? [this.world.perfStats()] : []),
       ...(heap ? [`js ${Math.round(heap / 1048576)} MB`] : []),
+      // Which version is running (the offline cache can keep an older one for a launch).
+      `version ${typeof __BUILD__ === "string" ? __BUILD__.split(" ")[0] : "?"}`,
     ];
     this.perfEl.textContent = lines.join("\n");
   }
