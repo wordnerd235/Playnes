@@ -200,6 +200,18 @@ stays in pixels even when the size is in metres), which is why the frames are la
 - **A rectangle in (station, angle) is a poor windshield** on a tapering nose: its lower edge
   climbs steeply rearward and blocks the pilot's view. Use outlines (`polys`) with a level
   lower edge.
+- **Compare with real photos, side by side, before calling a model done** (the owner asked for
+  this explicitly: "no strange bits"). Wikimedia Commons is allowed on the "playnes" cloud
+  environment (commons.wikimedia.org for the search API, upload.wikimedia.org for images; the
+  API hands out thumb.wikimedia.org links, rewrite them to upload.wikimedia.org). Measure a
+  side-on photo against the real length (grid overlay) for ride height, nose, wing sweep,
+  engine and fin positions and window spacing. The Phenom was 34 cm too low and its engines
+  and fin 1.5 m and 0.35 m too far back before this check.
+- **Automatic interior check:** `model-phenom300.mjs` ends by testing every interior part's
+  corners against the fuselage cross-section and prints any that poke through the skin. Keep
+  it (and copy it into the next cabin model); it found four that renders had missed.
+- **Vertex-colour stripes on a coarse grid look saw-toothed.** Draw cheatlines as thin
+  ribbons laid on the skin (`ribbon()` in the Phenom builder).
 - **Seat backs leaned forward.** In these models a positive turn about x tips the top toward
   the nose; reclining backs need a negative angle. Check seats from the side before trusting
   the eye position. The owner still found boxes-for-seats odd (and a floating headrest), so the

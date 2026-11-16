@@ -55,33 +55,34 @@ export function buildPhenom300(ac, kit) {
     if (p.y > y0 - 0.045 && p.y < y0 - 0.02) return cDark;
     return null;
   };
-  const skinColor = (p, n) => (Math.abs(n.x) > 0.3 && p.z < 6.2 ? stripeAt(p) : null) ?? cWhite;
+  const skinColor = cWhite; // the cheatline is its own thin ribbon on the skin (see below), so its edges are clean
 
   // ---------------------------------------------------------------- fuselage
   // Cross-sections: [z, half width, top, bottom, squareness]. The cabin section is 1.70 m wide
   // and 1.78 m tall outside; the nose drops to the radome; the windshield rises steeply; the
   // tailcone's belly sweeps up toward the tail.
   const FUS = curve([
-    [8.0, 0.03, 1.25, 1.15, 2.0],
-    [7.92, 0.17, 1.34, 1.02, 2.0],
-    [7.75, 0.31, 1.42, 0.88, 2.0],
-    [7.45, 0.47, 1.52, 0.75, 2.05],
-    [7.0, 0.62, 1.6, 0.64, 2.1],
-    [6.6, 0.72, 1.66, 0.59, 2.15],
-    [6.45, 0.75, 1.69, 0.58, 2.15],
-    [6.2, 0.79, 1.9, 0.56, 2.2],
-    [5.95, 0.82, 2.13, 0.555, 2.2],
-    [5.72, 0.845, 2.29, 0.55, 2.2],
+    [8.0, 0.03, 1.0, 0.9, 2.0],
+    [7.93, 0.13, 1.07, 0.8, 2.0],
+    [7.7, 0.33, 1.2, 0.69, 2.0],
+    [7.15, 0.56, 1.42, 0.6, 2.05],
+    [6.6, 0.7, 1.62, 0.565, 2.1],
+    [6.2, 0.78, 1.79, 0.553, 2.15],
+    [5.9, 0.825, 2.08, 0.55, 2.2],
+    [5.68, 0.845, 2.27, 0.55, 2.2],
     [5.3, 0.85, 2.33, 0.55, 2.2],
     [-1.6, 0.85, 2.33, 0.55, 2.2],
-    [-2.6, 0.8, 2.31, 0.67, 2.2],
-    [-3.6, 0.68, 2.27, 0.88, 2.15],
-    [-4.6, 0.53, 2.22, 1.12, 2.1],
-    [-5.5, 0.38, 2.18, 1.4, 2.05],
-    [-6.3, 0.22, 2.15, 1.7, 2.0],
-    [-6.8, 0.07, 2.12, 1.97, 2.0],
+    [-2.6, 0.8, 2.31, 0.69, 2.2],
+    [-3.6, 0.65, 2.27, 0.96, 2.15],
+    [-4.5, 0.47, 2.22, 1.28, 2.1],
+    [-5.3, 0.3, 2.18, 1.62, 2.05],
+    [-5.85, 0.15, 2.15, 1.9, 2.0],
+    [-6.15, 0.05, 2.13, 2.03, 2.0],
   ]);
-  const Z_NOSE = 8.0, Z_TAIL = -6.8;
+  const Z_NOSE = 8.0, Z_TAIL = -6.15;
+  // The real jet sits this much higher on its gear than the cabin numbers below assume: the
+  // whole model is lifted at the end (the gear legs are drawn long enough to reach the ground).
+  const LIFT = 0.34;
   /** A point on the fuselage at station z and angle th (0 = left side, pi/2 = top), `inset` inside the skin. */
   const ringPt = (z, th, inset = 0) => {
     const [hw, top, bot, e] = FUS(z);
@@ -112,13 +113,12 @@ export function buildPhenom300(ac, kit) {
   const M = 0.04; // the skin's rectangular cut-out is this much bigger than the window all round
   const WIN = [];
   const addWin = (z0, z1, t0, t1, r, kind) => WIN.push({ z0, z1, t0: Math.min(t0, t1), t1: Math.max(t0, t1), r, kind });
-  const cabinWin = (zc, side, w = 0.34, h = 0.44, yc = 1.78, r = 0.115) => addWin(zc - w / 2, zc + w / 2, thForY(zc, yc - h / 2, side), thForY(zc, yc + h / 2, side), r, "cabin");
-  const LEFT_WINDOWS = [2.45, 1.8, 1.15, 0.5, -0.15], RIGHT_WINDOWS = [3.3, 2.45, 1.8, 1.15, 0.5, -0.15];
+  const cabinWin = (zc, side, w = 0.32, h = 0.36, yc = 1.855, r = 0.14) => addWin(zc - w / 2, zc + w / 2, thForY(zc, yc - h / 2, side), thForY(zc, yc + h / 2, side), r, "cabin");
+  const LEFT_WINDOWS = [3.11, 2.46, 1.83, 1.11, 0.07], RIGHT_WINDOWS = [3.76, 3.11, 2.46, 1.83, 1.11, 0.07];
   for (const z of LEFT_WINDOWS) cabinWin(z, 1);
   for (const z of RIGHT_WINDOWS) cabinWin(z, -1);
-  cabinWin(3.35, 1, 0.2, 0.24, 1.86, 0.1); // in the airstair door
   // Cockpit side windows and the two big windshield panes either side of a centre post.
-  for (const side of [1, -1]) addWin(4.72, 5.66, thForY(5.2, 1.7, side), thForY(5.2, 2.14, side), 0.07, "cockpit");
+  for (const side of [1, -1]) addWin(4.95, 5.66, thForY(5.3, 1.72, side), thForY(5.3, 2.13, side), 0.08, "cockpit");
   // The windshield: two big panes either side of a centre post, steep (about 40 degrees), their
   // lower edge nearly level just above the glareshield and sweeping up at the sides. They are
   // drawn as outlines inside one cut-out over the top of the nose.
@@ -126,10 +126,10 @@ export function buildPhenom300(ac, kit) {
     const D = Math.PI / 180;
     const pane = (side) => {
       const c = side > 0 ? 87.5 * D : 92.5 * D;
-      const lower = [[5.82, 1.9], [5.95, 1.8], [6.1, 1.73], [6.25, 1.7], [6.36, 1.69]].map(([z, y]) => [z, thForY(z, y, side)]);
-      return [[6.41, c], [5.82, c], ...lower];
+      const lower = [[5.74, 1.95], [5.85, 1.87], [5.97, 1.815], [6.08, 1.78], [6.16, 1.765]].map(([z, y]) => [z, thForY(z, y, side)]);
+      return [[6.205, c], [5.74, c], ...lower];
     };
-    WIN.push({ z0: 5.82, z1: 6.42, t0: 18 * D, t1: 162 * D, r: 0, kind: "windshield", polys: [pane(1), pane(-1)] });
+    WIN.push({ z0: 5.74, z1: 6.21, t0: 18 * D, t1: 162 * D, r: 0, kind: "windshield", polys: [pane(1), pane(-1)] });
   }
   const MT = M / RV;
   const inCut = (z, th) => WIN.some((w) => z > w.z0 - M && z < w.z1 + M && th > w.t0 - MT && th < w.t1 + MT);
@@ -139,14 +139,17 @@ export function buildPhenom300(ac, kit) {
     const s = [8.0, 7.98, 7.95, 7.9, 7.84, 7.76, 7.66, 7.55, 7.42, 7.28, 7.12, 6.95, 6.78];
     for (let z = 6.62; z > Z_TAIL; z -= z > -1.6 && z < 5.7 ? 0.14 : 0.11) s.push(z);
     s.push(Z_TAIL);
-    for (const w of WIN) s.push(w.z0 - M, w.z1 + M);
-    return [...new Set(s.map((z) => +z.toFixed(4)))].sort((a, b) => b - a);
+    // Window edges must be rows; drop any regular row within 6 cm of one (thin slivers shade badly).
+    const edges = WIN.flatMap((w) => [w.z0 - M, w.z1 + M]);
+    const keep = s.filter((z) => z >= 6.62 || z <= Z_TAIL || !edges.some((e) => Math.abs(e - z) < 0.06));
+    return [...new Set([...keep, ...edges].map((z) => +z.toFixed(4)))].sort((a, b) => b - a);
   })();
   const thCols = (() => {
     const s = [];
     for (let i = 0; i < 88; i++) s.push(-Math.PI / 2 + (i / 88) * Math.PI * 2);
-    for (const w of WIN) s.push(w.t0 - MT, w.t1 + MT);
-    return [...new Set(s.map((t) => +t.toFixed(5)))].sort((a, b) => a - b);
+    const edges = WIN.flatMap((w) => [w.t0 - MT, w.t1 + MT]);
+    const keep = s.filter((t) => !edges.some((e) => Math.abs(e - t) < 0.035));
+    return [...new Set([...keep, ...edges].map((t) => +t.toFixed(5)))].sort((a, b) => a - b);
   })();
 
   /** Flip any triangle whose face doesn't point along want(centroid). */
@@ -307,7 +310,7 @@ export function buildPhenom300(ac, kit) {
   }
 
   // ---- the cabin lining (headliner, sidewalls, dado), with enlarged window surrounds and reveals
-  const Z_LIN0 = 5.78, Z_LIN1 = -1.04;
+  const Z_LIN0 = 5.7, Z_LIN1 = -1.04;
   const liningColor = (p) => {
     if (p.z > 4.22) return cCock;
     if (p.y > 2.0) return cHead;
@@ -347,18 +350,19 @@ export function buildPhenom300(ac, kit) {
   {
     const zL = -0.42;
     add("body", part(flatAt(crossSection(zL, LIN - 0.01, 0.78), zL), XMAT.wood, (p) => (Math.abs(p.x) < 0.3 && p.y < 2.05 ? cWood : cSide), INSIDE));
-    for (const x of [0.3, -0.3]) add("body", part(new THREE.BoxGeometry(0.012, 1.27, 0.012).applyMatrix4(T(x, 0.78 + 0.635, zL + 0.01)), MAT.metal, cMetal, INSIDE));
-    add("body", part(new THREE.BoxGeometry(0.6, 0.012, 0.012).applyMatrix4(T(0, 2.05, zL + 0.01)), MAT.metal, cMetal, INSIDE));
-    add("body", part(new THREE.BoxGeometry(0.03, 0.12, 0.03).applyMatrix4(T(-0.22, 1.5, zL + 0.02)), MAT.metal, cMetal, INSIDE));
+    add("body", part(new THREE.BoxGeometry(0.6, 1.27, 0.02).applyMatrix4(T(0, 0.78 + 0.635, zL + 0.012)), XMAT.wood, cWood, INSIDE));
+    for (const x of [0.3, -0.3]) add("body", part(new THREE.BoxGeometry(0.012, 1.27, 0.012).applyMatrix4(T(x, 0.78 + 0.635, zL + 0.024)), MAT.metal, cMetal, INSIDE));
+    add("body", part(new THREE.BoxGeometry(0.6, 0.012, 0.012).applyMatrix4(T(0, 2.05, zL + 0.024)), MAT.metal, cMetal, INSIDE));
+    add("body", part(new THREE.BoxGeometry(0.03, 0.12, 0.03).applyMatrix4(T(-0.22, 1.5, zL + 0.035)), MAT.metal, cMetal, INSIDE));
   }
 
   // ---------------------------------------------------------------- wings
-  const DIH = (5 * Math.PI) / 180, SWEEP = (27 * Math.PI) / 180;
+  const DIH = (5 * Math.PI) / 180, SWEEP = (23 * Math.PI) / 180;
   const XT = 7.75; // wing tip (the winglet rises from here)
-  const wingY = (x) => 0.48 + Math.abs(x) * Math.tan(DIH);
+  const wingY = (x) => 0.42 + Math.abs(x) * Math.tan(DIH); // root low enough that the wing box stays under the cabin floor
   const chordAt = (x) => lerp(2.85, 0.95, Math.abs(x) / XT);
-  const leAt = (x) => 2.25 - Math.abs(x) * Math.tan(SWEEP);
-  const FLAP = [0.95, 4.5], AIL = [4.65, 7.05], FCUT = 0.72, ACUT = 0.74;
+  const leAt = (x) => 2.81 - Math.abs(x) * Math.tan(SWEEP);
+  const FLAP = [0.58, 4.5], AIL = [4.65, 7.05], FCUT = 0.72, ACUT = 0.74; // flaps run from the body fairing
   for (const side of [1, -1]) {
     const up = V(-side * Math.sin(DIH), Math.cos(DIH), 0);
     const LE = (x) => V(side * x, wingY(x), leAt(x));
@@ -374,8 +378,8 @@ export function buildPhenom300(ac, kit) {
     mk(FLAP, FCUT, side > 0 ? "flapL" : "flapR");
     mk(AIL, ACUT, side > 0 ? "ailL" : "ailR");
     // Blended winglet, swept and leaning out a little.
-    const wr = LE(XT).add(V(0, -0.01, -0.02)), wt = V(side * (XT + 0.22), wingY(XT) + 1.05, leAt(XT) - 0.82);
-    add("body", part(surface({ rootLE: wr, tipLE: wt, rootChord: chordAt(XT) * 0.98, tipChord: 0.4, thickness: 0.1, camber: 0, up: V(side, 0, 0), stations: [{ t: 0 }, { t: 1 }] }), MAT.paint, cWhite));
+    const wr = LE(XT).add(V(0, -0.01, -0.02)), wt = V(side * (XT + 0.18), wingY(XT) + 0.82, leAt(XT) - 0.8);
+    add("body", part(surface({ rootLE: wr, tipLE: wt, rootChord: chordAt(XT) * 0.98, tipChord: 0.36, thickness: 0.1, camber: 0, up: V(side, 0, 0), stations: [{ t: 0 }, { t: 1 }] }), MAT.paint, cWhite));
     add("body", part(new THREE.SphereGeometry(1, 14, 8).applyMatrix4(new THREE.Matrix4().makeScale(0.07, 0.07, chordAt(XT) * 0.45)).applyMatrix4(T(side * XT, wingY(XT) + 0.02, leAt(XT) - chordAt(XT) * 0.47)), MAT.paint, cWhite));
     // Lights at the winglet roots.
     add("body", part(new THREE.SphereGeometry(0.04, 10, 8).applyMatrix4(T(side * (XT + 0.05), wingY(XT) + 0.05, leAt(XT) - 0.05)), side > 0 ? MAT.navRed : MAT.navGreen, C("#ffffff"), { noAO: true }));
@@ -383,7 +387,7 @@ export function buildPhenom300(ac, kit) {
   }
   // Wing-to-body fairing under the cabin.
   {
-    const superRing = (z, hw, top, bot, e, n = 40) => {
+    const superRing = (z, hw, top, bot, e, n = 56) => {
       const yc = (top + bot) / 2, hh = (top - bot) / 2, r = [];
       for (let j = 0; j < n; j++) {
         const a = (j / n) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
@@ -391,12 +395,12 @@ export function buildPhenom300(ac, kit) {
       }
       return r;
     };
-    const keys = [[2.95, 0.25, 0.6], [2.6, 0.7, 0.44], [2.0, 0.95, 0.35], [1.0, 1.02, 0.32], [0.0, 1.0, 0.32], [-0.8, 0.88, 0.35], [-1.4, 0.6, 0.44], [-1.85, 0.22, 0.56]];
-    add("body", part(smooth(loft(keys.map(([z, hw, bot]) => superRing(z, hw, 0.66, bot, 2.4)))), XMAT.skin, cWhite));
+    const keys = [[3.72, 0.015, 0.62], [3.6, 0.1, 0.57], [3.35, 0.3, 0.48], [3.0, 0.46, 0.39], [2.5, 0.56, 0.33], [1.8, 0.6, 0.3], [1.0, 0.6, 0.29], [0.3, 0.58, 0.3], [-0.2, 0.52, 0.33], [-0.65, 0.42, 0.38], [-1.05, 0.28, 0.45], [-1.4, 0.1, 0.55], [-1.52, 0.015, 0.62]];
+    add("body", part(smooth(loft(keys.map(([z, hw, bot]) => superRing(z, hw, 0.66, bot, 2.0)))), XMAT.skin, cWhite));
   }
 
   // ---------------------------------------------------------------- tail
-  const fin = { rootLE: V(0, 2.2, -4.3), tipLE: V(0, 4.72, -6.3), rootChord: 2.45, tipChord: 1.2 };
+  const fin = { rootLE: V(0, 2.12, -3.95), tipLE: V(0, 4.5, -6.27), rootChord: 2.1, tipChord: 1.18 };
   const RF = 0.3;
   add("body", part(surface({ rootLE: fin.rootLE, tipLE: fin.tipLE, rootChord: fin.rootChord, tipChord: fin.tipChord, thickness: 0.11, camber: 0, up: V(1, 0, 0), stations: [{ t: 0, cut: 1 - RF }, { t: 1, cut: 1 - RF }] }), MAT.paint, (p) => (p.y > 3.35 && p.y < 3.45 ? cGold : cWhite)));
   {
@@ -407,7 +411,7 @@ export function buildPhenom300(ac, kit) {
   // Dorsal fillet blending the tailcone into the fin.
   {
     const finLE = (z) => fin.rootLE.y + ((fin.rootLE.z - z) / (fin.rootLE.z - fin.tipLE.z)) * (fin.tipLE.y - fin.rootLE.y);
-    const Z0 = -3.0, Z1 = -4.75, ZE = -5.3, rings = [];
+    const Z0 = -2.7, Z1 = -4.25, ZE = -4.75, rings = [];
     for (let i = 0; i <= 14; i++) {
       const z = lerp(Z0, ZE, i / 14);
       const s = Math.min(1, (Z0 - z) / (Z0 - Z1));
@@ -424,8 +428,14 @@ export function buildPhenom300(ac, kit) {
     }
     add("body", part(smooth(loft(rings)), MAT.paint, cWhite));
   }
+  // Two small ventral strakes under the tailcone, splayed outward.
+  for (const side of [1, -1]) {
+    const z0 = -4.55, z1 = -5.35, y0 = (z) => FUS(z)[2] + 0.03;
+    const rootLE = V(side * 0.06, y0(z0), z0), tipLE = V(side * 0.3, y0(z0) - 0.22, z0 - 0.45);
+    add("body", part(surface({ rootLE, tipLE, rootChord: z0 - z1, tipChord: 0.42, thickness: 0.06, camber: 0, up: V(Math.cos(0.5), side * Math.sin(0.5), 0).multiplyScalar(side), stations: [{ t: 0 }, { t: 1 }] }), MAT.paint, cWhite));
+  }
   // T-tail: tailplane on top of the fin, with elevators, and a bullet fairing at the joint.
-  const HT = { y: 4.74, rootLE: -6.28, root: 1.27, tipX: 2.75, tipLE: -6.95, tip: 0.66 };
+  const HT = { y: 4.52, rootLE: -6.27, root: 1.27, tipX: 2.75, tipLE: -6.95, tip: 0.66 };
   const EF = 0.34;
   for (const side of [1, -1]) {
     const rootLE = V(side * 0.05, HT.y, HT.rootLE), tipLE = V(side * HT.tipX, HT.y - 0.04, HT.tipLE);
@@ -442,11 +452,11 @@ export function buildPhenom300(ac, kit) {
 
   // ---------------------------------------------------------------- engines
   for (const side of [1, -1]) {
-    const EX = side * 1.32, EY = 2.05, ZI = -2.35, LEN = 2.5;
-    const nacelle = [[0.25, 0], [0.27, 0.05], [0.33, 0.4], [0.375, 1.0], [0.39, 1.7], [0.385, 2.15], [0.36, 2.4], [0.33, 2.47], [0.305, 2.5]];
+    const EX = side * 1.32, EY = 1.95, ZI = -0.55, LEN = 2.75;
+    const nacelle = [[0.25, 0], [0.27, 0.055], [0.33, 0.44], [0.375, 1.1], [0.39, 1.87], [0.385, 2.37], [0.36, 2.64], [0.33, 2.72], [0.305, 2.75]];
     add("body", part(lathe(nacelle, 36, T(EX, EY, ZI - LEN)), XMAT.skin, (p) => (p.z > ZI - 0.12 ? C("#c8ccd1") : cWhite)));
     // Inlet duct, fan and spinner; exhaust cone.
-    add("body", part(lathe([[0.29, 2.2], [0.3, 2.5]], 32, T(EX, EY, ZI - LEN)), XMAT.skin, C("#b8bcc2")));
+    add("body", part(lathe([[0.29, 2.45], [0.3, 2.75]], 32, T(EX, EY, ZI - LEN)), XMAT.skin, C("#b8bcc2")));
     add("body", part(new THREE.CircleGeometry(0.29, 32).applyMatrix4(T(EX, EY, ZI - 0.28)), MAT.dark, C("#2a2c2f"), { noAO: true }));
     for (let i = 0; i < 18; i++) {
       const a = (i / 18) * Math.PI * 2;
@@ -456,12 +466,44 @@ export function buildPhenom300(ac, kit) {
     add("body", part(lathe([[0.24, 0], [0.2, 0.12], [0.12, 0.3], [0.001, 0.42]], 20, new THREE.Matrix4().makeRotationY(Math.PI).premultiply(T(EX, EY, ZI - LEN + 0.3))), MAT.dark, C("#3a3c3f")));
     // Pylon from the fuselage side to the nacelle.
     const yP = EY - 0.02;
-    add("body", part(surface({ rootLE: V(side * (halfW(-3.2, yP) - 0.08), yP, -2.95), tipLE: V(side * (Math.abs(EX) - 0.3), yP, -3.05), rootChord: 1.45, tipChord: 1.3, thickness: 0.11, camber: 0, stations: [{ t: 0 }, { t: 1 }] }), MAT.paint, cWhite));
+    add("body", part(surface({ rootLE: V(side * (halfW(ZI - 1.3, yP) - 0.08), yP, ZI - 0.8), tipLE: V(side * (Math.abs(EX) - 0.3), yP, ZI - 0.88), rootChord: 1.5, tipChord: 1.35, thickness: 0.11, camber: 0, stations: [{ t: 0 }, { t: 1 }] }), MAT.paint, cWhite));
   }
 
   // ---------------------------------------------------------------- registration and seams
   for (const side of [1, -1]) {
-    for (const b of registration(REGISTRATION, side, halfW, 1.52, -1.75, 0.24)) add("body", part(b, MAT.paint, C("#22262b"), { noAO: true, noOcclude: true }));
+    // On the outboard side of each engine nacelle, as real Phenoms carry it.
+    const EX = 1.32, EY = 1.95, ZI = -0.55, LEN = 2.75;
+    const prof = [[0.25, 0], [0.27, 0.055], [0.33, 0.44], [0.375, 1.1], [0.39, 1.87], [0.385, 2.37], [0.36, 2.64], [0.33, 2.72], [0.305, 2.75]];
+    const nacR = (z) => {
+      const u = z - (ZI - LEN);
+      for (let i = 1; i < prof.length; i++) if (u <= prof[i][1]) return lerp(prof[i - 1][0], prof[i][0], (u - prof[i - 1][1]) / (prof[i][1] - prof[i - 1][1]));
+      return prof[prof.length - 1][0];
+    };
+    const onNacelle = (z, y) => EX + Math.sqrt(Math.max(0, nacR(z) ** 2 - (y - EY) ** 2));
+    for (const b of registration(REGISTRATION, side, onNacelle, EY, ZI - 1.45, 0.19)) add("body", part(b, MAT.paint, C("#22262b"), { noAO: true, noOcclude: true }));
+  }
+  // Cheatline: a gold band with a dark line under it, laid on the skin as thin ribbons so the
+  // edges are clean. It starts in a point under the cockpit and rises gently along the tailcone.
+  const ribbon = (side, zFrom, zTo, lo, hi, colour) => {
+    const pos = [], idx = [];
+    const n = Math.ceil((zFrom - zTo) / 0.08);
+    for (let i = 0; i <= n; i++) {
+      const z = lerp(zFrom, zTo, i / n);
+      for (const y of [lo(z), hi(z)]) { const p = ringPt(z, thForY(z, y, side), -0.0025); pos.push(p.x, p.y, p.z); }
+      if (i) idx.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    add("body", part(orient(g, out), XMAT.skin, colour, { noOcclude: true }));
+  };
+  {
+    const base = (z) => 1.3 + Math.max(0, -z - 1.2) * 0.05;
+    const taper = (z) => Math.min(1, Math.max(0, (6.05 - z) / 0.7)); // pointed front end
+    for (const side of [1, -1]) {
+      ribbon(side, 6.05, -5.3, base, (z) => base(z) + 0.075 * taper(z), cGold);
+      ribbon(side, 5.95, -5.3, (z) => base(z) - 0.045 * taper(z + 0.1), (z) => base(z) - 0.02 * taper(z + 0.1), cDark);
+    }
   }
   /** A thin seam line on the skin through points [z, y] on one side. */
   const seam = (side, pts) => {
@@ -476,9 +518,9 @@ export function buildPhenom300(ac, kit) {
     for (let k = 1; k <= 3; k++) pts.push([lerp(z1, z0, k / 3), y0]);
     seam(side, pts);
   };
-  rectSeam(1, 3.04, 3.66, 0.88, 2.14); // airstair door
-  rectSeam(-1, 0.92, 1.38, 1.47, 2.09); // emergency exit over the right wing
-  add("body", part(new THREE.BoxGeometry(0.02, 0.03, 0.14).applyMatrix4(T(halfW(3.1, 1.45) + 0.008, 1.45, 3.12)), MAT.metal, cMetal)); // door handle
+  rectSeam(1, 3.52, 4.15, 0.88, 2.14); // airstair door, right behind the cockpit
+  rectSeam(-1, 0.88, 1.34, 1.6, 2.13); // emergency exit over the right wing
+  add("body", part(new THREE.BoxGeometry(0.02, 0.03, 0.14).applyMatrix4(T(halfW(3.6, 1.45) + 0.008, 1.45, 3.62)), MAT.metal, cMetal)); // door handle
   // Antennas and the pitot probes.
   for (const [z, h] of [[3.6, 0.2], [0.2, 0.16], [-2.4, 0.14]]) add("body", part(new THREE.BoxGeometry(0.012, h, 0.12).applyMatrix4(new THREE.Matrix4().makeRotationX(-0.35)).applyMatrix4(T(0, FUS(z)[1] + h / 2 - 0.02, z)), MAT.dark, C("#2b2d30")));
   for (const side of [1, -1]) add("body", part(cylinderBetween(V(side * halfW(6.9, 1.3), 1.3, 6.9), V(side * (halfW(6.9, 1.3) + 0.09), 1.3, 7.02), 0.01, 6), MAT.metal, cMetal));
@@ -507,7 +549,7 @@ export function buildPhenom300(ac, kit) {
   const MR = 0.27, MW = 0.17;
   for (const side of [1, -1]) {
     const name = side > 0 ? "gearL" : "gearR";
-    const P = V(side * 1.32, 0.64, 0.12), K = V(side * 1.32, 0.4, 0.13), A = V(side * 1.32, MR, 0), W = V(side * 1.46, MR, 0);
+    const P = V(side * 1.32, 0.58, 0.12), K = V(side * 1.32, MR - LIFT + 0.13, 0.13), A = V(side * 1.32, MR - LIFT, 0), W = V(side * 1.46, MR - LIFT, 0);
     const u = W.clone().sub(P).normalize();
     const w = V(-side, 0.06, 0).normalize();
     const axis = u.clone().cross(w).normalize();
@@ -518,7 +560,7 @@ export function buildPhenom300(ac, kit) {
       part(cylinderBetween(K, A, 0.034, 10), MAT.metal, cMetal),
       part(cylinderBetween(A.clone().add(V(-side * 0.02, 0, 0)), W, 0.025, 8), MAT.metal, cMetal),
       // Leg door, outboard of the strut; it closes flush under the wing when the leg folds.
-      part(new THREE.BoxGeometry(0.02, 0.3, 0.34).applyMatrix4(T(side * 1.39, 0.5, 0.13)), XMAT.skin, cWing),
+      part(new THREE.BoxGeometry(0.02, 0.42, 0.3).applyMatrix4(T(side * 1.39, 0.33, 0.13)), XMAT.skin, cWing),
     ];
     nodes[name] = asNode(parts, P, axis, u.clone().negate(), { moving: true });
     const wn = side > 0 ? "wheelL" : "wheelR";
@@ -528,15 +570,15 @@ export function buildPhenom300(ac, kit) {
   // Nose leg: folds forward into the nose.
   {
     const NR = 0.2, NW = 0.13;
-    const P = V(0, 0.8, 6.05), W = V(0, NR, 5.98);
+    const P = V(0, 0.8, 6.05), W = V(0, NR - LIFT, 5.98), F = NR - LIFT + 0.16; // F: top of the fork
     const parts = [
-      part(cylinderBetween(P, V(0, 0.42, 6.02), 0.045, 12), MAT.metal, C("#c9cdd2")),
-      part(cylinderBetween(V(0, 0.5, 6.02), V(0, 0.33, 6.0), 0.032, 12), MAT.metal, C("#eef0f2")),
-      part(cylinderBetween(V(0.1, 0.36, 6.0), V(0.1, NR, W.z), 0.022, 8), MAT.metal, cMetal),
-      part(cylinderBetween(V(-0.1, 0.36, 6.0), V(-0.1, NR, W.z), 0.022, 8), MAT.metal, cMetal),
-      part(new THREE.BoxGeometry(0.22, 0.04, 0.07).applyMatrix4(T(0, 0.36, 6.0)), MAT.metal, cMetal),
-      part(cylinderBetween(V(0, 0.78, 5.62), V(0, 0.5, 6.0), 0.02, 8), MAT.metal, cMetal),
-      part(new THREE.SphereGeometry(0.045, 10, 8).applyMatrix4(T(0, 0.55, 6.09)), MAT.white, C("#ffffff"), { noAO: true }),
+      part(cylinderBetween(P, V(0, F + 0.06, 6.02), 0.045, 12), MAT.metal, C("#c9cdd2")),
+      part(cylinderBetween(V(0, F + 0.2, 6.02), V(0, F - 0.03, 6.0), 0.032, 12), MAT.metal, C("#eef0f2")),
+      part(cylinderBetween(V(0.1, F, 6.0), V(0.1, W.y, W.z), 0.022, 8), MAT.metal, cMetal),
+      part(cylinderBetween(V(-0.1, F, 6.0), V(-0.1, W.y, W.z), 0.022, 8), MAT.metal, cMetal),
+      part(new THREE.BoxGeometry(0.22, 0.04, 0.07).applyMatrix4(T(0, F, 6.0)), MAT.metal, cMetal),
+      part(cylinderBetween(V(0, 0.76, 5.6), V(0, F + 0.25, 6.0), 0.02, 8), MAT.metal, cMetal),
+      part(new THREE.SphereGeometry(0.045, 10, 8).applyMatrix4(T(0, F + 0.3, 6.09)), MAT.white, C("#ffffff"), { noAO: true }),
     ];
     nodes.gearN = asNode(parts, P, V(-1, 0, 0), V(0, 1, 0), { moving: true });
     rig.retractDeg.gearN = 95;
@@ -556,7 +598,7 @@ export function buildPhenom300(ac, kit) {
 
   // Floors: cockpit, the dropped aisle, and the raised side ledges the seats stand on.
   const AISLE = 0.71, LEDGE = 0.78;
-  add("body", part(box(1.1, 0.04, 1.45, 0, 0.73, 4.95), XMAT.fabric, cCarpet, INSIDE));
+  add("body", part(box(0.9, 0.04, 1.45, 0, 0.73, 4.95), XMAT.fabric, cCarpet, INSIDE));
   add("body", part(box(0.76, 0.04, 5.3, 0, AISLE - 0.02, 1.58), XMAT.fabric, cCarpet, INSIDE));
   for (const side of [1, -1]) {
     add("body", part(box(0.085, LEDGE - 0.7, 5.3, side * 0.4275, (LEDGE + 0.7) / 2, 1.58), XMAT.fabric, C("#4e4842"), INSIDE));
@@ -575,7 +617,7 @@ export function buildPhenom300(ac, kit) {
     const depth = width - 2 * bev;
     return new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: 2, curveSegments: 4 }).applyMatrix4(RY(Math.PI / 2)).applyMatrix4(T(-depth / 2, 0, 0));
   };
-  const seat = (m, { width = 0.52, cushionY = 0.43, rec = 0.22, backLen = 0.66, colour = cLeather, trim = cLeatherDk, arms = true, base = true } = {}) => {
+  const seat = (m, { width = 0.52, cushionY = 0.43, rec = 0.22, backLen = 0.66, colour = cLeather, trim = cLeatherDk, arms = [-1, 1], base = true } = {}) => {
     const H = [-0.2, cushionY + 0.02], dir = [-Math.sin(rec), Math.cos(rec)], fwd = [Math.cos(rec), Math.sin(rec)];
     const P = (u, v) => [H[0] + dir[0] * u + fwd[0] * v, H[1] + dir[1] * u + fwd[1] * v];
     const b = 0.02, parts = [];
@@ -585,7 +627,7 @@ export function buildPhenom300(ac, kit) {
     parts.push(part(slab(width * 0.66, head.map(([u, v]) => P(u, v)), 0.03), XMAT.leather, colour));
     parts.push(part(pad(width, 0.13, 0.52, at(0, cushionY - 0.045, 0.06, -0.06), 0.04), XMAT.leather, colour));
     parts.push(part(pad(width * 0.86, 0.025, 0.44, at(0, cushionY + 0.02, 0.06, -0.06), 0.012), XMAT.leather, trim));
-    if (arms) for (const sx of [-1, 1]) {
+    for (const sx of arms) {
       parts.push(part(pad(0.075, 0.07, 0.46, at(sx * (width / 2 + 0.03), cushionY + 0.2, 0.0), 0.03), XMAT.leather, trim));
       parts.push(part(box(0.05, 0.2, 0.08, sx * (width / 2 + 0.03), cushionY + 0.07, -0.12), MAT.dark, C("#3b3732")));
     }
@@ -593,34 +635,41 @@ export function buildPhenom300(ac, kit) {
     for (const pt of parts) { pt.geo.applyMatrix4(m); Object.assign(pt, INSIDE); add("body", pt); }
   };
   // Cabin: the "club four" with tables between, then two forward-facing seats.
-  const SX = 0.47;
+  // The cabin seats have one armrest, on the aisle side; the side shelf is the other.
+  const SX = 0.43, SW = 0.46;
   for (const side of [1, -1]) {
     const x = side * SX;
-    seat(at(x, LEDGE, 2.55, 0, Math.PI)); // facing aft
-    seat(at(x, LEDGE, 1.15)); // facing forward
-    seat(at(x, LEDGE, 0.02)); // forward-facing, aft pair
+    seat(at(x, LEDGE, 2.55, 0, Math.PI), { width: SW, arms: [side] }); // facing aft
+    seat(at(x, LEDGE, 1.15), { width: SW, arms: [-side] }); // facing forward
+    seat(at(x, LEDGE, 0.14), { width: SW, arms: [-side] }); // forward-facing, aft pair
     // Fold-out table from the sidewall between the club seats: veneer top on a chrome leg.
     add("body", part(pad(0.4, 0.03, 0.56, at(side * 0.5, LEDGE + 0.67, 1.85), 0.012), XMAT.wood, cWood, INSIDE));
     add("body", part(cylinderBetween(V(side * 0.42, LEDGE, 1.85), V(side * 0.42, LEDGE + 0.66, 1.85), 0.018, 10), MAT.metal, cMetal, INSIDE));
-    // Window shades' tracks and side ledge armrests under every window.
-    for (const z of side > 0 ? LEFT_WINDOWS : RIGHT_WINDOWS) {
-      add("body", part(pad(0.09, 0.05, 0.46, at(side * (halfW(z, 1.4) - LIN - 0.03), 1.4, z), 0.02), XMAT.wood, cWoodLt, INSIDE));
-    }
+    // Side shelf under the windows (polished dark wood, the outboard armrest), full cabin length.
+    const z0 = -0.36, z1 = side > 0 ? 3.42 : 3.47, wallX = halfW(1, 1.42) - LIN;
+    add("body", part(pad(0.13, 0.045, z1 - z0, at(side * (wallX - 0.05), 1.425, (z0 + z1) / 2), 0.015), XMAT.wood, cWood, INSIDE));
+    add("body", part(box(0.01, 0.06, z1 - z0 - 0.02, side * (wallX - 0.115), 1.38, (z0 + z1) / 2), XMAT.wood, C("#4a2e1a"), INSIDE));
   }
-  // Refreshment centre opposite the door; a cabinet behind the cockpit on the left.
-  add("body", part(box(0.34, 0.95, 0.88, -0.43, LEDGE + 0.475, 3.4), XMAT.wood, cWood, INSIDE));
-  add("body", part(box(0.38, 0.03, 0.9, -0.45, LEDGE + 0.965, 3.4), XMAT.wood, C("#e8e2d4"), INSIDE));
-  for (const y of [1.15, 1.38]) add("body", part(box(0.012, 0.012, 0.8, -0.255, y, 3.4), MAT.metal, cMetal, INSIDE));
-  add("body", part(box(0.34, 0.9, 0.42, 0.43, LEDGE + 0.45, 3.95), XMAT.wood, cWood, INSIDE));
+  // Ceiling: a centre console strip and two lines of cove lighting along it.
+  {
+    const zc = 1.85, len = 4.3, yTop = FUS(1)[1] - LIN;
+    add("body", part(pad(0.42, 0.05, len, at(0, yTop - 0.03, zc), 0.02), XMAT.fabric, C("#d9d3c6"), INSIDE));
+    for (const sx of [-1, 1]) add("body", part(box(0.012, 0.008, len - 0.1, sx * 0.23, yTop - 0.045, zc), MAT.white, C("#ffffff"), { noAO: true, noOcclude: true }));
+    for (const z of [3.11, 2.46, 1.83, 1.11, 0.07]) for (const sx of [-1, 1]) add("body", part(new THREE.CylinderGeometry(0.022, 0.022, 0.012, 14).applyMatrix4(T(sx * 0.15, yTop - 0.058, z)), MAT.metal, cMetal, INSIDE));
+  }
+  // Refreshment centre opposite the airstair door.
+  add("body", part(box(0.34, 0.84, 0.6, -0.43, LEDGE + 0.42, 3.85), XMAT.wood, cWood, INSIDE));
+  add("body", part(box(0.38, 0.03, 0.62, -0.45, LEDGE + 0.855, 3.85), XMAT.wood, C("#e8e2d4"), INSIDE));
+  for (const y of [1.12, 1.34]) add("body", part(box(0.012, 0.012, 0.52, -0.255, y, 3.85), MAT.metal, cMetal, INSIDE));
   // Bulkhead posts either side of the open cockpit entrance.
-  for (const side of [1, -1]) add("body", part(box(0.22, 1.17, 0.06, side * 0.56, 1.365, 4.22), XMAT.fabric, cSide, INSIDE));
+  for (const side of [1, -1]) add("body", part(box(0.16, 1.0, 0.06, side * 0.53, 1.45, 4.22), XMAT.fabric, cSide, INSIDE));
 
   // Cockpit: two pilot seats, the Prodigy Touch panel (three big screens), glareshield,
   // centre pedestal with thrust levers and touch controllers, control wheels, rudder pedals.
   const PZ = 5.62; // panel face
   for (const side of [1, -1]) seat(at(side * 0.36, 0.75, 4.9), { width: 0.5, colour: cPilotSeat, trim: C("#3f4246"), rec: 0.2, backLen: 0.68 });
   add("body", part(box(1.5, 0.54, 0.08, 0, 1.4, PZ + 0.04), MAT.dark, C("#2a2d31"), INSIDE));
-  add("body", part(box(1.5, 0.05, 0.36, 0, 1.69, PZ + 0.14), MAT.dark, cBlack, INSIDE));
+  add("body", part(box(1.4, 0.05, 0.28, 0, 1.69, PZ + 0.1), MAT.dark, cBlack, INSIDE));
   const screen = (x, kind) => {
     const z = PZ - 0.004, cy = 1.49, w = 0.3, h = 0.2;
     add("body", part(box(w + 0.03, h + 0.03, 0.01, x, cy, z + 0.002), MAT.dark, C("#101215"), { noAO: true }));
@@ -691,5 +740,35 @@ export function buildPhenom300(ac, kit) {
   rig.windowEye = [0.42, 1.92, 1.0];
   rig.fov = 80;
   rig.eyePitch = 9; // a glance down takes in the screens, as a seated pilot's natural view does
+  // Quality check: nothing inside the cabin may poke out through the skin. Every interior part's
+  // corners are tested against the fuselage cross-section at their station; offenders are listed.
+  {
+    const bad = [];
+    for (const [name, node] of Object.entries(nodes)) {
+      if (name !== "body" && name !== "pilot") continue;
+      node.parts.forEach((pt, i) => {
+        if (pt.aoStrength === undefined) return;
+        const pos = pt.geo.attributes.position;
+        let worst = 0, at = null;
+        for (let k = 0; k < pos.count; k++) {
+          const x = pos.getX(k), y = pos.getY(k), z = pos.getZ(k);
+          if (z > Z_NOSE || z < Z_TAIL) continue;
+          const [, top, bot] = FUS(z);
+          const over = y > top || y < bot ? 0.05 : Math.abs(x) - halfW(z, y);
+          if (over > worst) { worst = over; at = [x, y, z]; }
+        }
+        if (worst > 0.002) bad.push(`${name}#${i} sticks out ${(worst * 100).toFixed(1)} cm at (${at.map((v) => v.toFixed(2)).join(", ")})`);
+      });
+    }
+    if (bad.length) console.warn("phenom300: interior parts outside the skin:\n  " + bad.join("\n  "));
+  }
+  // Up onto the real ride height: every top-level node moves up; children follow their parents.
+  for (const node of Object.values(nodes)) {
+    if (node.parent) continue;
+    if (node.translation) node.translation = [node.translation[0], node.translation[1] + LIFT, node.translation[2]];
+    else for (const pt of node.parts) pt.geo.applyMatrix4(T(0, LIFT, 0));
+  }
+  rig.eye[1] += LIFT;
+  rig.windowEye[1] += LIFT;
   return { nodes, extraMaterials, rig };
 }
