@@ -603,7 +603,19 @@ async function createBasicWorld(container: HTMLElement, q: "high" | "medium" | "
     // Keep the neighbours of tiles in view loaded, so turning doesn't show blurry patches.
     scene.globe.preloadSiblings = true;
     const globeSse = scene.globe.maximumScreenSpaceError;
-    installGovernor(scene, (k) => (scene.globe.maximumScreenSpaceError = globeSse * Math.min(k, 2)));
+    // Sharper picture on phones and tablets: their screens have 2-3 times as many dots as the
+    // game normally draws (it draws at half resolution and smooths). The cartoon world is light
+    // enough to draw at 1.5x, which makes the playne and runway edges crisp; if the frame rate
+    // suffers, it drops back to 1x (and returns when things are smooth again).
+    const sharp = deviceClass() !== "desktop" && q !== "low" && (window.devicePixelRatio || 1) >= 2;
+    if (sharp) widget.resolutionScale = 1.5;
+    installGovernor(scene, (k) => {
+      scene.globe.maximumScreenSpaceError = globeSse * Math.min(k, 2);
+      if (sharp) {
+        if (k >= 1.4 && widget.resolutionScale !== 1) widget.resolutionScale = 1;
+        else if (k <= 1 && widget.resolutionScale !== 1.5) widget.resolutionScale = 1.5;
+      }
+    });
   }
   return {
     kind: cartoon ? "cartoon" : "basic",

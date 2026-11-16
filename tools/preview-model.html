@@ -1,0 +1,60 @@
+<!doctype html>
+<!-- Dev tool: look at one model from any direction, with parts posed.
+     ?id=f16&dir=-1,0.4,0.8&zoom=1&rot=gearL:60,ailL:-20&hide=burner&bg=8fb7dc
+     (glTF coords: nose +Z, up +Y, left +X; rot turns a node about its own X axis, degrees) -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>preview</title>
+<style>html,body{margin:0;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"../node_modules/three/build/three.module.js","three/addons/":"../node_modules/three/examples/jsm/"}}</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+const q = new URLSearchParams(location.search);
+const id = q.get("id") || "f16";
+const dir = (q.get("dir") || "-1,0.45,0.8").split(",").map(Number);
+const zoom = Number(q.get("zoom") || 1);
+const look = (q.get("look") || "").split(",").map(Number);
+const W = innerWidth, H = innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H);
+renderer.setClearColor(new THREE.Color("#" + (q.get("bg") || "9cc4e6")), 1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.0));
+const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+sun.position.set(-6, 12, 8);
+scene.add(sun);
+new GLTFLoader().load(`../public/models/${id}.glb?${Date.now()}`, (g) => {
+  const m = g.scene;
+  scene.add(m);
+  for (const name of (q.get("hide") || "").split(",").filter(Boolean)) { const n = m.getObjectByName(name); if (n) n.visible = false; }
+  for (const pair of (q.get("rot") || "").split(",").filter(Boolean)) {
+    const [name, deg] = pair.split(":");
+    const n = m.getObjectByName(name);
+    if (n) n.rotateX((Number(deg) * Math.PI) / 180);
+  }
+  const box = new THREE.Box3().setFromObject(m);
+  const size = box.getSize(new THREE.Vector3());
+  const centre = look.length === 3 ? new THREE.Vector3(...look) : box.getCenter(new THREE.Vector3());
+  const cam = new THREE.PerspectiveCamera(26, W / H, 0.05, 2000);
+  const d = new THREE.Vector3(...dir).normalize();
+  const radius = Math.max(size.x, size.z) * 0.5 + size.y * 0.3;
+  const dist = (radius / Math.sin((cam.fov * Math.PI) / 360)) * 0.6 / zoom;
+  cam.position.copy(centre).addScaledVector(d, dist);
+  cam.lookAt(centre);
+  renderer.render(scene, cam);
+  document.title = "ready";
+});
+</script>
+</body>
+</html>

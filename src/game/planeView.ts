@@ -3,6 +3,7 @@
 
 import { asset } from "../assets.ts";
 import { Cartesian3, Cartesian4, Cartographic, Color, Matrix3, Matrix4, Model, Transforms, type ModelNode } from "cesium";
+import { RIGS } from "../data/rigs.ts";
 import type { AircraftDef } from "../data/aircraft.ts";
 import { angleDiff, clamp, DEG, destination, type LatLon } from "../sim/geo.ts";
 import { speedOfSound, type FlightState } from "../sim/physics.ts";
@@ -17,6 +18,8 @@ export interface SurfaceInputs {
   pitch: number;
   /** -1..1: rudder (positive = yaw right). */
   yaw: number;
+  /** 0..1: speedbrakes out (models that have them). */
+  brake?: number;
 }
 
 const FLAP_DEG = [0, 10, 20, 35];
@@ -32,6 +35,11 @@ export class PlaneView {
   private rotorT: Partial<Record<"rotorF" | "rotorR", Cartesian3>> = {};
   private rotorAngle = 0;
   private flapDeg = 0;
+  /** Detailed models: gear position (1 = down, 0 = folded away), wheel spin, speedbrakes. */
+  private gearT = 1;
+  private wheelSpeed = 0;
+  private wheelAngle = 0;
+  private brakeT = 0;
   private ail = 0;
   private elev = 0;
   private rud = 0;
@@ -52,7 +60,7 @@ export class PlaneView {
     scene.primitives.add(this.model);
     this.world.exclude.push(this.model);
     this.model.readyEvent.addEventListener(() => {
-      for (const n of ["gear", "prop", "flapL", "flapR", "ailL", "ailR", "elevL", "elevR", "rudder", "beacon", "strobe", "rotorF", "rotorR"]) {
+      for (const n of ["gear", "prop", "flapL", "flapR", "ailL", "ailR", "elevL", "elevR", "rudder", "beacon", "strobe", "rotorF", "rotorR", "gearL", "gearR", "gearN", "wheelL", "wheelR", "wheelN", "gearDoors", "brakeLU", "brakeLD", "brakeRU", "brakeRD", "burner"]) {
         try {
           const node = this.model!.getNode(n) ?? null;
           this.nodes[n] = node;
@@ -136,12 +144,17 @@ export class PlaneView {
     const n = this.nodes;
     this.hinge("flapL", -this.flapDeg);
     this.hinge("flapR", -this.flapDeg);
-    this.hinge("ailL", -this.ail);
-    this.hinge("ailR", this.ail);
-    this.hinge("elevL", this.elev);
-    this.hinge("elevR", this.elev);
+    // Flaperons (no separate flaps, e.g. the F-16): the ailerons droop together as flaps.
+    const droop = n.flapL ? 0 : this.flapDeg * 0.55;
+    this.hinge("ailL", -this.ail - droop);
+    this.hinge("ailR", this.ail - droop);
+    // A fighter's tailplanes also twist opposite ways to help it roll.
+    const twist = this.ac.kind === "fighter" ? this.ail * 0.35 : 0;
+    this.hinge("elevL", this.elev - twist);
+    this.hinge("elevR", this.elev + twist);
     this.hinge("rudder", this.rud);
     if (n.gear) n.gear.show = s.gearDown;
+    this.updateRig(s, dt, input);
     if (n.prop) {
       this.propAngle += dt * (10 + s.throttle * 55);
       n.prop.matrix = Matrix4.multiply(Matrix4.fromTranslation(this.propT), Matrix4.fromRotation(Matrix3.fromRotationZ(this.propAngle)), new Matrix4());
@@ -172,6 +185,56 @@ export class PlaneView {
           f.fwd.z * sx, -f.right.z * sy, f.up.z, f.pos.z,
           0, 0, 0, 1,
         );
+      }
+    }
+  }
+
+  /** Detailed models: legs that fold away, wheels that turn, speedbrakes, afterburner. */
+  private updateRig(s: FlightState, dt: number, input: SurfaceInputs): void {
+    const rig = RIGS[this.ac.id];
+    if (!rig) return;
+    const n = this.nodes;
+    // Legs take about 2.5 s to travel. (dt 0 = placing the model: jump to where it should be.)
+    const want = s.gearDown ? 1 : 0;
+    this.gearT = dt === 0 ? want : clamp(this.gearT + Math.sign(want - this.gearT) * (dt / 2.5), 0, 1);
+    const fold = 1 - this.gearT;
+    const ease = fold * fold * (3 - 2 * fold);
+    const out = this.gearT > 0.02;
+    // On the ground the nose wheel steers with the rudder.
+    const steer = s.onGround ? this.rud * 1.2 : 0;
+    for (const leg of ["gearL", "gearR", "gearN"] as const) {
+      const node = n[leg], orig = this.originals[leg];
+      if (!node || !orig) continue;
+      node.show = out;
+      let m = Matrix4.multiply(orig, Matrix4.fromRotation(Matrix3.fromRotationX(ease * (rig.retractDeg[leg] ?? 90) * DEG)), new Matrix4());
+      if (leg === "gearN" && steer) m = Matrix4.multiply(m, Matrix4.fromRotation(Matrix3.fromRotationY(-steer * DEG)), m);
+      node.matrix = m;
+    }
+    if (n.gearDoors) n.gearDoors.show = out;
+    // Wheels turn with the ground speed, and spin down after liftoff.
+    if (s.onGround) this.wheelSpeed = s.speed;
+    else this.wheelSpeed *= Math.exp(-dt * 0.8);
+    this.wheelAngle += this.wheelSpeed * dt;
+    for (const w of ["wheelL", "wheelR", "wheelN"] as const) {
+      const node = n[w], orig = this.originals[w];
+      if (!node || !orig) continue;
+      node.show = out;
+      node.matrix = Matrix4.multiply(orig, Matrix4.fromRotation(Matrix3.fromRotationX((this.wheelAngle / (rig.wheelRadius[w] ?? 0.3)) % (Math.PI * 2))), new Matrix4());
+    }
+    // Speedbrake petals open up and down.
+    this.brakeT += (clamp(input.brake ?? 0, 0, 1) - this.brakeT) * (1 - Math.exp(-dt * 5));
+    if (dt === 0) this.brakeT = clamp(input.brake ?? 0, 0, 1);
+    for (const side of ["L", "R"]) {
+      this.hinge(`brake${side}U`, this.brakeT * 50);
+      this.hinge(`brake${side}D`, -this.brakeT * 50);
+    }
+    // Afterburner: lights at full power, flickering a little.
+    if (n.burner && this.originals.burner) {
+      const on = s.throttle > 0.93;
+      n.burner.show = on;
+      if (on) {
+        const k = 0.85 + 0.15 * Math.sin(this.time * 47) * Math.sin(this.time * 31) + (s.throttle - 0.93) * 2;
+        n.burner.matrix = Matrix4.multiply(this.originals.burner, Matrix4.fromScale(new Cartesian3(1, 1, k)), new Matrix4());
       }
     }
   }

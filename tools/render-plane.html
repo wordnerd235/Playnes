@@ -38,6 +38,8 @@ fill.position.set(8, 4, -6);
 scene.add(fill);
 new GLTFLoader().load(`../public/models/${id}.glb`, (g) => {
   const m = g.scene;
+  const burner = m.getObjectByName("burner");
+  if (burner) burner.visible = false;
   scene.add(m);
   const box = new THREE.Box3().setFromObject(m);
   const size = box.getSize(new THREE.Vector3());

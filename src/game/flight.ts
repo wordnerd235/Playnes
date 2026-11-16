@@ -2146,7 +2146,7 @@ export class FlightSession {
     const pitchCmd = s.onGround ? (s.pitch > 1 ? 1 : c.pitch) : clamp((this.lastCmd.targetVs - s.vs) / 4, -1, 1);
     const yaw = s.onGround ? c.roll : rollCmd * 0.2;
     const ground = this.phase === "cruise" || this.phase === "toCruise" ? null : this.groundHeightAt(s);
-    this.view.update(s, dt, { roll: rollCmd, pitch: pitchCmd, yaw }, ground);
+    this.view.update(s, dt, { roll: rollCmd, pitch: pitchCmd, yaw, brake: this.speedbrakeOut ? 1 : 0 }, ground);
     this.viewPlaced = true;
   }
 

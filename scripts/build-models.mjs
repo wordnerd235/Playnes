@@ -16,8 +16,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as THREE from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { mergeGeometries, mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
+import { MeshBVH } from "three-mesh-bvh";
 import { AIRCRAFT } from "../src/data/aircraft.ts";
+import { buildF16 } from "./model-f16.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = join(root, "public", "models");
@@ -263,7 +265,7 @@ function registration(text, side, xAt, y0, zMid, h) {
       const u = i * 6 + c - cols / 2;
       const z = zMid + dir * u * px;
       const y = y0 + (3 - r) * px;
-      const x = side * (xAt(z) + 0.012);
+      const x = side * (xAt(z, y) + 0.012);
       const b = new THREE.BoxGeometry(0.02, px * 0.92, px * 0.92);
       b.applyMatrix4(T(x, y, z));
       boxes.push(b);
@@ -861,6 +863,173 @@ function buildVaporCone() {
 
 // ---------------------------------------------------------------- GLB writer
 
+
+// ---------------------------------------------------------------- detailed models (v3)
+//
+// Newer models (scripts/model-*.mjs) use indexed geometry with a colour per vertex, a node
+// hierarchy (`parent`), and soft shadows baked into the colours ("ambient occlusion": creases,
+// wheel wells and the places where parts meet get darker), so they look lit and solid at no
+// cost while flying.
+
+/** A part with smooth shading and a colour per vertex: colorFn(position, normal) or a Color. */
+function part(geo, material, colorFn, opts = {}) {
+  let g = geo;
+  g.deleteAttribute("uv");
+  if (!g.index) g = mergeVertices(g, 1e-5);
+  if (!g.attributes.normal || opts.smooth) g.computeVertexNormals();
+  const pos = g.attributes.position, nor = g.attributes.normal;
+  const col = new Float32Array(pos.count * 3);
+  const p = new THREE.Vector3(), n = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    const c = typeof colorFn === "function" ? colorFn(p.fromBufferAttribute(pos, i), n.fromBufferAttribute(nor, i)) : colorFn;
+    col[i * 3] = c.r;
+    col[i * 3 + 1] = c.g;
+    col[i * 3 + 2] = c.b;
+  }
+  g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  return { geo: g, material, ...opts };
+}
+
+/** Flat-shaded copy (every face its own normal), e.g. the petals of a jet nozzle. */
+function faceted(geo) {
+  const g = geo.index ? geo.toNonIndexed() : geo;
+  g.deleteAttribute("normal");
+  g.computeVertexNormals();
+  return mergeVertices(g, 1e-5);
+}
+
+/** An open sheet through rows of points (each row the same length): indexed, not wrapped. */
+function sheet(rows) {
+  const n = rows[0].length;
+  const pos = [];
+  for (const r of rows) for (const p of r) pos.push(p.x, p.y, p.z);
+  const idx = [];
+  for (let i = 0; i < rows.length - 1; i++) for (let j = 0; j < n - 1; j++) {
+    const a = i * n + j, b = a + 1, c = a + n, d = c + 1;
+    idx.push(a, c, b, b, c, d);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/** Smooth curve through keys [[z, a, b, ...], ...] (sorted by z, either way): returns f(z) -> [a, b, ...]. */
+function curve(keys) {
+  const ks = [...keys].sort((p, q) => p[0] - q[0]);
+  const m = ks[0].length - 1;
+  // Monotone-ish cubic (Catmull-Rom tangents, clamped) per column.
+  const tang = ks.map((k, i) => {
+    const a = ks[Math.max(0, i - 1)], b = ks[Math.min(ks.length - 1, i + 1)];
+    return Array.from({ length: m }, (_, c) => (b[0] === a[0] ? 0 : (b[c + 1] - a[c + 1]) / (b[0] - a[0])));
+  });
+  return (z) => {
+    if (z <= ks[0][0]) return ks[0].slice(1);
+    if (z >= ks[ks.length - 1][0]) return ks[ks.length - 1].slice(1);
+    let i = 0;
+    while (ks[i + 1][0] < z) i++;
+    const h = ks[i + 1][0] - ks[i][0], t = (z - ks[i][0]) / h;
+    const t2 = t * t, t3 = t2 * t;
+    return Array.from({ length: m }, (_, c) => (2 * t3 - 3 * t2 + 1) * ks[i][c + 1] + (t3 - 2 * t2 + t) * h * tang[i][c] + (-2 * t3 + 3 * t2) * ks[i + 1][c + 1] + (t3 - t2) * h * tang[i + 1][c]);
+  };
+}
+
+/** Move parts (built in model space) into a node's own space: pivot + axes (xAxis, yAxis unit vectors). */
+function asNode(parts, pivot, xAxis = V(1, 0, 0), yAxis = V(0, 1, 0), extra = {}) {
+  const x = xAxis.clone().normalize();
+  const z = x.clone().cross(yAxis).normalize();
+  const y = z.clone().cross(x).normalize();
+  const basis = new THREE.Matrix4().makeBasis(x, y, z);
+  const q = new THREE.Quaternion().setFromRotationMatrix(basis);
+  const inv = new THREE.Matrix4().compose(pivot, q, V(1, 1, 1)).invert();
+  for (const pt of parts) {
+    pt.geo.applyMatrix4(inv);
+  }
+  return { parts, translation: [pivot.x, pivot.y, pivot.z], rotation: [q.x, q.y, q.z, q.w], ...extra };
+}
+
+function nodeWorldMatrix(nodes, name) {
+  const n = nodes[name];
+  const m = new THREE.Matrix4().compose(
+    n.translation ? V(...n.translation) : V(0, 0, 0),
+    n.rotation ? new THREE.Quaternion(...n.rotation) : new THREE.Quaternion(),
+    V(1, 1, 1),
+  );
+  return n.parent ? nodeWorldMatrix(nodes, n.parent).multiply(m) : m;
+}
+
+/**
+ * Bake soft shadows into the vertex colours. Every vertex looks around its half of the sky;
+ * the more of it is blocked by nearby surfaces, the darker it gets. Moving parts (node.moving:
+ * landing gear, doors) are shaded by everything but don't shade the body, so there are no
+ * ghost shadows when they're retracted. Parts with noOcclude (glass) don't block light, and
+ * parts with noAO (lights, glass) keep their colour.
+ */
+function bakeAO(nodes, { rays = 40, reach = 1.5, strength = 0.72 } = {}) {
+  const world = {};
+  const collect = (filter) => {
+    const geos = [];
+    for (const [name, node] of Object.entries(nodes)) {
+      if (!filter(node)) continue;
+      world[name] ??= nodeWorldMatrix(nodes, name);
+      for (const pt of node.parts) {
+        if (pt.noOcclude) continue;
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", pt.geo.attributes.position.clone());
+        if (pt.geo.index) g.setIndex(pt.geo.index.clone());
+        g.applyMatrix4(world[name]);
+        geos.push(g.index ? g.toNonIndexed() : g);
+      }
+    }
+    return new MeshBVH(mergeGeometries(geos));
+  };
+  const bvhStatic = collect((n) => !n.moving);
+  const bvhAll = collect(() => true);
+  // Cosine-weighted directions around +Z.
+  const dirs = [];
+  for (let i = 0; i < rays; i++) {
+    const u = (i + 0.5) / rays;
+    let v = 0;
+    for (let b = i, f = 0.5; b; b >>= 1, f /= 2) if (b & 1) v += f;
+    const r = Math.sqrt(u), a = 2 * Math.PI * v;
+    dirs.push(V(r * Math.cos(a), r * Math.sin(a), Math.sqrt(1 - u)));
+  }
+  const ray = new THREE.Ray();
+  const p = V(0, 0, 0), n = V(0, 0, 0), t = V(0, 0, 0), b = V(0, 0, 0), d = V(0, 0, 0);
+  let count = 0;
+  for (const [name, node] of Object.entries(nodes)) {
+    const m = (world[name] ??= nodeWorldMatrix(nodes, name));
+    const nm = new THREE.Matrix3().getNormalMatrix(m);
+    const bvh = node.moving ? bvhAll : bvhStatic;
+    for (const pt of node.parts) {
+      if (pt.noAO) continue;
+      const pos = pt.geo.attributes.position, nor = pt.geo.attributes.normal, col = pt.geo.attributes.color;
+      for (let i = 0; i < pos.count; i++) {
+        p.fromBufferAttribute(pos, i).applyMatrix4(m);
+        n.fromBufferAttribute(nor, i).applyMatrix3(nm).normalize();
+        t.set(Math.abs(n.y) < 0.9 ? 0 : 1, Math.abs(n.y) < 0.9 ? 1 : 0, 0).cross(n).normalize();
+        b.crossVectors(n, t);
+        const spin = (Math.sin(p.x * 91.7 + p.y * 37.3 + p.z * 53.1) * 43758.5453) % (2 * Math.PI);
+        const cs = Math.cos(spin), sn = Math.sin(spin);
+        let occ = 0;
+        for (const s of dirs) {
+          const dx = s.x * cs - s.y * sn, dy = s.x * sn + s.y * cs;
+          d.set(0, 0, 0).addScaledVector(t, dx).addScaledVector(b, dy).addScaledVector(n, s.z).normalize();
+          ray.origin.copy(p).addScaledVector(n, 0.006);
+          ray.direction.copy(d);
+          const hit = bvh.raycastFirst(ray, THREE.DoubleSide);
+          if (hit && hit.distance < reach) occ += 1 - hit.distance / reach;
+        }
+        const k = 1 - strength * Math.pow(occ / rays, 0.85);
+        col.setXYZ(i, col.getX(i) * k, col.getY(i) * k, col.getZ(i) * k);
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
 function writeGlb(nodes, file, extraMaterials = []) {
   const bufferParts = [];
   let offset = 0;
@@ -886,6 +1055,7 @@ function writeGlb(nodes, file, extraMaterials = []) {
     const primitives = [];
     for (const [material, geos] of byMat) {
       const g = geos.length === 1 ? geos[0] : mergeGeometries(geos);
+      if (!g) throw new Error(`can't merge the parts of node "${name}" (mixed indexed / non-indexed?)`);
       const pos = new Float32Array(g.attributes.position.array);
       const nor = new Float32Array(g.attributes.normal.array);
       const colAttr = g.attributes.color;
@@ -907,7 +1077,13 @@ function writeGlb(nodes, file, extraMaterials = []) {
       const aPos = accessors.push({ bufferView: addView(pos, 34962), componentType: 5126, count, type: "VEC3", min, max }) - 1;
       const aNor = accessors.push({ bufferView: addView(nor, 34962), componentType: 5126, count, type: "VEC3" }) - 1;
       const aCol = accessors.push({ bufferView: addView(col, 34962), componentType: 5121, normalized: true, count, type: "VEC4" }) - 1;
-      primitives.push({ attributes: { POSITION: aPos, NORMAL: aNor, COLOR_0: aCol }, material });
+      const prim = { attributes: { POSITION: aPos, NORMAL: aNor, COLOR_0: aCol }, material };
+      if (g.index) {
+        const big = count > 65535;
+        const idx = big ? new Uint32Array(g.index.array) : new Uint16Array(g.index.array);
+        prim.indices = accessors.push({ bufferView: addView(idx, 34963), componentType: big ? 5125 : 5123, count: idx.length, type: "SCALAR" }) - 1;
+      }
+      primitives.push(prim);
     }
     meshes.push({ name, primitives });
     const n = { name, mesh: meshes.length - 1 };
@@ -915,10 +1091,20 @@ function writeGlb(nodes, file, extraMaterials = []) {
     if (node.rotation) n.rotation = node.rotation;
     gltfNodes.push(n);
   }
+  // Hierarchy: a node with `parent` moves with it.
+  const names = Object.keys(nodes);
+  const roots = [];
+  names.forEach((name, i) => {
+    const parent = nodes[name].parent;
+    if (!parent) return roots.push(i);
+    const pi = names.indexOf(parent);
+    if (pi < 0) throw new Error(`node "${name}": no parent "${parent}"`);
+    (gltfNodes[pi].children ??= []).push(i);
+  });
   const json = {
     asset: { version: "2.0", generator: "playnes build-models.mjs" },
     scene: 0,
-    scenes: [{ nodes: gltfNodes.map((_, i) => i) }],
+    scenes: [{ nodes: roots }],
     nodes: gltfNodes,
     meshes,
     materials: [...MATERIALS.map((m) => ({ ...m, doubleSided: true })), ...extraMaterials],
@@ -951,10 +1137,34 @@ function writeGlb(nodes, file, extraMaterials = []) {
   return total;
 }
 
+const kit = { THREE, V, C, M, T, RX, RY, RZ, S, chain, lerp, MAT, MATERIALS, loft, smooth, surface, controlSurface, lathe, cylinderBetween, registration, REGISTRATION, part, faceted, sheet, curve, asNode, mergeGeometries, mergeVertices };
+const DETAILED = { f16: buildF16 };
+const rigs = {};
+const only = process.argv[2];
 for (const ac of AIRCRAFT) {
-  const bytes = writeGlb(ac.kind === "helicopter" ? buildChinook(ac) : buildAircraft(ac), join(outDir, `${ac.id}.glb`));
+  if (only && ac.id !== only) {
+    if (DETAILED[ac.id]) rigs[ac.id] = DETAILED[ac.id](ac, kit).rig;
+    continue;
+  }
+  let bytes;
+  if (DETAILED[ac.id]) {
+    const { nodes, extraMaterials, rig } = DETAILED[ac.id](ac, kit);
+    rigs[ac.id] = rig;
+    const t0 = Date.now();
+    const verts = bakeAO(nodes);
+    bytes = writeGlb(nodes, join(outDir, `${ac.id}.glb`), extraMaterials);
+    console.log(`${ac.id}.glb  ${(bytes / 1024).toFixed(0)} KB  (${verts} vertices, shadows baked in ${((Date.now() - t0) / 1000).toFixed(1)} s)`);
+    continue;
+  }
+  bytes = writeGlb(ac.kind === "helicopter" ? buildChinook(ac) : buildAircraft(ac), join(outDir, `${ac.id}.glb`));
   console.log(`${ac.id}.glb  ${(bytes / 1024).toFixed(0)} KB`);
 }
+// How the game moves the detailed models' parts (generated; see scripts/model-*.mjs).
+writeFileSync(
+  join(root, "src", "data", "rigs.ts"),
+  `// Generated by scripts/build-models.mjs. Do not edit by hand.\n// retractDeg: how far each gear leg turns about its own X axis to fold away.\n// wheelRadius: metres, for spinning the wheels at the right speed.\nexport interface Rig {\n  retractDeg: Record<string, number>;\n  wheelRadius: Record<string, number>;\n}\n\nexport const RIGS: Record<string, Rig> = ${JSON.stringify(rigs, null, 2)};\n`,
+);
+if (only) process.exit(0);
 writeGlb(buildRing(), join(outDir, "ring.glb"));
 writeGlb(buildShadow(), join(outDir, "shadow.glb"), [
   { name: "shadow", pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: 1 }, alphaMode: "BLEND", doubleSided: true },

@@ -66,6 +66,9 @@ export function mountPlaneSpinner(host: HTMLElement, modelUrl: string, onError?:
     (g) => {
       if (disposed) return;
       const m = g.scene;
+      // Parked on show: no afterburner flame.
+      const burner = m.getObjectByName("burner");
+      if (burner) burner.visible = false;
       const box = new THREE.Box3().setFromObject(m);
       const centre = box.getCenter(new THREE.Vector3());
       m.position.sub(centre);
