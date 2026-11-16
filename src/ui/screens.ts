@@ -66,9 +66,11 @@ export class Screens {
    */
   private fsButton: HTMLElement | null = null;
   private fsListening = false;
+  /** The grown-up asked for full screen (and hasn't asked to leave it). */
+  private fsWanted = false;
 
   private fullscreenButton(): HTMLElement | null {
-    const standalone = matchMedia("(display-mode: standalone)").matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
+    const standalone = matchMedia("(display-mode: standalone), (display-mode: fullscreen)").matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
     if (standalone) return null;
     const doc = document as Document & { webkitFullscreenEnabled?: boolean; webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void };
     const root = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void };
@@ -91,6 +93,38 @@ export class Screens {
       };
       document.addEventListener("fullscreenchange", sync);
       document.addEventListener("webkitfullscreenchange", sync);
+      // iPad Safari leaves full screen on any quick downward swipe (Safari decides that
+      // itself; the page can't stop it), e.g. flicking a menu back up. If full screen ends
+      // right after a downward swipe, and not from a button, go back to it on the next tap.
+      let swipedDownAt = -1e9;
+      let startY = 0;
+      let wasFull = false;
+      let comeBack = false;
+      document.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 1) startY = e.touches[0].clientY;
+      }, { passive: true, capture: true });
+      document.addEventListener("touchmove", (e) => {
+        if (e.touches.length === 1 && e.touches[0].clientY - startY > 24) swipedDownAt = performance.now();
+      }, { passive: true, capture: true });
+      const watch = () => {
+        const full = isFull();
+        if (wasFull && !full && this.fsWanted && performance.now() - swipedDownAt < 1500) comeBack = true;
+        if (full) comeBack = false;
+        wasFull = full;
+      };
+      document.addEventListener("fullscreenchange", watch);
+      document.addEventListener("webkitfullscreenchange", watch);
+      const retry = () => {
+        if (!comeBack || isFull()) return;
+        try {
+          if (root.requestFullscreen) void root.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
+          else root.webkitRequestFullscreen?.();
+        } catch {
+          /* try again on the next tap */
+        }
+      };
+      document.addEventListener("touchend", retry, { capture: true });
+      document.addEventListener("click", retry, { capture: true });
     }
     btn.addEventListener("click", () => {
       this.host.sfx("click");
@@ -99,6 +133,7 @@ export class Screens {
         return;
       }
       try {
+        this.fsWanted = !isFull();
         if (isFull()) {
           if (doc.exitFullscreen) void doc.exitFullscreen();
           else doc.webkitExitFullscreen?.();
