@@ -333,8 +333,9 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   // contents). Measured on a fast jet flight, the tree starts at ~65k entries (Google's root
   // file alone) and grows only slowly (~+5k per 60 km), with live memory flat, so refreshing
   // often does more harm than good (a second copy of the world loads alongside). Only if the
-  // tree has really doubled, or after a very long trip, load a fresh copy of the 3D world in
-  // the background, switch over once it has the ground around us, and drop the old one.
+  // trip is very long, load a fresh copy of the 3D world in the background, switch over once
+  // it has the ground around us, and drop the old one. (A "tree has doubled" trigger fired
+  // too early: Google's map is still filling in for a while after the start.)
   const mobile = deviceClass() !== "desktop";
   const maxTravel = mobile ? 400_000 : 600_000;
   const treeSize = () => (tileset as unknown as { _statistics?: { numberOfTilesTotal?: number } })._statistics?.numberOfTilesTotal ?? 0;
@@ -477,8 +478,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       const age = now - createdAt;
       // The tree's size ~30 s after a fresh start is "normal" for this flight.
       if (!treeBaseline && age > 30_000) treeBaseline = Math.max(2000, treeSize());
-      const treeGrown = treeBaseline > 0 && treeSize() > treeBaseline * 2;
-      if (!recycling && age > 120_000 && (treeGrown || travel > maxTravel)) void recycle();
+      if (!recycling && age > 120_000 && travel > maxTravel) void recycle();
       if (now - lastSpeedApply < 500) return;
       lastSpeedApply = now;
       // Coarser at jet speed: 1x up to ~230 kt, up to 3x at Mach speeds, in a few steps with a
