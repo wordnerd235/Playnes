@@ -81,6 +81,7 @@ const { chromium } = require("playwright");
       };
     }
     window.__variant = variant;
+    window.__sse = Number(new URL(location.href).searchParams.get("sse")) || 0;
     window.__applyDsse = () => {
       if (variant !== "dsse" && variant !== "both") return;
       for (const t of tilesets()) t.dynamicScreenSpaceErrorFactor = 64;
@@ -110,6 +111,9 @@ const { chromium } = require("playwright");
       const ground = window.playnes.world.groundHeight(s) ?? 0;
       Object.assign(s, { alt: ground + 950, onGround: false, speed: 330, heading: 315, pitch: 0, bank: 0, vs: 0, gamma: 0, gearDown: false, flaps: 0 });
       window.__applyDsse?.();
+      // SSE=n: pin the detail level (the slow headless renderer otherwise makes the game's
+      // governor coarsen it far more than on a real computer).
+      if (window.__sse) for (const t of window.__tilesets()) { t.maximumScreenSpaceError = window.__sse; t._memoryAdjustedScreenSpaceError = Math.max(t._memoryAdjustedScreenSpaceError, window.__sse); }
     }, (Date.now() - t0) / 1000);
     await page.waitForTimeout(1000);
     const el = (Date.now() - t0) / 1000;
