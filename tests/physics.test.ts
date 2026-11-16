@@ -291,9 +291,45 @@ describe("real-world performance", () => {
       const r = free(ac.id, { altFt: 2000, kt: ac.vclimb, throttle: 1, pitch: 1, seconds: 40 });
       const avg = ((r.s.alt - r.start.alt) / 0.3048 / 40) * 60;
       rows.push(`${ac.id} climb avg ${Math.round(avg)} fpm (book ${ac.climbFpm}), peak ${Math.round(r.maxVs)}`);
-      expect(avg, ac.id).toBeGreaterThan(ac.climbFpm * 0.75);
+      // (The pull-up into the climb now costs a little energy, as it really does.)
+      expect(avg, ac.id).toBeGreaterThan(ac.climbFpm * 0.72);
     }
     console.log(rows.join("\n"));
+  });
+
+  it("steep turns cost energy: holding height in a 60-degree bank needs more power or loses speed", () => {
+    for (const id of ["c172", "phenom300", "f16"]) {
+      const ac = aircraftById(id);
+      const p = perfFor(ac);
+      const run = (bank: number) => {
+        const s = createState({ lat: 35, lon: -81, alt: 1500, heading: 0, onGround: false, speed: ac.vclimb * 1.3 * KT_, gearDown: false, flaps: 0 });
+        s.throttle = 0.6;
+        for (let i = 0; i < 20 / DT; i++) step(s, { targetBank: bank, targetVs: 0, throttle: 0.6, brake: 0, rotate: false, groundHeading: null }, p, { groundHeight: -1e5 }, DT);
+        return s;
+      };
+      const level = run(0), turning = run(60);
+      // (A fast fighter barely notices 2 g; the others clearly slow down.)
+      expect(turning.speed, id).toBeLessThan(level.speed * (id === "f16" ? 0.995 : 0.97));
+      expect(turning.load, id).toBeGreaterThan(1.8);
+      expect(turning.load, id).toBeLessThan(2.2);
+    }
+  });
+
+  it("g limits: a passenger jet won't bank past about 66 degrees, and the fighter's pull-up eases off when fast", () => {
+    const jet = perfFor(aircraftById("g700"));
+    const s = createState({ lat: 35, lon: -81, alt: 3000, heading: 0, onGround: false, speed: 130, gearDown: false, flaps: 0 });
+    for (let i = 0; i < 10 / DT; i++) step(s, { targetBank: 85, targetVs: 0, throttle: 1, brake: 0, rotate: false, groundHeading: null }, jet, { groundHeight: -1e5 }, DT);
+    expect(s.bank).toBeLessThan(67);
+    expect(s.load).toBeLessThan(2.55);
+    const f16 = perfFor(aircraftById("f16"));
+    const rate = (kt: number) => {
+      const f = createState({ lat: 35, lon: -81, alt: 3000, heading: 0, onGround: false, speed: kt * KT_, gearDown: false, flaps: 0 });
+      step(f, { targetBank: 0, targetVs: 500, throttle: 1, brake: 0, rotate: false, groundHeading: null }, f16, { groundHeight: -1e5 }, 1);
+      return f.gamma;
+    };
+    // 9 g at 400 kt is about 20 degrees a second; at 800 kt the same g gives about half that.
+    expect(rate(400)).toBeGreaterThan(18);
+    expect(rate(800)).toBeLessThan(12.5);
   });
 
   it("zoom climb: pulling up from high speed climbs faster than the book rate at first", () => {

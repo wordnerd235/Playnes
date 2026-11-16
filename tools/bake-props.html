@@ -1,0 +1,226 @@
+<!doctype html>
+<!-- Dev tool (used by tools/bake-props.cjs): builds small 3D trees and buildings, lights them
+     once, and renders each from four heights (side-on to nearly overhead) into one sprite
+     sheet. The game draws them as camera-facing pictures, picking the picture that matches
+     how steeply each one is being looked down on, so they read as solid 3D objects at the
+     cost of flat pictures. window.__sheet = PNG data URL, window.__manifest = sizes. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>bake</title>
+<style>html,body{margin:0;background:#789}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"../node_modules/three/build/three.module.js","three/addons/":"../node_modules/three/examples/jsm/"}}</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+
+const CELL = 192;
+/** Looking-down angles the pictures are made for (degrees above the horizon). */
+const ELEVATIONS = [8, 40, 65, 85];
+
+// ---------------------------------------------------------------- helpers
+let seed = 7;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const C = (hex) => new THREE.Color(hex);
+/** Colour every vertex with fn(position, normal) -> Color. */
+function paint(geo, fn) {
+  const g = geo.index ? geo.toNonIndexed() : geo;
+  g.computeVertexNormals();
+  const p = g.attributes.position, n = g.attributes.normal;
+  const col = new Float32Array(p.count * 3);
+  const P = new THREE.Vector3(), N = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    const c = fn(P.fromBufferAttribute(p, i), N.fromBufferAttribute(n, i));
+    col.set([c.r, c.g, c.b], i * 3);
+  }
+  g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  g.deleteAttribute("uv");
+  return g;
+}
+const at = (geo, x, y, z) => geo.translate(x, y, z);
+const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+const mesh = (geos) => new THREE.Mesh(mergeGeometries(geos), mat);
+
+// ---------------------------------------------------------------- trees
+function roundTree(leaf, trunk = "#6b4a2b") {
+  const geos = [];
+  geos.push(paint(at(new THREE.CylinderGeometry(0.34, 0.52, 5.4, 9), 0, 2.7, 0), (p) => C(trunk).multiplyScalar(0.75 + 0.25 * (p.y / 5.4))));
+  const blobs = [[0, 9.6, 0, 4.5], [2.7, 8.3, 0.9, 3.0], [-2.5, 8.5, -0.7, 3.1], [0.5, 8.1, 2.6, 2.8], [-0.6, 8.4, -2.7, 2.8], [0.3, 12.3, 0.2, 2.9], [-1.9, 10.8, 1.6, 2.4], [1.8, 11.0, -1.5, 2.4]];
+  const base = C(leaf);
+  for (const [x, y, z, r] of blobs) {
+    const g = new THREE.IcosahedronGeometry(r, 2);
+    const pos = g.attributes.position;
+    // Lumpy, not a perfect ball.
+    for (let i = 0; i < pos.count; i++) {
+      const k = 1 + 0.07 * Math.sin(pos.getX(i) * 2.1 + x) * Math.cos(pos.getY(i) * 1.7 + y) + 0.05 * Math.sin(pos.getZ(i) * 2.9);
+      pos.setXYZ(i, pos.getX(i) * k, pos.getY(i) * k, pos.getZ(i) * k);
+    }
+    at(g, x, y, z);
+    // Darker underneath and deep inside the crown, lighter on top (baked soft shadow).
+    geos.push(paint(g, (p, n) => {
+      const up = n.y * 0.5 + 0.5;
+      const out = Math.min(1, Math.hypot(p.x, (p.y - 9.6) * 0.8, p.z) / 5.2);
+      return base.clone().multiplyScalar(0.5 + 0.34 * up + 0.2 * out).lerp(C("#eaf7c0"), 0.1 * up * out);
+    }));
+  }
+  return { mesh: mesh(geos), height: 15.4, radius: 5.6 };
+}
+
+function pineTree(leaf, trunk = "#5d4126") {
+  const geos = [];
+  geos.push(paint(at(new THREE.CylinderGeometry(0.28, 0.42, 4, 8), 0, 2, 0), () => C(trunk)));
+  const base = C(leaf);
+  const tiers = [[4.4, 6.2, 2.6], [3.7, 5.6, 6.2], [2.9, 5.0, 9.6], [2.0, 4.6, 12.8], [1.1, 3.6, 15.6]];
+  for (const [r, h, y0] of tiers) {
+    const g = new THREE.ConeGeometry(r, h, 14, 3);
+    const pos = g.attributes.position;
+    // Ragged skirt: alternate points of the bottom ring droop.
+    for (let i = 0; i < pos.count; i++) {
+      if (pos.getY(i) < -h / 2 + 0.01) {
+        const a = Math.atan2(pos.getZ(i), pos.getX(i));
+        pos.setY(i, pos.getY(i) - 0.45 * (0.5 + 0.5 * Math.sin(a * 7)));
+      }
+    }
+    at(g, 0, y0 + h / 2, 0);
+    geos.push(paint(g, (p) => {
+      const t = (p.y - y0) / h; // 0 at the skirt, 1 at the tip of this tier
+      return base.clone().multiplyScalar(0.55 + 0.5 * t);
+    }));
+  }
+  return { mesh: mesh(geos), height: 19.2, radius: 4.6 };
+}
+
+// ---------------------------------------------------------------- buildings
+function box(w, h, d, x, y, z, color, shade = true) {
+  const c = C(color);
+  return paint(at(new THREE.BoxGeometry(w, h, d), x, y, z), (p, n) => (shade ? c.clone().multiplyScalar(n.y > 0.5 ? 1 : n.y < -0.5 ? 0.5 : 0.88) : c));
+}
+/** Windows on all four sides of a w x d block: rows from y0 up, a pane every `stepX`. */
+function windows(w, d, y0, rows, rowH, stepX, color = "#33506e") {
+  const geos = [];
+  for (let r = 0; r < rows; r++) {
+    const y = y0 + r * rowH;
+    for (const [len, fixed, axis] of [[w, d / 2, "z"], [w, -d / 2, "z"], [d, w / 2, "x"], [d, -w / 2, "x"]]) {
+      const n = Math.max(1, Math.floor((len - 1.2) / stepX));
+      for (let i = 0; i < n; i++) {
+        const u = (i - (n - 1) / 2) * stepX;
+        const lit = rnd() < 0.18 ? "#f7e7a6" : color;
+        geos.push(axis === "z" ? box(stepX * 0.55, rowH * 0.5, 0.08, u, y, fixed + Math.sign(fixed) * 0.03, lit, false) : box(0.08, rowH * 0.5, stepX * 0.55, fixed + Math.sign(fixed) * 0.03, y, u, lit, false));
+      }
+    }
+  }
+  return geos;
+}
+function house(wall, roof) {
+  const W = 9, D = 7, H = 4.6, RH = 3.2;
+  const geos = [box(W, H, D, 0, H / 2, 0, wall)];
+  // Gable roof with an overhang: a prism along X.
+  const shape = new THREE.Shape([new THREE.Vector2(-D / 2 - 0.6, 0), new THREE.Vector2(D / 2 + 0.6, 0), new THREE.Vector2(0, RH)]);
+  const prism = new THREE.ExtrudeGeometry(shape, { depth: W + 1.0, bevelEnabled: false });
+  prism.rotateY(Math.PI / 2).translate(-(W + 1.0) / 2, H, 0);
+  const rc = C(roof);
+  geos.push(paint(prism, (p, n) => rc.clone().multiplyScalar(Math.abs(n.x) > 0.9 ? 0.95 : 0.78 + 0.3 * Math.max(0, n.y))));
+  geos.push(box(0.9, 2.2, 0.9, W * 0.22, H + RH * 0.75, D * 0.12, "#8d5b45"));
+  geos.push(box(1.1, 2.3, 0.1, -1.4, 1.15, D / 2 + 0.04, "#6b4630", false));
+  geos.push(...windows(W, D, 2.7, 1, 2.2, 2.6));
+  return { mesh: mesh(geos), height: H + RH, radius: 6.6 };
+}
+function block(wall, floors, W, D, trim = "#c9ced4") {
+  const FH = 3.4, H = floors * FH + 1.2;
+  const geos = [box(W, H, D, 0, H / 2, 0, wall)];
+  geos.push(box(W + 0.5, 0.6, D + 0.5, 0, H + 0.3, 0, trim));
+  geos.push(box(W - 1, 0.1, D - 1, 0, H + 0.62, 0, "#7d848c"));
+  geos.push(box(3.2, 1.8, 2.6, -W * 0.2, H + 1.4, D * 0.12, "#aab1b8"));
+  geos.push(box(1.6, 1.1, 1.6, W * 0.25, H + 1.1, -D * 0.2, "#8b939b"));
+  geos.push(box(W + 0.2, 3.2, D + 0.2, 0, 1.6, 0, C(wall).multiplyScalar(0.8).getStyle()));
+  geos.push(...windows(W, D, 5.4, floors - 1, FH, 2.9));
+  return { mesh: mesh(geos), height: H + 2.3, radius: Math.hypot(W, D) / 2 + 0.6 };
+}
+
+seed = 11;
+const TYPES = {
+  roundA: roundTree("#3f9a4a"),
+  roundB: roundTree("#5aae4f"),
+  pineA: pineTree("#2c7a44"),
+  pineB: pineTree("#3a8c4d"),
+  houseA: house("#f2e6d0", "#c0573e"),
+  houseB: house("#e3ebf2", "#5c6b7a"),
+  houseC: house("#f6d9a8", "#8a5a3c"),
+  midA: block("#e9dfcf", 4, 16, 12),
+  midB: block("#d6dee6", 5, 14, 13),
+  tallA: block("#dfe5ea", 11, 18, 15),
+  tallB: block("#ead9c2", 9, 16, 16),
+};
+
+// ---------------------------------------------------------------- render the sheet
+const names = Object.keys(TYPES);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(CELL * ELEVATIONS.length, CELL * names.length);
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.autoClear = false;
+document.body.appendChild(renderer.domElement);
+renderer.clear();
+
+// A soft round shadow on the ground under each thing.
+const shadowTex = (() => {
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = 128;
+  const c = cv.getContext("2d");
+  const g = c.createRadialGradient(64, 64, 6, 64, 64, 64);
+  g.addColorStop(0, "rgba(10,25,15,0.3)");
+  g.addColorStop(0.65, "rgba(10,25,15,0.16)");
+  g.addColorStop(1, "rgba(10,25,15,0)");
+  c.fillStyle = g;
+  c.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(cv);
+})();
+
+const manifest = { cell: CELL, elevations: ELEVATIONS, types: {} };
+names.forEach((name, row) => {
+  const t = TYPES[name];
+  manifest.types[name] = { row, height: +t.height.toFixed(2), radius: +t.radius.toFixed(2), frames: [] };
+  ELEVATIONS.forEach((elev, col) => {
+    const scene = new THREE.Scene();
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x9fb49a, 1.55));
+    // The sun comes from the upper left of the picture, a little toward the viewer.
+    const e = (elev * Math.PI) / 180;
+    const dir = new THREE.Vector3(0, Math.sin(e), Math.cos(e));
+    const right = new THREE.Vector3(1, 0, 0);
+    const up = new THREE.Vector3().crossVectors(dir, right);
+    const sun = new THREE.DirectionalLight(0xfff4dc, 2.1);
+    sun.position.copy(new THREE.Vector3().addScaledVector(right, -0.7).addScaledVector(up, 0.9).addScaledVector(dir, 0.55).add(new THREE.Vector3(0, 0.6, 0)));
+    scene.add(sun);
+    scene.add(t.mesh);
+    const sh = new THREE.Mesh(new THREE.CircleGeometry(t.radius * 1.08, 32), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
+    sh.rotation.x = -Math.PI / 2;
+    sh.position.y = 0.03;
+    // Side-on, a ground shadow would be cut off by the bottom of the picture.
+    if (col > 0) scene.add(sh);
+    // The frame: side-on pictures stand on their bottom edge; the others are centred on the
+    // spot the thing stands on.
+    const half = t.radius * 1.3;
+    const tall = t.height * Math.cos(e) + t.radius * Math.sin(e) + 0.4;
+    // Square frame, w metres on a side.
+    const w = col === 0 ? Math.max(half * 2, tall) : 2 * Math.max(tall, t.radius * 1.25 * Math.sin(e) + 0.3, half * 0.82);
+    const cam = col === 0 ? new THREE.OrthographicCamera(-w / 2, w / 2, w, 0, 0.1, 500) : new THREE.OrthographicCamera(-w / 2, w / 2, w / 2, -w / 2, 0.1, 500);
+    cam.position.copy(dir).multiplyScalar(200);
+    cam.up.copy(up);
+    cam.lookAt(0, 0, 0);
+    renderer.setViewport(col * CELL, (names.length - 1 - row) * CELL, CELL, CELL);
+    renderer.setScissor(col * CELL, (names.length - 1 - row) * CELL, CELL, CELL);
+    renderer.setScissorTest(true);
+    renderer.render(scene, cam);
+    scene.remove(t.mesh);
+    manifest.types[name].frames.push({ size: +w.toFixed(2), origin: col === 0 ? "bottom" : "centre" });
+  });
+});
+window.__manifest = manifest;
+window.__sheet = renderer.domElement.toDataURL("image/png");
+document.title = "ready";
+</script>
+</body>
+</html>

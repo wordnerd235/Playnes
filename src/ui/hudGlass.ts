@@ -12,6 +12,8 @@ export interface HudGlassData {
   pitch: number;
   bank: number;
   mach: number;
+  /** g being pulled (1 = level flight). */
+  load: number;
 }
 
 /** Where the glass is on screen: centre and half-height in CSS pixels, and the angle half its height covers. */
@@ -72,6 +74,7 @@ export class HudGlass {
     text("alt", 95, 5, 15, "end");
     text("hdg", 0, -76, 17, "middle");
     text("mach", -94, 26, 12, "start");
+    text("load", -94, 40, 12, "start");
     s("path", { d: "M -4 -72 L 0 -66 L 4 -72", ...line }, svg);
     parent.prepend(this.el);
   }
@@ -107,5 +110,6 @@ export class HudGlass {
     setText(this.texts.alt, String(Math.round(d.altFt / 10) * 10));
     setText(this.texts.hdg, String(Math.round(((d.heading % 360) + 360) % 360)).padStart(3, "0"));
     setText(this.texts.mach, d.mach >= 0.7 ? `M ${d.mach.toFixed(2)}` : "");
+    setText(this.texts.load, `G ${d.load.toFixed(1)}`);
   }
 }

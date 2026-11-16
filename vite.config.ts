@@ -48,7 +48,7 @@ export default defineConfig({
   define: {
     __TEST__: JSON.stringify(testCopy),
     __BUILD__: JSON.stringify(`${sha} · ${date} UTC`),
-    __ASSET_V__: JSON.stringify(assetVersions()),
+    __ASSET_V__: JSON.stringify({ ...assetVersions(), ...assetVersions("public/sprites", "sprites") }),
   },
   build: {
     target: "es2022",

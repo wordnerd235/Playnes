@@ -1,9 +1,14 @@
 // Things near the plane that make speed and height easy to feel: puffy painted clouds (every
 // world), plus cartoon trees and town buildings in the offline world. Rebuilt as the plane moves.
+// Trees and buildings are pictures of small 3D models, baked from four heights (side-on to
+// nearly overhead, tools/bake-props.cjs); each one shows the picture that matches how steeply
+// it's being looked down on, so they read as solid objects for the price of flat pictures.
 // The clouds are soft pictures drawn once on a canvas and shown as camera-facing billboards
 // sized in metres: one draw call for all of them, far cheaper than raymarched cumulus.
 
 import { BillboardCollection, Cartesian3, Color, NearFarScalar, VerticalOrigin, type Scene } from "cesium";
+import { asset } from "../assets.ts";
+import { PROP_SHEET, PROP_SPRITES } from "../data/propSprites.ts";
 import { destination, distance, type LatLon } from "../sim/geo.ts";
 import { LAND, type CartoonData } from "./cartoon.ts";
 import { gfxOn } from "./safety.ts";
@@ -148,6 +153,9 @@ export class Scenery {
   private trees: string[] = [];
   private houses: string[] = [];
   private cloudPics: string[] = [];
+  /** Baked pictures: sprites[kind][angle index] (empty until the sheet has loaded). */
+  private sprites: Record<string, string[]> = {};
+  private propAlt = 0;
   /** Where the map shows water (rivers too): no trees or houses there. */
   private water: WaterMask | null = null;
 
@@ -172,6 +180,7 @@ export class Scenery {
         clearTimeout(pending);
         pending = window.setTimeout(() => this.refreshProps(), 200);
       };
+      this.loadSprites();
       this.trees = [roundTree("#3f9a4a"), roundTree("#55ad52"), pineTree("#2f7f45"), pineTree("#3b8f4c")].map((c) => c.toDataURL());
       this.houses = [building("#f2e6d0", "#c0573e"), building("#dfe7ef", "#5c6b7a"), building("#f6d9a8", "#8a5a3c")].map((c) => c.toDataURL());
     }
@@ -208,9 +217,24 @@ export class Scenery {
     if (this.data && gfxOn("props")) {
       const near = heightAgl < 1500;
       this.props.show = near;
-      if (near && (!this.propCenter || distance(p, this.propCenter) > 450)) this.buildProps(p);
+      const climbed = Math.abs(alt - this.propAlt) > Math.max(25, heightAgl * 0.2);
+      if (near && (!this.propCenter || distance(p, this.propCenter) > 450 || climbed)) this.buildProps(p, alt);
     }
-    void alt;
+  }
+
+  /** Cut the baked sheet into one small picture per kind and angle. */
+  private loadSprites(): void {
+    const img = new Image();
+    img.onload = () => {
+      const c = PROP_SHEET.cell;
+      for (const [kind, sp] of Object.entries(PROP_SPRITES)) {
+        this.sprites[kind] = sp.frames.map((_, i) =>
+          sprite(c, c, (ctx) => ctx.drawImage(img, i * c, sp.row * c, c, c, 0, 0, c, c)).toDataURL(),
+        );
+      }
+      this.refreshProps();
+    };
+    img.src = asset(PROP_SHEET.file);
   }
 
   private buildClouds(p: LatLon): void {
@@ -245,13 +269,16 @@ export class Scenery {
     }
   }
 
-  private buildProps(p: LatLon): void {
+  private buildProps(p: LatLon, alt = this.propAlt): void {
     this.propCenter = { ...p };
+    this.propAlt = alt;
     this.props.removeAll();
     const R = 1400 + 900 * this.detail;
     const cell = PROP_CELL;
     const mx0 = p.lon * 111320 * COS35;
     const my0 = p.lat * 111320;
+    const baked = Object.keys(this.sprites).length > 0;
+    const angles = PROP_SHEET.elevations;
     let count = 0;
     for (let gx = Math.floor((mx0 - R) / cell); gx <= Math.floor((mx0 + R) / cell); gx++) {
       for (let gy = Math.floor((my0 - R) / cell); gy <= Math.floor((my0 + R) / cell); gy++) {
@@ -260,16 +287,40 @@ export class Scenery {
         if (!pr) continue;
         const mx = pr.lon * 111320 * COS35;
         const my = pr.lat * 111320;
-        if ((mx - mx0) ** 2 + (my - my0) ** 2 > R * R) continue;
-        this.props.add({
-          position: Cartesian3.fromDegrees(pr.lon, pr.lat, pr.base),
-          image: pr.image,
-          width: pr.width,
-          height: pr.height,
-          sizeInMeters: true,
-          verticalOrigin: VerticalOrigin.BOTTOM,
-          color: Color.WHITE,
-        });
+        const d2 = (mx - mx0) ** 2 + (my - my0) ** 2;
+        if (d2 > R * R) continue;
+        const sp = PROP_SPRITES[pr.kind];
+        if (baked && sp) {
+          // How steeply this one is looked down on from the playne picks its picture.
+          const elev = Math.atan2(alt - pr.base, Math.sqrt(d2)) * (180 / Math.PI);
+          let i = 0;
+          while (i < angles.length - 1 && elev > (angles[i] + angles[i + 1]) / 2) i++;
+          const f = sp.frames[i];
+          const size = f.size * pr.scale;
+          const v = 228 + Math.floor(hash(gx * 3301 + gy * 9001, 13) * 27);
+          this.props.add({
+            position: Cartesian3.fromDegrees(pr.lon, pr.lat, pr.base + (f.origin === "bottom" ? -0.3 : 0.2)),
+            image: this.sprites[pr.kind][i],
+            width: size,
+            height: size,
+            sizeInMeters: true,
+            verticalOrigin: f.origin === "bottom" ? VerticalOrigin.BOTTOM : VerticalOrigin.CENTER,
+            // A picture centred on the ground would be cut by the ground in front of it: bring
+            // it toward the eye by about the depth of its footprint.
+            eyeOffset: f.origin === "bottom" ? Cartesian3.ZERO : new Cartesian3(0, 0, -(sp.radius * pr.scale * Math.sin((angles[i] * Math.PI) / 180) * 1.2 + 0.5)),
+            color: Color.fromBytes(v, v, v, 255),
+          });
+        } else {
+          this.props.add({
+            position: Cartesian3.fromDegrees(pr.lon, pr.lat, pr.base - 1.2),
+            image: pr.image,
+            width: pr.width,
+            height: pr.height,
+            sizeInMeters: true,
+            verticalOrigin: VerticalOrigin.BOTTOM,
+            color: Color.WHITE,
+          });
+        }
         count++;
         if (count > 2500 + 2500 * this.detail) return;
       }
@@ -285,7 +336,7 @@ export class Scenery {
     return !!this.water && this.water.isWater(lat, lon) !== false;
   }
 
-  private propAt(gx: number, gy: number): { lat: number; lon: number; base: number; width: number; height: number; image: string } | null {
+  private propAt(gx: number, gy: number): { lat: number; lon: number; base: number; width: number; height: number; image: string; kind: string; scale: number } | null {
     const data = this.data;
     if (!data) return null;
     const cell = PROP_CELL;
@@ -304,7 +355,12 @@ export class Scenery {
       const width = 14 + hash(k, 7) * 10;
       // Never inside (or touching) a real building, or in the water.
       if (this.blocked(lat, lon, width * 0.55 + 3) || this.wet(lat, lon)) return null;
-      return { lat, lon, base: h - 1, width, height: tall, image: this.houses[Math.floor(hash(k, 6) * this.houses.length)] };
+      // A house, a mid-rise or a tall block, by height; the baked model is scaled to it.
+      const pick = hash(k, 6);
+      const kind = tall < 14 ? ["houseA", "houseB", "houseC"][Math.floor(pick * 3)] : tall < 26 ? (pick < 0.5 ? "midA" : "midB") : pick < 0.5 ? "tallA" : "tallB";
+      const real = PROP_SPRITES[kind].height;
+      const scale = tall < 14 ? Math.min(1.45, Math.max(0.95, tall / real)) : tall / real;
+      return { lat, lon, base: h, width, height: real * scale, image: this.houses[Math.floor(pick * this.houses.length)], kind, scale };
     }
     const f = valueNoise(mx, my, 1800, 7) * 0.7 + valueNoise(mx, my, 500, 8) * 0.3;
     const thresh = Math.min(0.66, Math.max(0.2, 0.66 - h / 3600));
@@ -313,8 +369,10 @@ export class Scenery {
     const size = 0.8 + hash(k, 9) * 0.6;
     if (this.blocked(lat, lon, 11 * size * 0.55 + 2) || this.wet(lat, lon)) return null;
     const pine = h > 700 ? hash(k, 10) < 0.7 : hash(k, 10) < 0.3;
-    const img = this.trees[(pine ? 2 : 0) + (hash(k, 11) < 0.5 ? 0 : 1)];
-    return { lat, lon, base: h - 1.5, width: 11 * size, height: (pine ? 19 : 16) * size, image: img };
+    const variant = hash(k, 11) < 0.5 ? 0 : 1;
+    const img = this.trees[(pine ? 2 : 0) + variant];
+    const kind = (pine ? "pine" : "round") + (variant ? "B" : "A");
+    return { lat, lon, base: h, width: 11 * size, height: (pine ? 19 : 16) * size, image: img, kind, scale: ((pine ? 19 : 16) * size) / PROP_SPRITES[kind].height };
   }
 
   /**

@@ -2192,6 +2192,7 @@ export class FlightSession {
         pitch: s.pitch,
         bank: s.bank,
         mach: s.speed / speedOfSound(s.alt),
+        load: s.onGround ? 1 : (s.load ?? 1),
       });
       return;
     }

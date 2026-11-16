@@ -68,6 +68,10 @@ change in `src/sim/assist.ts` (a second `computeCommands`), with no change to th
 
 **Simplified in ways that matter for "accurate"** (ranked by how much realism each would add)
 
+*Items 1 to 3 are now done in the test copy (`src/sim/physics.ts`): the lift-drag term grows
+with g squared, the stall protection rises with the square root of g, the bank and pitch rate
+are held to each type's g limit, and the F-16's HUD shows the g being pulled.*
+
 1. **Turning costs nothing.** A steep turn should need more lift, which makes more drag: at
    60 degrees of bank a playne pulls 2 g and that drag quadruples. Here speed and height are
    unaffected, so the F-16 can hold a 75-degree turn forever. Fix: multiply the lift-drag term

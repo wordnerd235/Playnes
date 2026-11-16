@@ -31,6 +31,8 @@ export interface FlightState {
   flaps: number;
   gearDown: boolean;
   onGround: boolean;
+  /** Load factor ("g"): 1 in level flight, 2 in a 60-degree banked turn, more when pulling up. */
+  load?: number;
 }
 
 export interface Commands {
@@ -99,6 +101,9 @@ export interface Perf {
   climbMax: number;
   descentMax: number;
   gammaRate: number;
+  /** Most g the airframe (or its fly-by-wire) allows, pulling and pushing. */
+  gLimit: number;
+  gNeg: number;
 }
 
 // ----- International Standard Atmosphere -----
@@ -197,6 +202,10 @@ export function perfFor(ac: AircraftDef): Perf {
     gammaRate: ({ piston: 7, turboprop: 6, jet: 5, fighter: 20, helicopter: 6 } as const)[ac.kind],
     // Fighter: up to 85 degrees (a dive-bomb), short of vertical so the view never flips.
     maxPathSin: ({ piston: 0.4, turboprop: 0.45, jet: 0.5, fighter: 0.996, helicopter: 0.4 } as const)[ac.kind],
+    // Certified limits: 3.8 g for a light playne, about 3.3 for the turboprop, 2.5 for jets
+    // that carry passengers; the F-16's fly-by-wire holds it to 9.
+    gLimit: ({ piston: 3.8, turboprop: 3.3, jet: 2.5, fighter: 9, helicopter: 2.5 } as const)[ac.kind],
+    gNeg: ({ piston: 1.5, turboprop: 1.3, jet: 1, fighter: 3, helicopter: 0.5 } as const)[ac.kind],
   };
 }
 
@@ -215,11 +224,20 @@ const SPEEDBRAKE_DECEL = 0.16 * G;
 /** Deceleration from thrust reversers on the landing roll, m/s². */
 const REVERSER_DECEL = 0.12 * G;
 
-/** Aerodynamic drag as a deceleration (parasite + induced), m/s². */
-function dragAccel(s: FlightState, p: Perf): number {
+/**
+ * Aerodynamic drag as a deceleration (parasite + induced), m/s². `n` is the g being pulled:
+ * the drag from making lift grows with its square (a 60-degree banked turn, 2 g, has four
+ * times as much), which is why steep turns cost speed or height.
+ */
+function dragAccel(s: FlightState, p: Perf, n = 1): number {
   const sigma = densityRatio(s.alt);
   const eas2 = Math.max(sigma * s.speed * s.speed, (p.vstall * 0.8) ** 2);
-  return p.dragK * sigma * s.speed * s.speed * dragFactor(s, p) + (s.onGround ? 0 : p.inducedK / eas2);
+  return p.dragK * sigma * s.speed * s.speed * dragFactor(s, p) + (s.onGround ? 0 : (p.inducedK * n * n) / eas2);
+}
+
+/** The g of a steady level turn at the current bank. */
+function turnLoad(s: FlightState): number {
+  return s.onGround ? 1 : 1 / Math.cos(clamp(s.bank, -85, 85) * DEG);
 }
 
 /**
@@ -229,7 +247,8 @@ function dragAccel(s: FlightState, p: Perf): number {
 export function excessAccel(s: FlightState, p: Perf, throttle: number): number {
   const ias = s.speed * Math.sqrt(densityRatio(s.alt));
   const over = overspeed(p, ias, s.speed / speedOfSound(s.alt));
-  return thrustAccel(p, throttle, s.speed, s.alt) * (1 - over) - dragAccel(s, p) - over * SPEEDBRAKE_DECEL;
+  // (The steady turn's g, not the passing g of a pull-up: this feeds the co-pilot's guidance.)
+  return thrustAccel(p, throttle, s.speed, s.alt) * (1 - over) - dragAccel(s, p, turnLoad(s)) - over * SPEEDBRAKE_DECEL;
 }
 
 /** Extra push on the takeoff roll so a 5-year-old isn't waiting 40 seconds for rotation. */
@@ -274,7 +293,7 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
   const spoilers = p.speedbrakes ? clamp(cmd.spoilers ?? 0, 0, 1) : 0;
   // Speedbrakes bite harder the faster you go (they work on the air rushing past).
   const brakesOut = Math.max(over, spoilers * clamp((ias / p.vclimb) ** 2, 0.35, 1.2));
-  const drag = dragAccel(s, p) + brakesOut * SPEEDBRAKE_DECEL;
+  const drag = dragAccel(s, p, s.onGround ? 1 : (s.load ?? 1)) + brakesOut * SPEEDBRAKE_DECEL;
 
   if (s.onGround) {
     // Ground spoilers dump the lift so the wheel brakes grip; reversers push the air forward.
@@ -308,14 +327,19 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
     }
   } else {
     // Roll toward the commanded bank at the aircraft's roll rate.
-    s.bank = approach(s.bank, clamp(cmd.targetBank, -85, 85), p.rollRate * dt);
+    // No steeper than the g limit allows in a level turn (g = 1 / cos(bank)).
+    const bankMax = Math.min(85, Math.acos(1 / p.gLimit) / DEG);
+    s.bank = approach(s.bank, clamp(cmd.targetBank, -bankMax, bankMax), p.rollRate * dt);
+    const nTurn = 1 / Math.cos(s.bank * DEG);
 
     // Envelope protection: never let the wing stall. Short of airspeed, the nose comes down
     // and the plane glides (trading height for speed), just like a real wing.
     let targetVs = clamp(cmd.targetVs, -p.descentMax, p.climbMax * 1.8);
     // Flaps lower the stall speed (about 6% per notch, ~18% at full flaps).
     const vsEff = p.vstall * (1 - 0.06 * s.flaps);
-    const lowSpeed = clamp((vsEff * 1.2 - ias) / (vsEff * 0.12), 0, 1);
+    // ...and turning raises it: a wing pulling n g stalls at sqrt(n) times the speed.
+    const vsTurn = vsEff * Math.sqrt(nTurn);
+    const lowSpeed = clamp((vsTurn * 1.2 - ias) / (vsEff * 0.12), 0, 1);
     if (lowSpeed > 0) {
       targetVs = Math.min(targetVs, -lowSpeed * 7);
       if (lowSpeed > 0.9) events.push({ type: "stall-protect" });
@@ -324,7 +348,19 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
     if (over > 0.6 && targetVs < 0) targetVs *= 1 - (over - 0.6) / 0.4;
     const vsAvail = Math.max(s.speed, 1);
     const targetGamma = Math.asin(clamp(targetVs / vsAvail, -p.maxPathSin, p.maxPathSin)) / DEG;
-    s.gamma = approach(s.gamma, targetGamma, p.gammaRate * dt);
+    // How fast the nose can come up or go down is limited by g: pulling harder than the limit
+    // isn't possible (g = turn part + speed x pitch rate / 9.81), and it tightens with speed.
+    const vRef = Math.max(s.speed, 20);
+    const upRate = Math.min(p.gammaRate, (Math.max(0.3, p.gLimit - nTurn) * G) / vRef / DEG);
+    // Pushing over is limited by negative g. (The fighter's dive is flown the way pilots do
+    // it, rolling in and pulling, so it gets its positive-g rate both ways.)
+    const downRate = p.diveByAngle ? upRate : Math.min(p.gammaRate, ((1 + p.gNeg) * G) / vRef / DEG);
+    const gammaBefore = s.gamma;
+    s.gamma = approach(s.gamma, targetGamma, (targetGamma > s.gamma ? upRate : downRate) * dt);
+    const pull = dt > 0 ? (vRef * (s.gamma - gammaBefore) * DEG) / dt / G : 0;
+    const nNow = clamp(nTurn * Math.cos(s.gamma * DEG) + (p.diveByAngle ? Math.abs(pull) : pull), -p.gNeg, p.gLimit);
+    // Eased over about a quarter of a second (g builds as the nose moves; it doesn't jump).
+    s.load = (s.load ?? 1) + (nNow - (s.load ?? 1)) * Math.min(1, dt * 4);
 
     const a = thrust - drag - G * Math.sin(s.gamma * DEG);
     s.speed = Math.max((vsEff * 0.8) / Math.sqrt(sigma), s.speed + a * dt);
@@ -345,6 +381,7 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
       s.onGround = true;
       s.vs = 0;
       s.gamma = 0;
+      s.load = 1;
       events.push({ type: "touchdown", sinkFpm });
     }
   }

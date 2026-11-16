@@ -17,8 +17,11 @@ and the model section of `docs/SETUP.md`.
   moving gear, wheels, speedbrakes, afterburner, HUD figures; soft shadows baked into the
   model; 1.5x drawing resolution in the cartoon world on phones and tablets; two Mmo
   corrections from the audit.
-- **Not done:** every other aircraft, passenger cabins, cartoon-map trees and buildings, and
-  the physics and control changes proposed in the audit (none of those are applied).
+- **Also done in the test copy:** the audit's physics items 1 to 3 (turns now cost energy,
+  stall speed rises in a turn, g limits; `src/sim/physics.ts`, with tests), and the cartoon
+  map's trees and buildings (see "Trees and buildings" below).
+- **Not done:** every other aircraft, passenger cabins, and the rest of the audit's list
+  (per-type truth, "Real controls", "real stalls", wind).
 - The owner has seen the F-16 exterior pictures and the first cockpit; they have **not yet
   reported on the test copy on an iPad or in Google mode**. Ask before assuming it is fine.
 
@@ -132,11 +135,23 @@ window band), put seats and a floor inside, and add `rig.windowEye` for the pass
 view so it looks out from a real seat. Draw the interior only when the camera is close or
 inside (a node shown by distance) if the triangle count gets large.
 
-**For the cartoon map** (not started): trees and houses are flat pictures in a billboard
-collection (`src/world/scenery.ts`). The natural upgrade is a few small tree and house models
-with baked shading, drawn as instances (Cesium `ModelInstanceCollection` or one merged mesh
-per patch of ground rebuilt as the playne moves). Measure on an iPad before and after; the
-owner's rule is no significant loss of performance.
+## Trees and buildings (done)
+
+They are still flat camera-facing pictures (one billboard collection, same cost as before),
+but the pictures are now renders of small 3D models: `tools/bake-props.html` builds four
+trees, three houses and four blocks in three.js, lights them once, and renders each from four
+looking-down angles (8, 40, 65 and 85 degrees) into one sheet, `public/sprites/props.webp`,
+with sizes in the generated `src/data/propSprites.ts`. Run `node tools/bake-props.cjs`, then
+convert the PNG it writes to WebP. In `src/world/scenery.ts`, `buildProps` picks, for every
+tree and building, the picture whose angle matches how steeply the playne is looking down at
+it, and rebuilds when the playne has moved 450 m or changed height by a fifth.
+`node tools/shot-props.cjs <url> <dir> [airport]` takes pictures from several heights.
+
+Two things to know. The side-on picture stands on its bottom edge; the other three are centred
+on the spot the thing stands on, and a centred picture would be cut off by the ground in
+front of it, so those get an `eyeOffset` toward the camera of about the footprint's depth.
+And Cesium only lets a billboard be anchored at its bottom, centre or top (its `pixelOffset`
+stays in pixels even when the size is in metres), which is why the frames are laid out that way.
 
 ## Pitfalls already hit (so you don't hit them again)
 
@@ -177,12 +192,12 @@ upgrade Cesium casually, and re-run `tools/diag-google.cjs` if you do.
 ## Suggested next steps, in order
 
 1. Get the owner's verdict on the F-16 in the test copy (iPad, and Google mode).
-2. The audit's physics items 1 to 3 (turn drag, turn stall speed, g limit), test copy only.
+2. (Done: the audit's physics items 1 to 3.)
 3. The next aircraft. The Cessna 172 is the best second one (it is the first playne every
    player flies, has the simplest cabin, and "Meet your playne" uses its picture, whose tap
    spots come from `tools/render-planes.cjs`). Then one cabin-class jet to prove the passenger
    interior, then roll the pattern out to the rest.
 4. Per-type truth from the audit (reversers only where real, F-16 automatic flaps, Chinook
    water landings), then "Real controls" and "real stalls" as grown-up settings.
-5. Cartoon-map trees and buildings.
+5. (Done: cartoon-map trees and buildings.)
 6. When the owner is happy: put the test copy's commit in `.stable-ref` and deploy.
