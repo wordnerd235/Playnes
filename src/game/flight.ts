@@ -259,7 +259,7 @@ export class FlightSession {
   private unsub: () => void;
   private groundCache = { h: 0, valid: false, frame: 0, lat: 0, lon: 0 };
   /** Google / ion runways: how far their measured surface sits from the published one, averaged. */
-  private runwayOffset: { r: RunwayInUse | null; off: number; frame: number; recent: number[] } = { r: null, off: 0, frame: -1, recent: [] };
+  private runwayOffset: { r: RunwayInUse | null; off: number; target: number; frame: number; eased: number; recent: number[] } = { r: null, off: 0, target: 0, frame: -1, eased: -1, recent: [] };
   private frame = 0;
   private result: FlightResult;
   private destroyed = false;
@@ -1804,15 +1804,21 @@ export class FlightSession {
       const raw = this.groundCache.valid && Math.abs(this.groundCache.h - runwayPlane) < 12 ? this.groundCache.h - runwayPlane : null;
       if (ro.r !== onRunway) {
         ro.r = onRunway;
-        ro.off = raw ?? 0;
+        ro.off = ro.target = raw ?? 0;
         ro.recent = raw === null ? [] : [raw];
         ro.frame = this.groundCache.frame;
       } else if (raw !== null && ro.frame !== this.groundCache.frame) {
         ro.recent.push(raw);
         if (ro.recent.length > 5) ro.recent.shift();
         const sorted = [...ro.recent].sort((a, b) => a - b);
-        ro.off += (sorted[sorted.length >> 1] - ro.off) * 0.4;
+        ro.target = sorted[sorted.length >> 1];
         ro.frame = this.groundCache.frame;
+      }
+      // Glide toward it a little every frame (readings only come every few frames; moving only
+      // then would be a small step each time).
+      if (ro.eased !== this.frame) {
+        ro.off += (ro.target - ro.off) * 0.1;
+        ro.eased = this.frame;
       }
       return runwayPlane + ro.off;
     }
