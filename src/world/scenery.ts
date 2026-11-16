@@ -4,9 +4,10 @@
 // nearly overhead, tools/bake-props.cjs); each one shows the picture that matches how steeply
 // it's being looked down on, so they read as solid objects for the price of flat pictures.
 // The clouds are soft pictures drawn once on a canvas and shown as camera-facing billboards
+// (kept upright in the world, so they tilt with the horizon when the playne banks)
 // sized in metres: one draw call for all of them, far cheaper than raymarched cumulus.
 
-import { BillboardCollection, Cartesian3, Color, NearFarScalar, VerticalOrigin, type Scene } from "cesium";
+import { BillboardCollection, Cartesian3, Color, Ellipsoid, NearFarScalar, VerticalOrigin, type Scene } from "cesium";
 import { asset } from "../assets.ts";
 import { PROP_SHEET, PROP_SPRITES } from "../data/propSprites.ts";
 import { destination, distance, type LatLon } from "../sim/geo.ts";
@@ -256,8 +257,12 @@ export class Scenery {
         const lat = cy / 111320;
         const base = (this.data ? this.data.height(lat, lon) : 300) + 1200 + hash(k, 4) * 900;
         const w = 1100 + hash(k, 5) ** 1.5 * 2600;
+        const at = Cartesian3.fromDegrees(lon, lat, base);
         this.clouds.add({
-          position: Cartesian3.fromDegrees(lon, lat, base),
+          position: at,
+          // Stand upright in the world, not on the screen: when the playne banks, the clouds
+          // tilt with the horizon instead of seeming to turn.
+          alignedAxis: Ellipsoid.WGS84.geodeticSurfaceNormal(at, new Cartesian3()),
           image: this.cloudPics[Math.floor(hash(k, 6) * this.cloudPics.length)],
           width: w,
           height: w * 0.5 * (0.8 + hash(k, 8) * 0.35),
@@ -298,8 +303,10 @@ export class Scenery {
           const f = sp.frames[i];
           const size = f.size * pr.scale;
           const v = 228 + Math.floor(hash(gx * 3301 + gy * 9001, 13) * 27);
+          const at = Cartesian3.fromDegrees(pr.lon, pr.lat, pr.base + (f.origin === "bottom" ? -0.3 : 0.2));
           this.props.add({
-            position: Cartesian3.fromDegrees(pr.lon, pr.lat, pr.base + (f.origin === "bottom" ? -0.3 : 0.2)),
+            position: at,
+            alignedAxis: Ellipsoid.WGS84.geodeticSurfaceNormal(at, new Cartesian3()), // upright in the world, as the clouds
             image: this.sprites[pr.kind][i],
             width: size,
             height: size,
@@ -311,8 +318,10 @@ export class Scenery {
             color: Color.fromBytes(v, v, v, 255),
           });
         } else {
+          const at = Cartesian3.fromDegrees(pr.lon, pr.lat, pr.base - 1.2);
           this.props.add({
-            position: Cartesian3.fromDegrees(pr.lon, pr.lat, pr.base - 1.2),
+            position: at,
+            alignedAxis: Ellipsoid.WGS84.geodeticSurfaceNormal(at, new Cartesian3()),
             image: pr.image,
             width: pr.width,
             height: pr.height,

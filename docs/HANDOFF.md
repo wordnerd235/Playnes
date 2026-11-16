@@ -176,6 +176,20 @@ front of it, so those get an `eyeOffset` toward the camera of about the footprin
 And Cesium only lets a billboard be anchored at its bottom, centre or top (its `pixelOffset`
 stays in pixels even when the size is in metres), which is why the frames are laid out that way.
 
+## Ground handling and suspension (test copy)
+
+- **Shock absorbers** (`PlaneView.update`): on the ground a sudden step in the ground height
+  is taken up by the legs: the body keeps its height and settles on a damped spring (8 cm of
+  stroke), the wheel nodes move the other way so they stay on the ground, and on touchdown the
+  legs take the sink rate. The spring is stepped implicitly so it cannot ring on slow frames
+  (an explicit version did, at one frame a second in headless tests).
+- **Google / ion runways** (`Flight.groundHeightAt`): the playne rides the runway's surveyed
+  slope plus the scan's offset from it, taken as the middle of the last five readings and
+  followed briskly. Measured at TRI in Google mode: raw readings jump by up to 0.5 m between
+  frames, and the scan drifts 1.3 m from the published slope along the runway.
+- **Clouds, trees and buildings** are billboards with `alignedAxis` set to the local up, so
+  they tilt with the horizon when the playne banks (they used to stay level with the screen).
+
 ## Pitfalls already hit (so you don't hit them again)
 
 - **Wheels all appeared at one spot under the belly.** `asNode` assumes its parts were built
@@ -212,6 +226,9 @@ stays in pixels even when the size is in metres), which is why the frames are la
   it (and copy it into the next cabin model); it found four that renders had missed.
 - **Vertex-colour stripes on a coarse grid look saw-toothed.** Draw cheatlines as thin
   ribbons laid on the skin (`ribbon()` in the Phenom builder).
+- **All base materials are two-sided.** A loft's end cap is a solid wall from inside (the
+  Cessna's tailcone cap was a white wall behind the rear seat). Leave caps off where a cabin
+  continues, line the inside, and cut real openings for windows you should see out of.
 - **Seat backs leaned forward.** In these models a positive turn about x tips the top toward
   the nose; reclining backs need a negative angle. Check seats from the side before trusting
   the eye position. The owner still found boxes-for-seats odd (and a floating headrest), so the

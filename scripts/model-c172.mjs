@@ -40,7 +40,6 @@ export function buildC172(ac, kit) {
   // ---- colours: classic white with a red-and-blue side stripe
   const cWhite = C(ac.livery.body), cRed = C(ac.livery.stripe), cBlue = C(ac.livery.accent);
   const cLine = C("#9aa0a6"), cBlack = C("#16181b"), cMetal = C("#9aa0a7"), cTyre = C("#1c1d1f");
-  const cGlassTint = C("#2a3a4c");
   /** Side stripe: a red band with a thin blue one under it, along the whole fuselage. */
   const stripeAt = (p) => {
     const y0 = 1.13 - Math.max(0, -p.z - 0.8) * 0.018;
@@ -173,11 +172,37 @@ export function buildC172(ac, kit) {
     [-5.5, 0.04, 1.36, 1.12, 2.0],
   ]);
   const tailX = halfWidthAt(tail);
-  const rearWindow = (p, n) => p.z < -0.84 && p.z > -1.72 && n.y > 0.45 && Math.abs(p.x) < 0.5;
+  // The tailcone is open at the front (it joins the cabin) and has a real rear window: the
+  // window's cells are left out of the skin and filled with glass instead.
   const tzs = [];
-  for (let z = -0.8; z > -5.5; z -= 0.1) tzs.push(z);
+  for (let z = -0.8; z > -5.5; z -= 0.1) tzs.push(+z.toFixed(3));
   tzs.push(-5.5);
-  add("body", part(smooth(loft(tzs.map((z) => superRing(z, ...tail(z))))), MAT.paint, (p, n) => (rearWindow(p, n) ? cGlassTint : skin(p, n))));
+  const TN = 48;
+  const inRearWindow = (zc, ac) => zc < -0.86 && zc > -1.7 && Math.sin(ac) > 0.72;
+  const tailSkin = (inset, keep) => {
+    const pos = [], idx = [];
+    for (const z of tzs) { const [hw, top, bot, e] = tail(z); for (const p of superRing(z, hw - inset, top - inset, bot + inset, e, TN)) pos.push(p.x, p.y, p.z); }
+    for (let i = 0; i < tzs.length - 1; i++) {
+      const zc = (tzs[i] + tzs[i + 1]) / 2;
+      for (let j = 0; j < TN; j++) {
+        if (keep(zc, ((j + 0.5) / TN) * Math.PI * 2) === false) continue;
+        const a = i * TN + j, b = i * TN + ((j + 1) % TN), c = (i + 1) * TN + j, d = (i + 1) * TN + ((j + 1) % TN);
+        idx.push(a, b, c, b, d, c);
+      }
+    }
+    if (inset === 0) {
+      const tip = pos.length / 3, last = tzs.length - 1, zl = tzs[last], [, tt, tb] = tail(zl);
+      pos.push(0, (tt + tb) / 2, zl - 0.01);
+      for (let j = 0; j < TN; j++) idx.push(tip, last * TN + ((j + 1) % TN), last * TN + j);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  };
+  add("body", part(tailSkin(0, (zc, ac) => !inRearWindow(zc, ac)), MAT.paint, skin));
+  add("canopy", part(tailSkin(0.004, (zc, ac) => inRearWindow(zc, ac)), XMAT.glass, C("#ffffff"), { noAO: true, noOcclude: true }));
 
   // ---- wings: constant chord to 2.6 m out, then tapering (the trailing edge stays straight)
   const DIH = (1.73 * Math.PI) / 180;
@@ -385,7 +410,38 @@ export function buildC172(ac, kit) {
   const pad = (w, h, d, x, y, z, rx = 0, r = 0.035) => new RoundedBoxGeometry(w, h, d, 3, Math.min(r, w / 2.2, h / 2.2, d / 2.2)).applyMatrix4(new THREE.Matrix4().compose(V(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, 0, 0)), V(1, 1, 1)));
   add("body", part(box(1.04, 0.03, 2.1, 0, 0.84, 0.2), XMAT.fabric, cCarpet, INSIDE));
   for (const side of [1, -1]) add("body", part(box(0.02, SILL - 0.84, 2.1, side * 0.528, (SILL + 0.84) / 2, 0.2), XMAT.fabric, cWall, INSIDE));
-  add("body", part(box(1.06, 0.015, 1.68, 0, ROOF - 0.03, 0.03), XMAT.fabric, cCeiling, INSIDE));
+  // Headliner: low enough to stay under the wing, whose underside dips a few centimetres below
+  // the roof line (it used to show through from the back seat).
+  add("body", part(box(1.06, 0.02, 1.74, 0, 1.815, 0.03), XMAT.fabric, cCeiling, INSIDE));
+  // Baggage area behind the rear seat: the tailcone lined inside (open where the rear window
+  // is, so you see out of it), closed by a wall at the back of the compartment.
+  {
+    const IN = 0.025, ZA = -0.8, ZB = -1.95, n = 48, rows = [];
+    for (let z = ZA; z > ZB - 1e-6; z -= 0.1) rows.push(Math.max(z, ZB));
+    const ringAt = (z) => {
+      const [hw, top, bot, e] = tail(z);
+      return superRing(z, hw - IN, top - IN, bot + IN, e, n);
+    };
+    const pos = [], idx = [];
+    for (const z of rows) for (const p of ringAt(z)) pos.push(p.x, p.y, p.z);
+    for (let i = 0; i < rows.length - 1; i++) {
+      const zc = (rows[i] + rows[i + 1]) / 2;
+      for (let j = 0; j < n; j++) {
+        const ac = ((j + 0.5) / n) * Math.PI * 2;
+        if (inRearWindow(zc, ac)) continue; // the rear window
+        const a = i * n + j, b = i * n + ((j + 1) % n), c = (i + 1) * n + j, d = (i + 1) * n + ((j + 1) % n);
+        idx.push(a, b, c, b, d, c);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    const cBaggage = C("#4f4d49"); // dark carpet-grey, so the rear window looks dark from outside as on the real one
+    add("body", part(g, XMAT.fabric, cBaggage, INSIDE));
+    const back = ringAt(ZB).map((p) => new THREE.Vector2(p.x, p.y));
+    add("body", part(new THREE.ShapeGeometry(new THREE.Shape(back)).applyMatrix4(T(0, 0, ZB)), XMAT.fabric, cBaggage, INSIDE));
+  }
   // Panel: a vertical slab facing the seats, with a glareshield over it.
   const PZP = 1.24;
   add("body", part(box(1.04, 0.42, 0.05, 0, 1.2, PZP + 0.025), MAT.dark, cPanel, INSIDE));

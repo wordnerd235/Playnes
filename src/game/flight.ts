@@ -258,6 +258,8 @@ export class FlightSession {
   private said = new Set<string>();
   private unsub: () => void;
   private groundCache = { h: 0, valid: false, frame: 0, lat: 0, lon: 0 };
+  /** Google / ion runways: how far their measured surface sits from the published one, averaged. */
+  private runwayOffset: { r: RunwayInUse | null; off: number; frame: number; recent: number[] } = { r: null, off: 0, frame: -1, recent: [] };
   private frame = 0;
   private result: FlightResult;
   private destroyed = false;
@@ -1764,9 +1766,11 @@ export class FlightSession {
     // Google / Cesium ion show the real runway in their own data: sit on what's really there
     // (measured below), unless that measurement is way off (e.g. it hit a parked airplane).
     let runwayPlane: number | null = null;
+    let onRunway: RunwayInUse | null = null;
     for (const r of [this.dep, this.arr, ...this.allRunways]) {
       if (r && onRunwayArea(r, p)) {
         runwayPlane = runwayHeight(r, runwayCoords(r, p).s) + (this.runwayPrims.length ? RUNWAY_LIFT : 0);
+        onRunway = r;
         break;
       }
     }
@@ -1790,7 +1794,28 @@ export class FlightSession {
         this.groundCache.valid = true;
       }
     }
-    if (runwayPlane !== null) return this.groundCache.valid && Math.abs(this.groundCache.h - runwayPlane) < 12 ? this.groundCache.h : runwayPlane;
+    if (runwayPlane !== null) {
+      // The 3D scan of a runway is lumpy (patches, paint, scanning noise: readings jump by half a
+      // metre), and following each one made the playne hop on the takeoff roll. Follow the
+      // runway's surveyed slope instead, plus how far the scan sits from it: the middle of the
+      // last five readings (which throws out the spikes), followed briskly, because along a
+      // runway the scan can drift a metre or more away from the published slope.
+      const ro = this.runwayOffset;
+      const raw = this.groundCache.valid && Math.abs(this.groundCache.h - runwayPlane) < 12 ? this.groundCache.h - runwayPlane : null;
+      if (ro.r !== onRunway) {
+        ro.r = onRunway;
+        ro.off = raw ?? 0;
+        ro.recent = raw === null ? [] : [raw];
+        ro.frame = this.groundCache.frame;
+      } else if (raw !== null && ro.frame !== this.groundCache.frame) {
+        ro.recent.push(raw);
+        if (ro.recent.length > 5) ro.recent.shift();
+        const sorted = [...ro.recent].sort((a, b) => a - b);
+        ro.off += (sorted[sorted.length >> 1] - ro.off) * 0.4;
+        ro.frame = this.groundCache.frame;
+      }
+      return runwayPlane + ro.off;
+    }
     if (this.groundCache.valid) return this.groundCache.h;
     const near = this.arr && distance(p, this.arr.end) < distance(p, this.dep.end) ? this.arr : this.dep;
     return runwayHeight(near, 0);

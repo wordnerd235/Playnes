@@ -37,6 +37,11 @@ export class PlaneView {
   private flapDeg = 0;
   /** Detailed models: gear position (1 = down, 0 = folded away), wheel spin, speedbrakes. */
   private gearT = 1;
+  /** Shock absorbers: how far the body sits above (+) or below (-) its rest height on the gear, and how fast it is moving. */
+  private susY = 0;
+  private susV = 0;
+  private lastAlt: number | null = null;
+  private wasOnGround = true;
   private wheelSpeed = 0;
   private wheelAngle = 0;
   private brakeT = 0;
@@ -136,7 +141,25 @@ export class PlaneView {
   update(s: FlightState, dt: number, input: SurfaceInputs, groundHeight: number | null): void {
     if (!this.model) return;
     this.time += dt;
-    this.model.modelMatrix = frameMatrix(s, s.alt, s.heading, s.pitch, s.bank, 1);
+    // Shock absorbers: on the ground a sudden step under the wheels is taken up by the legs (the
+    // body keeps its height for a moment and settles on a damped spring), up to the legs' stroke.
+    if (dt > 0) {
+      if (s.onGround && this.lastAlt !== null) {
+        const step = s.alt - this.lastAlt;
+        if (Math.abs(step) >= 2) this.susY = this.susV = 0; // a jump (respawn, line-up), not a bump
+        else if (!this.wasOnGround) this.susV = Math.min(0, step / dt); // touchdown: the legs take the sink rate
+        else this.susY -= step;
+      }
+      this.wasOnGround = s.onGround;
+      // Damped spring, stepped implicitly so it settles at any frame rate (a slow frame on an
+      // iPad, or a headless test at one frame a second, must not make it ring forever).
+      const w = 13, zeta = 0.6;
+      this.susV = (this.susV - w * w * this.susY * dt) / (1 + 2 * zeta * w * dt + w * w * dt * dt);
+      this.susY = clamp(this.susY + this.susV * dt, -0.08, 0.08);
+      if (Math.abs(this.susY) < 1e-4 && Math.abs(this.susV) < 1e-3) this.susY = this.susV = 0;
+    }
+    this.lastAlt = s.alt;
+    this.model.modelMatrix = frameMatrix(s, s.alt + this.susY, s.heading, s.pitch, s.bank, 1);
     this.updateVapor(s);
     const k = 1 - Math.exp(-dt * 8);
     this.flapDeg += (FLAP_DEG[s.flaps] - this.flapDeg) * (1 - Math.exp(-dt * 1.5));
@@ -275,6 +298,8 @@ export class PlaneView {
       if (!node || !orig) continue;
       node.show = out;
       node.matrix = Matrix4.multiply(orig, Matrix4.fromRotation(Matrix3.fromRotationX((this.wheelAngle / (rig.wheelRadius[w] ?? 0.3)) % (Math.PI * 2))), new Matrix4());
+      // The wheel stays on the ground while the body rides up and down on the shock absorber.
+      if (this.susY) Matrix4.multiply(Matrix4.fromTranslation(new Cartesian3(0, -this.susY, 0)), node.matrix, node.matrix);
     }
     // Speedbrake petals open up and down.
     this.brakeT += (clamp(input.brake ?? 0, 0, 1) - this.brakeT) * (1 - Math.exp(-dt * 5));
@@ -320,7 +345,7 @@ export class PlaneView {
 
     if (this.mode === "window") {
       // A passenger's seat: left side of the cabin, ahead of the wing, looking out and back.
-      const base = frameVectors(s, s.alt, s.heading, s.pitch, s.bank);
+      const base = frameVectors(s, s.alt + this.susY, s.heading, s.pitch, s.bank);
       const D = this.ac.shape.fuselageDiameter;
       const left = Cartesian3.negate(base.right, new Cartesian3());
       // A modelled cabin has a real seat; the others float just outside the skin.
@@ -335,7 +360,7 @@ export class PlaneView {
         ),
         new Cartesian3(),
       );
-      const f = frameVectors(s, s.alt, s.heading - (seat ? 88 : 112) + this.lookYaw, s.pitch - 10 + this.lookPitch, s.bank);
+      const f = frameVectors(s, s.alt + this.susY, s.heading - (seat ? 88 : 112) + this.lookYaw, s.pitch - 10 + this.lookPitch, s.bank);
       const ec = Cartographic.fromCartesian(eye);
       const safe = this.aboveTerrain(ec.latitude / DEG, ec.longitude / DEG, ec.height);
       const dest = safe === ec.height ? eye : Cartesian3.fromRadians(ec.longitude, ec.latitude, safe);
@@ -344,8 +369,8 @@ export class PlaneView {
     }
 
     if (this.mode === "cockpit") {
-      const f = frameVectors(s, s.alt, s.heading + this.lookYaw, s.pitch + this.lookPitch - (lookDown ? 35 : 0) - (RIGS[this.ac.id]?.eyePitch ?? 0), s.bank);
-      const base = frameVectors(s, s.alt, s.heading, s.pitch, s.bank);
+      const f = frameVectors(s, s.alt + this.susY, s.heading + this.lookYaw, s.pitch + this.lookPitch - (lookDown ? 35 : 0) - (RIGS[this.ac.id]?.eyePitch ?? 0), s.bank);
+      const base = frameVectors(s, s.alt + this.susY, s.heading, s.pitch, s.bank);
       // A 3D cockpit has a real seat to look out from; the others use a spot above the nose.
       const at = RIGS[this.ac.id]?.eye;
       const ahead = at ? at[2] : L * 0.36;
