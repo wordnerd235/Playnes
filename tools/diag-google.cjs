@@ -139,10 +139,13 @@ const { chromium } = require("playwright");
     if (allocTo && !sampling && el >= allocFrom && el < allocTo) {
       sampling = true;
       await cdp.send("HeapProfiler.enable");
-      await cdp.send("HeapProfiler.startSampling", { samplingInterval: 16384, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true });
+      // RETAIN=1: only what's still alive at the end (what builds up); otherwise everything.
+      const keepCollected = !process.env.RETAIN;
+      await cdp.send("HeapProfiler.startSampling", { samplingInterval: 16384, includeObjectsCollectedByMajorGC: keepCollected, includeObjectsCollectedByMinorGC: keepCollected });
     }
     if (sampling && el >= allocTo) {
       sampling = false;
+      if (process.env.RETAIN) await page.evaluate(() => window.gc && window.gc());
       const { profile } = await cdp.send("HeapProfiler.stopSampling");
       const by = new Map();
       const name = (f) => `${f.functionName || "(anon)"}:${f.lineNumber}`;
@@ -155,7 +158,7 @@ const { chromium } = require("playwright");
       };
       walk(profile.head, []);
       const total = [...by.values()].reduce((a, b) => a + b, 0);
-      console.log(`--- allocations ${allocFrom}-${allocTo}s: ${(total / 1048576).toFixed(0)} MB sampled (incl. collected)`);
+      console.log(`--- allocations ${allocFrom}-${allocTo}s: ${(total / 1048576).toFixed(0)} MB sampled (${process.env.RETAIN ? "still alive at the end" : "incl. collected"})`);
       for (const [k, v] of [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25)) console.log(`${(v / 1048576).toFixed(1).padStart(7)} MB  ${k}`);
     }
     if (el - last >= 10 || el >= secs) {
