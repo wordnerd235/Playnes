@@ -309,6 +309,10 @@ export class FlightSession {
   private arrivedRunway: RunwayInUse | null = null;
   private lastMach = 0;
   private lastBoom = -100;
+  /** Free Flight: when the wheels last left the ground (a bump right after isn't a landing). */
+  private liftoffAt = -100;
+  /** Free Flight: taking off from a field after an emergency landing (bumpy ground is fine). */
+  private fieldRoll = false;
   private edgeActive = false;
   private viewPlaced = false;
   private navTarget: Airport | null = null;
@@ -954,6 +958,8 @@ export class FlightSession {
     this.speedbrakeOut = false;
     this.arrival = null;
     this.fieldStop = null;
+    this.fieldRoll = false;
+    this.liftoffAt = -100;
     this.freeFrom = null;
     this.landedAt = ap.code;
     this.airborneTime = 0;
@@ -1183,6 +1189,7 @@ export class FlightSession {
 
     for (const e of events) {
       if (e.type === "liftoff") {
+        this.liftoffAt = this.time;
         this.freeFrom = overRunway && near ? near.r.airport : null;
         if (this.freeFrom) this.takeoffFrom(this.freeFrom);
         this.said.delete("pullHint");
@@ -1195,9 +1202,13 @@ export class FlightSession {
       if (e.type === "touchdown") this.onFreeTouchdown(e.sinkFpm, overRunway, near);
     }
     if (!wasGround && !s.onGround) this.airborneTime += dt;
+    // Well clear of the field after taking off from it: back to the normal checks.
+    if (this.fieldRoll && !s.onGround && this.time - this.liftoffAt > 10) this.fieldRoll = false;
     this.checkFreeStops();
-    // Rolling over rough ground (steep, water, or into something) is a crash; a flat open field is fine.
-    if (s.onGround && this.phase === "free" && crashes && !overRunway && s.speed > 20 * KT && this.frame % 4 === 0 && !this.fieldOk(s)) this.crash();
+    // Rolling over rough ground (steep, water, or into something) is a crash; a flat open field is
+    // fine. Taking off from a field, only really steep ground or water counts (a field that was
+    // fine to land on gets bumpier further along).
+    if (s.onGround && this.phase === "free" && crashes && !overRunway && s.speed > 20 * KT && this.frame % 4 === 0 && !this.fieldOk(s, this.fieldRoll ? 0.25 : 0.09)) this.crash();
     // Bumping into trees, houses and airport buildings (crashes on; only near the ground).
     if (crashes && this.phase === "free" && s.speed > 20 * KT && agl < 90) {
       const top = this.d.world.obstacleTop(s, this.ac.shape.span * 0.4);
@@ -1448,14 +1459,14 @@ export class FlightSession {
   /**
    * Could a playne land here? Flat (under ~5 degrees), dry, and clear of trees and buildings.
    */
-  private fieldOk(p: LatLon): boolean {
+  private fieldOk(p: LatLon, maxSlope = 0.09): boolean {
     const data = this.d.world.cartoon;
     if (data) {
       if (data.landAt(p.lat, p.lon) === 1) return false;
       const h = (dx: number, dy: number) => data.height(p.lat + dy / 111320, p.lon + dx / (111320 * Math.cos(p.lat * DEG)));
       const c = h(0, 0);
       const slope = Math.max(Math.abs(h(40, 0) - c), Math.abs(h(-40, 0) - c), Math.abs(h(0, 40) - c), Math.abs(h(0, -40) - c)) / 40;
-      if (slope > 0.09) return false;
+      if (slope > maxSlope) return false;
     }
     const top = this.d.world.obstacleTop(p, this.ac.shape.span * 0.6);
     return top === null || top < this.s.alt - 1;
@@ -1463,6 +1474,12 @@ export class FlightSession {
 
   private onFreeTouchdown(sink: number, overRunway: boolean, near: { r: RunwayInUse; s: number; x: number } | null): void {
     const s = this.s;
+    // Wheels back down within a few seconds of lifting off (uneven ground, a gust of nose-down):
+    // still the takeoff, not a landing. Only a hard hit counts.
+    if (this.time - this.liftoffAt < 8 && sink < 900 && Math.abs(s.bank) < 30) {
+      this.d.audio.sfx("chirp");
+      return;
+    }
     const gentle = sink < 700 && Math.abs(s.bank) < 15;
     if (!overRunway || !near) {
       // Off the runway: an emergency landing works on flat, open, dry ground.
@@ -1548,6 +1565,7 @@ export class FlightSession {
 
   /** Free Flight, after an emergency landing: carry on, taking off from the field. */
   continueFromField(): void {
+    this.fieldRoll = true;
     this.paused = false;
   }
 

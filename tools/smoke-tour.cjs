@@ -27,6 +27,7 @@ const path = require("path");
       text: document.querySelector(".tour-text").textContent,
       count: document.querySelector(".tour-count").textContent,
       ring: getComputedStyle(document.querySelector(".tour-ring")).display !== "none",
+      keys: !!document.querySelector(".tour-keys"),
     }));
     steps.push(info);
     if ([1, 3, 6, 8].includes(i)) await page.screenshot({ path: path.join(out, `tour-${i}.png`) });
@@ -37,7 +38,8 @@ const path = require("path");
   }
   console.log(steps.map((s) => `${s.count} ${s.ring ? "◎" : "·"} ${s.text.slice(0, 50)}`).join("\n"));
   check(steps.length >= 12, `tour walks through ${steps.length} steps`);
-  check(steps.slice(1, -1).every((s) => s.ring), "every middle step highlights something on screen");
+  check(steps.slice(1, -1).every((s) => s.ring || s.keys), "every middle step highlights something on screen (or lists the keys)");
+  check(steps.some((s) => s.keys), "on a computer, the tour lists the keyboard keys");
   await page.waitForTimeout(500);
   check(!(await page.evaluate(() => window.playnes.flight.paused)), "flight resumes after the tour");
   check(await page.evaluate(() => window.playnes.progress.tourDone), "tour remembered as seen");

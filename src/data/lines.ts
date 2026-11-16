@@ -117,6 +117,8 @@ export const LINES = {
   tourRadio: c("The radio lets us talk to the tower before takeoff and landing."),
   tourCamera: c("The camera button changes the view. Behind the playne, the cockpit, or a passenger window."),
   tourLook: c("Drag the eye to look all around. The arrow button puts the view back."),
+  tourKeys: c("On a computer, you can fly with the keyboard, too. Here are the keys. You can also drag the yoke, the lever and the eye with the mouse, and click any button."),
+  heliKeys: c("On a computer, the Chinook flies with the keyboard, too. Here are the keys."),
   tourHelp: c("Tap the question mark any time to see this again, and the pause button to take a break."),
   tourDone: c("That's everything! Let's fly!"),
   // Lesson 1: meet your plane

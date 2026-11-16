@@ -14,6 +14,15 @@ export interface TourStep {
   /** CSS selector inside the HUD (null = a message in the middle of the screen). */
   target: string | null;
   line: Line;
+  /** A table of keys and what they do, shown under the words. */
+  keys?: [string, string][];
+  /** Only on computers (a mouse and keyboard, not a touch screen). */
+  desktopOnly?: boolean;
+}
+
+/** A mouse (or trackpad) and, nearly always, a keyboard: not a phone or tablet. */
+export function hasKeyboardAndMouse(): boolean {
+  return matchMedia("(hover: hover) and (pointer: fine)").matches;
 }
 
 export interface HudData {
@@ -332,7 +341,9 @@ export class Hud {
    */
   runTour(steps: TourStep[], say: (line: Line) => void): Promise<void> {
     return new Promise((resolve) => {
+      const desktop = hasKeyboardAndMouse();
       const live = steps.filter((st) => {
+        if (st.desktopOnly && !desktop) return false;
         if (!st.target) return true;
         const e = this.root.querySelector<HTMLElement>(st.target);
         return !!e && !e.closest("[hidden]") && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== "hidden";
@@ -369,13 +380,13 @@ export class Hud {
           bubble.style.bottom = below ? "" : `${Math.max(16, H - r.top + 18)}px`;
         } else {
           ring.style.display = "none";
-          const bw = Math.min(440, W - 32);
-          Object.assign(bubble.style, { width: `${bw}px`, left: `${(W - bw) / 2}px`, top: `${H * 0.32}px`, bottom: "" });
+          const bw = Math.min(st.keys ? 560 : 440, W - 32);
+          Object.assign(bubble.style, { width: `${bw}px`, left: `${(W - bw) / 2}px`, top: `${st.keys ? Math.max(16, H * 0.06) : H * 0.32}px`, bottom: "" });
         }
       }
       function show(): void {
         const st = live[i];
-        bubble.innerHTML = `<button type="button" class="tour-close" data-t="skip" aria-label="Close the tour">✕</button><div class="tour-text">${st.line.text}</div><div class="tour-foot"><span class="tour-count">${i + 1} / ${live.length}</span><span class="tour-btns">${i > 0 ? '<button type="button" class="btn secondary" data-t="back">Back</button>' : '<button type="button" class="btn link" data-t="skip">Skip</button>'}<button type="button" class="btn primary" data-t="next">${i === live.length - 1 ? "Let's fly!" : "Next"}</button></span></div>`;
+        bubble.innerHTML = `<button type="button" class="tour-close" data-t="skip" aria-label="Close the tour">✕</button><div class="tour-text">${st.line.text}</div>${st.keys ? `<table class="tour-keys">${st.keys.map(([k, what]) => `<tr><td>${k.split(" ").map((x) => (x === "or" || x === "/" ? `<span>${x}</span>` : `<kbd>${x}</kbd>`)).join(" ")}</td><td>${what}</td></tr>`).join("")}</table>` : ""}<div class="tour-foot"><span class="tour-count">${i + 1} / ${live.length}</span><span class="tour-btns">${i > 0 ? '<button type="button" class="btn secondary" data-t="back">Back</button>' : '<button type="button" class="btn link" data-t="skip">Skip</button>'}<button type="button" class="btn primary" data-t="next">${i === live.length - 1 ? "Let's fly!" : "Next"}</button></span></div>`;
         place();
         say(st.line);
       }

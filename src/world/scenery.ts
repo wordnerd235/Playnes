@@ -8,6 +8,7 @@ import { destination, distance, type LatLon } from "../sim/geo.ts";
 import { LAND, type CartoonData } from "./cartoon.ts";
 import { gfxOn } from "./safety.ts";
 import { cloudPrefs } from "./clouds.ts";
+import { WaterMask } from "./watermask.ts";
 
 const COS35 = Math.cos((35 * Math.PI) / 180);
 /** Grid spacing for trees and houses, meters. */
@@ -147,6 +148,8 @@ export class Scenery {
   private trees: string[] = [];
   private houses: string[] = [];
   private cloudPics: string[] = [];
+  /** Where the map shows water (rivers too): no trees or houses there. */
+  private water: WaterMask | null = null;
 
   /** 0..1 detail scale from the graphics setting. */
   /** Real buildings to keep clear of (airport terminals and hangars): (lat, lon, radius m) => taken? */
@@ -162,6 +165,13 @@ export class Scenery {
     this.cloudPics = [1, 2, 3, 4].map((k) => cloudSprite(k).toDataURL());
     this.props = scene.primitives.add(new BillboardCollection({ scene })) as BillboardCollection;
     if (data) {
+      this.water = new WaterMask(data);
+      // A map tile arrived: place the trees around here again, now knowing where the water is.
+      let pending = 0;
+      this.water.onTileLoaded = () => {
+        clearTimeout(pending);
+        pending = window.setTimeout(() => this.refreshProps(), 200);
+      };
       this.trees = [roundTree("#3f9a4a"), roundTree("#55ad52"), pineTree("#2f7f45"), pineTree("#3b8f4c")].map((c) => c.toDataURL());
       this.houses = [building("#f2e6d0", "#c0573e"), building("#dfe7ef", "#5c6b7a"), building("#f6d9a8", "#8a5a3c")].map((c) => c.toDataURL());
     }
@@ -270,6 +280,11 @@ export class Scenery {
    * The tree or house in grid cell (gx, gy), if any. One place decides what grows where, so
    * what is drawn and what you can bump into always match.
    */
+  /** Water on the map here: rivers and shores the coarse land grid misses (or not known yet). */
+  private wet(lat: number, lon: number): boolean {
+    return !!this.water && this.water.isWater(lat, lon) !== false;
+  }
+
   private propAt(gx: number, gy: number): { lat: number; lon: number; base: number; width: number; height: number; image: string } | null {
     const data = this.data;
     if (!data) return null;
@@ -287,8 +302,8 @@ export class Scenery {
       if (hash(k, 3) > 0.32) return null;
       const tall = 8 + hash(k, 4) * hash(k, 5) * hash(k, 12) * 60;
       const width = 14 + hash(k, 7) * 10;
-      // Never inside (or touching) a real building.
-      if (this.blocked(lat, lon, width * 0.55 + 3)) return null;
+      // Never inside (or touching) a real building, or in the water.
+      if (this.blocked(lat, lon, width * 0.55 + 3) || this.wet(lat, lon)) return null;
       return { lat, lon, base: h - 1, width, height: tall, image: this.houses[Math.floor(hash(k, 6) * this.houses.length)] };
     }
     const f = valueNoise(mx, my, 1800, 7) * 0.7 + valueNoise(mx, my, 500, 8) * 0.3;
@@ -296,7 +311,7 @@ export class Scenery {
     const inForest = f > thresh;
     if (!inForest && hash(k, 8) > 0.04) return null; // a few lone trees in fields
     const size = 0.8 + hash(k, 9) * 0.6;
-    if (this.blocked(lat, lon, 11 * size * 0.55 + 2)) return null;
+    if (this.blocked(lat, lon, 11 * size * 0.55 + 2) || this.wet(lat, lon)) return null;
     const pine = h > 700 ? hash(k, 10) < 0.7 : hash(k, 10) < 0.3;
     const img = this.trees[(pine ? 2 : 0) + (hash(k, 11) < 0.5 ? 0 : 1)];
     return { lat, lon, base: h - 1.5, width: 11 * size, height: (pine ? 19 : 16) * size, image: img };

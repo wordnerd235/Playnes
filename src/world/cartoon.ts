@@ -175,28 +175,35 @@ export class CartoonData {
     });
   }
 
-  imageryProvider(base = "./world/"): UrlTemplateImageryProvider {
+  private tileRanges: Map<number, { x0: number; x1: number; y0: number; y1: number }> | null = null;
+
+  /** Is there a map tile for (x, y) at zoom z? (Full coverage up to the base zoom, patches above.) */
+  tileAvailable(x: number, y: number, z: number): boolean {
     const m = this.meta;
     const [zMin, zMax] = m.baseZoom;
-    const baseRange = (z: number) => {
-      const n = 2 ** z;
-      const tx = (lon: number) => Math.floor(((lon + 180) / 360) * n);
-      const ty = (lat: number) => {
-        const r = (lat * Math.PI) / 180;
-        return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n);
-      };
-      return { x0: tx(m.bounds.west), x1: tx(m.bounds.east), y0: ty(m.bounds.north), y1: ty(m.bounds.south) };
-    };
-    const ranges = new Map<number, { x0: number; x1: number; y0: number; y1: number }>();
-    for (let z = zMin; z <= zMax; z++) ranges.set(z, baseRange(z));
-    const patches = m.patches;
-    const available = (x: number, y: number, z: number) => {
-      if (z <= zMax) {
-        const r = ranges.get(z);
-        return !!r && x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1;
+    if (!this.tileRanges) {
+      this.tileRanges = new Map();
+      for (let k = zMin; k <= zMax; k++) {
+        const n = 2 ** k;
+        const ty = (lat: number) => {
+          const r = (lat * Math.PI) / 180;
+          return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n);
+        };
+        this.tileRanges.set(k, { x0: Math.floor(((m.bounds.west + 180) / 360) * n), x1: Math.floor(((m.bounds.east + 180) / 360) * n), y0: ty(m.bounds.north), y1: ty(m.bounds.south) });
       }
-      return patches.some((p) => p.z === z && x >= p.x0 && x <= p.x1 && y >= p.y0 && y <= p.y1);
-    };
+    }
+    if (z < zMin) return false;
+    if (z <= zMax) {
+      const r = this.tileRanges.get(z);
+      return !!r && x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1;
+    }
+    return m.patches.some((p) => p.z === z && x >= p.x0 && x <= p.x1 && y >= p.y0 && y <= p.y1);
+  }
+
+  imageryProvider(base = "./world/"): UrlTemplateImageryProvider {
+    const m = this.meta;
+    const [zMin] = m.baseZoom;
+    const available = (x: number, y: number, z: number) => this.tileAvailable(x, y, z);
     class CartoonImagery extends UrlTemplateImageryProvider {
       override requestImage(x: number, y: number, level: number, request?: Request) {
         if (!available(x, y, level)) return Promise.reject(new Error("no tile"));

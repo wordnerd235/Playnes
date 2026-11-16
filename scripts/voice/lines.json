@@ -570,6 +570,18 @@
   "speak": "Drag the eye to look all around. The arrow button puts the view back."
  },
  {
+  "id": "57ca130d",
+  "who": "copilot",
+  "text": "On a computer, you can fly with the keyboard, too. Here are the keys. You can also drag the yoke, the lever and the eye with the mouse, and click any button.",
+  "speak": "On a computer, you can fly with the keyboard, too. Here are the keys. You can also drag the yoke, the lever and the eye with the mouse, and click any button."
+ },
+ {
+  "id": "b23b1c1e",
+  "who": "copilot",
+  "text": "On a computer, the Chinook flies with the keyboard, too. Here are the keys.",
+  "speak": "On a computer, the Chinook flies with the keyboard, too. Here are the keys."
+ },
+ {
   "id": "4276c245",
   "who": "copilot",
   "text": "Tap the question mark any time to see this again, and the pause button to take a break.",

@@ -652,3 +652,11 @@ svg { display: block; }
 
 /* Optional performance readout (grown-up setting): top middle, under the route bar, clear of the controls. */
 .perf-stats { position: fixed; left: 50%; top: calc(var(--safe-t, 0px) + 66px); transform: translateX(-50%); margin: 0; padding: 4px 8px; border-radius: 8px; background: rgba(0,0,0,.55); color: #fff; font: 600 10px/1.35 ui-monospace, Menlo, monospace; white-space: pre; pointer-events: none; z-index: 50; }
+
+/* Keyboard keys in the tour (computers only). */
+.tour-keys { width: 100%; margin: 10px 0 4px; border-collapse: collapse; font-size: 14px; }
+.tour-keys td { padding: 3px 4px; vertical-align: middle; border-top: 1px solid rgba(16,35,58,.1); }
+.tour-keys td:first-child { white-space: nowrap; width: 1%; padding-right: 12px; }
+.tour-keys td:last-child { font-weight: 700; }
+.tour-keys kbd { display: inline-block; min-width: 22px; padding: 1px 6px; border-radius: 6px; border: 1px solid #b9c6d6; border-bottom-width: 3px; background: #f4f7fb; font: 800 12px/1.5 inherit; text-align: center; color: #10233a; }
+.tour-keys span { color: #6a7d92; font-size: 12px; font-weight: 700; }

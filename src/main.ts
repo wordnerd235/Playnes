@@ -480,7 +480,7 @@ class Game implements ScreenHost {
     this.audio.stopVoice();
     const heli = isHelicopter(aircraftById(this.flightPlane));
     // The first time ever, the general tour comes first; the Chinook's own tour after it.
-    const steps = heli && this.progress.tourDone ? HELI_TOUR : heli ? [...TOUR.filter((st) => st.target !== ".yoke" && st.target !== ".lever" && st.line !== LINES.tourDone), ...HELI_TOUR.slice(1)] : TOUR;
+    const steps = heli && this.progress.tourDone ? HELI_TOUR : heli ? [...TOUR.filter((st) => st.target !== ".yoke" && st.target !== ".lever" && st.line !== LINES.tourDone && st.line !== LINES.tourKeys), ...HELI_TOUR.slice(1)] : TOUR;
     // Seen once is enough: even if the flight is left mid-tour it won't pop up again
     // (the ? button brings it back any time; ✕ closes it).
     this.progress.tourDone = true;
