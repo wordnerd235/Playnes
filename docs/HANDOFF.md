@@ -28,7 +28,17 @@ and the model section of `docs/SETUP.md`.
   propeller becomes a faint blur disc once it is turning fast, and from the pilot's seat only
   the disc shows. The passenger-window view sits on the rear bench (`rig.windowEye`) instead of
   the drawn porthole. "Meet your playne" and the hangar picture were re-rendered.
-- **Not done:** the other thirteen aircraft, a jet passenger cabin, and the rest of the audit's list
+- **Also done in the test copy:** the Phenom 300E (`scripts/model-phenom300.mjs`), the first
+  passenger cabin. Real window openings: the skin is a grid over (station, angle) with every
+  window's edges on grid lines, so each window is a clean rectangular hole; a frame patch (the
+  rectangle minus the rounded window, laid onto the curved skin) fills the corners; glass sits
+  just inside; a reveal tube joins the skin to a cabin lining that has the same holes. The
+  windshield uses free-form outlines inside one big cut-out (`polys`). `refine()` splits long
+  triangle edges so flat shapes laid onto the skin follow its curve. Cabin: club four with
+  tables, two forward-facing seats, refreshment centre, aft lavatory wall, dropped aisle.
+  Cockpit: three big screens, glareshield, pedestal, control wheels, pilot. `rig.eyePitch`
+  tilts the cockpit view down a little so the screens show.
+- **Not done:** the other twelve aircraft, and the rest of the audit's list
   (per-type truth, "Real controls", "real stalls", wind).
 - The owner has seen the F-16 exterior pictures and the first cockpit; they have **not yet
   reported on the test copy on an iPad or in Google mode**. Ask before assuming it is fine.
@@ -184,6 +194,12 @@ stays in pixels even when the size is in metres), which is why the frames are la
   (degrees across the longer side of the screen); the Cessna uses 85 from both seats, which
   shows the panel, yoke, windshield posts, roof edge and wing as a person in the seat sees
   them. The F-16 keeps 60. `PlaneView.updateCamera` applies it and puts 60 back otherwise.
+- **A window's lining opening must stay inside its cut-out.** The lining's opening is drawn a
+  little bigger than the window; on the long cockpit windows 12% bigger was past the cut-out's
+  margin, the shape turned inside out and covered the glass. It is now capped to the margin.
+- **A rectangle in (station, angle) is a poor windshield** on a tapering nose: its lower edge
+  climbs steeply rearward and blocks the pilot's view. Use outlines (`polys`) with a level
+  lower edge.
 - **Seat backs leaned forward.** In these models a positive turn about x tips the top toward
   the nose; reclining backs need a negative angle. Check seats from the side before trusting
   the eye position. The owner still found boxes-for-seats odd (and a floating headrest), so the
@@ -222,8 +238,10 @@ upgrade Cesium casually, and re-run `tools/diag-google.cjs` if you do.
 
 1. Get the owner's verdict on the F-16 in the test copy (iPad, and Google mode).
 2. (Done: the audit's physics items 1 to 3.)
-3. (Done: the Cessna 172.) Next, one cabin-class jet to prove the passenger interior (the
-   Phenom 300E or the PC-12 are good choices), then roll the pattern out to the rest.
+3. (Done: the Cessna 172 and the Phenom 300E.) Next, roll the pattern out to the rest. The
+   Phenom's fuselage code (lattice, windows, lining, `refine`, `onSkin`) is the part to lift
+   into a shared helper before the second cabin jet; the PC-24 and Citation Latitude are the
+   closest relatives.
    `node tools/render-planes.cjs <id>` re-renders just one hangar picture (and always the
    "Meet your playne" picture and its tap spots).
 4. Per-type truth from the audit (reversers only where real, F-16 automatic flaps, Chinook

@@ -344,7 +344,7 @@ export class PlaneView {
     }
 
     if (this.mode === "cockpit") {
-      const f = frameVectors(s, s.alt, s.heading + this.lookYaw, s.pitch + this.lookPitch - (lookDown ? 35 : 0), s.bank);
+      const f = frameVectors(s, s.alt, s.heading + this.lookYaw, s.pitch + this.lookPitch - (lookDown ? 35 : 0) - (RIGS[this.ac.id]?.eyePitch ?? 0), s.bank);
       const base = frameVectors(s, s.alt, s.heading, s.pitch, s.bank);
       // A 3D cockpit has a real seat to look out from; the others use a spot above the nose.
       const at = RIGS[this.ac.id]?.eye;

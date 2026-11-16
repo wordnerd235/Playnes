@@ -13,6 +13,8 @@ export interface Rig {
   windowEye?: number[];
   /** Field of view from the seats, degrees across the longer side of the screen (default 60). */
   fov?: number;
+  /** How far the cockpit view looks down by default, degrees (to take in the panel). */
+  eyePitch?: number;
 }
 
 export const RIGS: Record<string, Rig> = {
@@ -36,6 +38,30 @@ export const RIGS: Record<string, Rig> = {
       -0.45
     ],
     "fov": 85
+  },
+  "phenom300": {
+    "retractDeg": {
+      "gearL": 113.1,
+      "gearR": 113.1,
+      "gearN": 95
+    },
+    "wheelRadius": {
+      "wheelL": 0.27,
+      "wheelR": 0.27,
+      "wheelN": 0.2
+    },
+    "eye": [
+      0.36,
+      1.91,
+      4.83
+    ],
+    "windowEye": [
+      0.42,
+      1.92,
+      1
+    ],
+    "fov": 80,
+    "eyePitch": 9
   },
   "f16": {
     "retractDeg": {

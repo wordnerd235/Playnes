@@ -134,7 +134,7 @@ export const AIRCRAFT: AircraftDef[] = [
     unlock: { type: "wings", price: 175 },
     wow: "The Phenom three hundred is the best-selling light jet in the whole world.",
     vr: 105, vapp: 110, vclimb: 180, vstall: 88, vmo: 320, mmo: 0.8, climbFpm: 3900, rollRate: 30, cruiseAltFt: 33000,
-    shape: { length: 15.6, span: 16.2, fuselageDiameter: 1.8, wing: "low", sweepDeg: 22, tail: "t-tail", engines: "rear-twin", winglets: true, fixedGear: false },
+    shape: { length: 15.6, span: 15.9, fuselageDiameter: 1.8, wing: "low", sweepDeg: 27, tail: "t-tail", engines: "rear-twin", winglets: true, fixedGear: false },
     livery: { body: "#fcfcfa", stripe: "#a9822e", accent: "#3a3a3a" },
   },
   {
