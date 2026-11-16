@@ -215,6 +215,7 @@ const { chromium } = require("playwright");
       console.log(`${el.toFixed(0).padStart(4)} ${((330 * el) / 1000).toFixed(0).padStart(4)} ${String(r.fps).padStart(4)} ${String(r.tree).padStart(6)} ${String(r.tilesMB).padStart(8)} ${String(r.heapMB).padStart(6)}(${rawMB}) ${String(live).padStart(10)} ${String(r.tilesets).padStart(9)} ${String(r.pending).padStart(8)} ${String(r.fresh).padStart(6)} ${String(fetched.json).padStart(5)} ${String(fetched.glb).padStart(5)}`);
     }
   }
+  if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
   console.log(errors.length ? `errors: ${[...new Set(errors)].slice(0, 6).join(" | ")}` : "no page errors");
   await browser.close();
 })();
