@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DetailGovernor } from "../src/world/governor.ts";
+import { DetailGovernor, steadyMemoryRelief } from "../src/world/governor.ts";
 
 /** Feed `seconds` of frames at a steady interval (with an optional pause every `pauseEvery` frames). */
 function run(g: DetailGovernor, t0: number, seconds: number, dt: number, pauseEvery = 0): number {
@@ -51,5 +51,59 @@ describe("detail governor", () => {
       g.frame(t, i % 50 === 0 ? 5000 : 16.7);
     }
     expect(g.scale).toBeLessThanOrEqual(1);
+  });
+
+  it("waits a while after easing off before sharpening again (no see-saw)", () => {
+    const g = new DetailGovernor();
+    let t = run(g, 0, 4, 33); // a few slow windows: eases off
+    t = run(g, t, 2, 16.7); // smooth again (the window straddling the change may ease once more)
+    const coarse = g.scale;
+    expect(coarse).toBeGreaterThan(1);
+    run(g, t, 6, 16.7); // still within 10 s of the last easing: holds
+    expect(g.scale).toBe(coarse);
+  });
+});
+
+describe("steady memory relief", () => {
+  /** A stand-in for Cesium's tileset: its own easing moves detail 2% a frame either way. */
+  function fakeTileset(mem: { bytes: number }) {
+    const ts = {
+      cacheBytes: 100,
+      get totalMemoryUsageInBytes() {
+        return mem.bytes;
+      },
+      maximumScreenSpaceError: 16,
+      _memoryAdjustedScreenSpaceError: 16,
+      prePassesUpdate(_fs: unknown) {
+        if (mem.bytes < 100) this._memoryAdjustedScreenSpaceError = Math.max(this._memoryAdjustedScreenSpaceError / 1.02, this.maximumScreenSpaceError);
+        else if (mem.bytes > 130) this._memoryAdjustedScreenSpaceError *= 1.02;
+      },
+    };
+    return ts;
+  }
+
+  it("coarsens at once when memory runs out but doesn't sharpen straight back near the limit", () => {
+    const mem = { bytes: 140 };
+    const ts = fakeTileset(mem);
+    steadyMemoryRelief(ts);
+    for (let i = 0; i < 20; i++) ts.prePassesUpdate(null);
+    const eased = ts._memoryAdjustedScreenSpaceError;
+    expect(eased).toBeGreaterThan(20);
+    mem.bytes = 95; // just under the budget: Cesium would sharpen 2% a frame here
+    for (let i = 0; i < 60; i++) ts.prePassesUpdate(null);
+    expect(ts._memoryAdjustedScreenSpaceError).toBe(eased);
+  });
+
+  it("sharpens back slowly once there's real room", () => {
+    const mem = { bytes: 140 };
+    const ts = fakeTileset(mem);
+    steadyMemoryRelief(ts);
+    for (let i = 0; i < 20; i++) ts.prePassesUpdate(null);
+    const eased = ts._memoryAdjustedScreenSpaceError;
+    mem.bytes = 50;
+    ts.prePassesUpdate(null);
+    expect(ts._memoryAdjustedScreenSpaceError).toBeGreaterThan(eased / 1.002);
+    for (let i = 0; i < 2000; i++) ts.prePassesUpdate(null);
+    expect(ts._memoryAdjustedScreenSpaceError).toBeCloseTo(16, 5);
   });
 });

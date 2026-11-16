@@ -32,7 +32,7 @@ import { Scenery } from "./scenery.ts";
 import { AirportBuildings } from "./buildings.ts";
 import { LandmarkMarkers } from "./landmarks.ts";
 import { detailBudget, deviceClass } from "./device.ts";
-import { DetailGovernor } from "./governor.ts";
+import { DetailGovernor, steadyMemoryRelief } from "./governor.ts";
 import { degrade, FEATURE_NAMES, gfxOn, type GfxFeature } from "./safety.ts";
 
 /** "cartoon" = offline cartoon world; "basic" = bare globe if the offline data is missing. */
@@ -297,7 +297,12 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       dynamicScreenSpaceError: true,
     },
   );
-  let tileset = await makeTileset();
+  const makeSteadyTileset = async () => {
+    const ts = await makeTileset();
+    steadyMemoryRelief(ts);
+    return ts;
+  };
+  let tileset = await makeSteadyTileset();
   scene.primitives.add(tileset);
   // Detail = base x frame-rate governor x speed. Busy areas (cities) can mean more tiles than
   // the device can keep up with: the governor eases detail while frames drop. At jet speed
@@ -334,7 +339,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   const recycle = async () => {
     recycling = true;
     try {
-      const fresh = await makeTileset();
+      const fresh = await makeSteadyTileset();
       if (widget.isDestroyed()) return;
       // Keep the overlap small: the old copy lets go of everything out of view first.
       tileset.trimLoadedTiles();
