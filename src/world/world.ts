@@ -381,6 +381,36 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   if (scene.skyBox) scene.skyBox.show = false;
   scene.backgroundColor = Color.fromCssColorString("#8ec5f2");
   const exclude: object[] = [];
+  // Measuring the ground renders everything below the point and takes the top. The clouds,
+  // landmark pins, sky guide line and rings are drawn things too, so the playne could "land"
+  // on a cloud (and the game thought it was rolling down a runway). For the instant of a
+  // measurement, show only the 3D map itself.
+  const onlyTheMap = <T>(measure: () => T): T => {
+    const hidden: { show: boolean }[] = [];
+    const prims = scene.primitives;
+    for (let i = 0; i < prims.length; i++) {
+      const prim = prims.get(i) as { show?: boolean };
+      if (prim !== tileset && prim.show === true) {
+        prim.show = false;
+        hidden.push(prim as { show: boolean });
+      }
+    }
+    const restore = () => {
+      for (const prim of hidden) prim.show = true;
+    };
+    try {
+      const out = measure();
+      if (out instanceof Promise) {
+        out.then(restore, restore);
+        return out;
+      }
+      restore();
+      return out;
+    } catch (e) {
+      restore();
+      throw e;
+    }
+  };
   const heightMemo: { lat: number; lon: number; h: number | undefined; t: number }[] = Array.from({ length: 4 }, () => ({ lat: 0, lon: 0, h: undefined, t: -1e9 }));
   let memoNext = 0;
   return {
@@ -396,7 +426,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       for (const m of heightMemo) {
         if (now - m.t < 150 && Math.abs(m.lat - p.lat) < 6e-5 && Math.abs(m.lon - p.lon) < 6e-5) return m.h;
       }
-      const h = scene.sampleHeight(Cartographic.fromDegrees(p.lon, p.lat), exclude, 1);
+      const h = onlyTheMap(() => scene.sampleHeight(Cartographic.fromDegrees(p.lon, p.lat), exclude, 1));
       heightMemo[memoNext] = { lat: p.lat, lon: p.lon, h, t: now };
       memoNext = (memoNext + 1) % heightMemo.length;
       return h;
@@ -404,7 +434,8 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
     async sampleHeights(points) {
       const carts = points.map((p) => Cartographic.fromDegrees(p.lon, p.lat));
       try {
-        const out = await withTimeout(scene.sampleHeightMostDetailed(carts, exclude, 1), 12000);
+        // (At flight start, behind the loading screen, so hiding things meanwhile isn't seen.)
+        const out = await onlyTheMap(() => withTimeout(scene.sampleHeightMostDetailed(carts, exclude, 1), 12000));
         return out.map((c) => (c && Number.isFinite(c.height) ? c.height : undefined));
       } catch {
         return points.map(() => undefined);

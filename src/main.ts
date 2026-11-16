@@ -218,7 +218,7 @@ class Game implements ScreenHost {
     const planeId = m.kind === "lesson" ? "c172" : m.kind === "sandbox" ? (m.resume ? m.resume.aircraft : this.progress.selectedPlane) : charterPlaneId(this.progress);
     const ac = aircraftById(planeId);
     const flight = new FlightSession(
-      { world: this.world, audio: this.audio, controls: this.controls, hud: this.hud, aircraft: ac, assistLevel: this.settings.assistLevel, crashes: this.settings.crashes, autoSpeed: this.settings.freeAutoSpeed, solo: m.kind === "charter" && this.settings.soloCharters !== false && landedBefore(this.progress, m.to), firstLanding: (code) => !this.progress.freeLandedAt.includes(code), freeHelp: this.settings.freeLandingHelp === true },
+      { world: this.world, audio: this.audio, controls: this.controls, hud: this.hud, aircraft: ac, assistLevel: this.settings.assistLevel, crashes: this.settings.crashes, autoSpeed: this.settings.freeAutoSpeed, solo: m.kind === "charter" && this.settings.soloCharters !== false && landedBefore(this.progress, m.to), firstLanding: (code) => !this.progress.freeLandedAt.includes(code), freeHelp: this.settings.freeLandingHelp === true, freeTips: this.settings.freeTips === true },
       m,
     );
     this.flight = flight;

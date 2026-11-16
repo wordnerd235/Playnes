@@ -24,6 +24,8 @@ export interface Settings {
   /** Free Flight: the co-pilot lines up, holds the glide path, flares and keeps the takeoff
    *  roll straight (off = you fly it all; autobrakes still stop you after touchdown). */
   freeLandingHelp: boolean;
+  /** Free Flight: the co-pilot's tips (spoken instructions and flashing hints on the controls). */
+  freeTips: boolean;
   /** Puffy clouds and the cruise cloud layer. */
   clouds: boolean;
 }
@@ -45,6 +47,7 @@ export const DEFAULT_SETTINGS: Settings = {
   freeAutoSpeed: false,
   soloCharters: true,
   freeLandingHelp: false,
+  freeTips: false,
   clouds: true,
 };
 

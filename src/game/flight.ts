@@ -69,6 +69,13 @@ const SOLO_QUIET = new Set<Line>([
   LINES.descend, LINES.intoClouds,
 ]);
 
+/** Free Flight with the co-pilot's tips off: these instructions stay unsaid (events, rewards,
+ *  landings and fun facts are still spoken). */
+const FREE_QUIET = new Set<Line>([
+  ...SOLO_QUIET, LINES.freeIntro, LINES.pullToTakeoff, LINES.mapAutopilot, LINES.landingHelp, LINES.routeCleared,
+  LINES.heliLiftoff,
+]);
+
 /** Runway surfaces sit this far above the runway's slope (so wheels sit on the paint). */
 const RUNWAY_LIFT = 0.12;
 
@@ -200,6 +207,8 @@ export interface FlightDeps {
   solo?: boolean;
   /** Free Flight: co-pilot helps with landings and takeoffs (glide path, flare, centreline, speedbrakes). */
   freeHelp?: boolean;
+  /** Free Flight: the co-pilot gives tips (spoken instructions, flashing hints on the controls). */
+  freeTips?: boolean;
   /** Free Flight: never landed at this airport in Free Flight yet (shows the sky guide line on the way). */
   firstLanding?: (code: string) => boolean;
 }
@@ -525,6 +534,7 @@ export class FlightSession {
 
   private say(line: Line, interrupt = false): Promise<void> {
     if (this.solo && SOLO_QUIET.has(line)) return Promise.resolve();
+    if (this.freeQuiet && (FREE_QUIET.has(line) || line.text.startsWith("Next stop"))) return Promise.resolve();
     return this.d.audio.say(line, { interrupt });
   }
 
@@ -542,8 +552,13 @@ export class FlightSession {
 
   /** Button highlights and steering arrows (none when flying solo). */
   private hudPrompt(p: Prompt): void {
-    if (this.solo && p) return;
+    if ((this.solo || this.freeQuiet) && p) return;
     this.d.hud.setPrompt(p);
+  }
+
+  /** Free Flight with the co-pilot's tips turned off (grown-up setting): no tips or hints. */
+  private get freeQuiet(): boolean {
+    return this.mission.kind === "sandbox" && this.d.freeTips === false;
   }
 
   /** Solo charters: the co-pilot doesn't give tips. */
