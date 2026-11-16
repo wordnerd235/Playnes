@@ -13,7 +13,8 @@ const { chromium } = require("playwright");
     args: ["--enable-precise-memory-info", "--js-flags=--expose-gc"],
   });
   // Say we're the game's website (for keys locked to it).
-  const ctx = await browser.newContext({ viewport: { width: 960, height: 600 }, reducedMotion: "reduce", extraHTTPHeaders: { referer: "https://wordnerd235.github.io/Playnes/" } });
+  const [vw, vh] = (process.env.VIEW || "960x600").split("x").map(Number);
+  const ctx = await browser.newContext({ viewport: { width: vw, height: vh }, reducedMotion: "reduce", extraHTTPHeaders: { referer: "https://wordnerd235.github.io/Playnes/" } });
   // The key comes from the network's saved credential (a header): drop the placeholder key
   // from the address.
   await ctx.route(/tile\.googleapis\.com/, (route) => {
