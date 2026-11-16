@@ -100,7 +100,7 @@ export function steadyTileDetail(tileset: SteadyTileset): void {
   };
 }
 
-const SPEED_STEPS = [1, 1.5, 2.2, 3];
+const SPEED_STEPS = [1, 1.5, 2.2, 3, 4];
 /** Next speed-detail step: up once `want` reaches the next step, down once 20% below this one. */
 export function speedStep(current: number, want: number): number {
   let i = Math.max(0, SPEED_STEPS.indexOf(current));

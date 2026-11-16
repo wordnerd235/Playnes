@@ -481,9 +481,12 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       if (!recycling && age > 120_000 && travel > maxTravel) void recycle();
       if (now - lastSpeedApply < 500) return;
       lastSpeedApply = now;
-      // Coarser at jet speed: 1x up to ~230 kt, up to 3x at Mach speeds, in a few steps with a
-      // margin between them, so speed bled off in a turn doesn't keep swapping distant tiles.
-      speedK = speedStep(speedK, speed / 120);
+      // Coarser at jet speed: 1x up to ~230 kt, then in a few steps (with a margin between
+      // them, so speed bled off in a turn doesn't keep swapping distant tiles) up to 4x from
+      // ~700 kt (the curve steepens above ~580 kt). Measured: at 700+ kt a coarser level fetches
+      // about a third as many map files,
+      // and the ground rushes past too fast to see the difference.
+      speedK = speedStep(speedK, speed / 120 + Math.max(0, speed - 300) / 60);
       // Pre-loading the tiles beside the view helps slow turns; at jet speed it doubles the work.
       if (speed > 110) tileset.loadSiblings = false;
       else if (speed < 85) tileset.loadSiblings = true;

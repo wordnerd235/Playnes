@@ -172,3 +172,11 @@ describe("shared texture counts in tileset statistics", () => {
     expect(Object.keys(main.texturesReferenceCounterById).length).toBe(1000);
   });
 });
+
+describe("top speed step", () => {
+  it("reaches the coarsest step at jet speed (~750 kt = 386 m/s)", () => {
+    let k = 1;
+    for (const want of [1.2, 1.6, 2.3, 3.1, 4.06]) k = speedStep(k, want);
+    expect(k).toBe(4);
+  });
+});
