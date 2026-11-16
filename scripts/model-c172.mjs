@@ -21,7 +21,7 @@
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
 export function buildC172(ac, kit) {
-  const { THREE, V, C, T, RX, RZ, lerp, MAT, MATERIALS, loft, smooth, surface, controlSurface, lathe, cylinderBetween, registration, REGISTRATION, part, sheet, curve, asNode } = kit;
+  const { THREE, V, C, T, RX, RY, RZ, lerp, MAT, MATERIALS, loft, smooth, surface, controlSurface, lathe, cylinderBetween, registration, REGISTRATION, part, sheet, curve, asNode } = kit;
 
   const X0 = MATERIALS.length;
   const XMAT = { glass: X0, fabric: X0 + 1, screen: X0 + 2, blur: X0 + 3 };
@@ -422,11 +422,41 @@ export function buildC172(ac, kit) {
   }
   // Seats: two in front, a bench behind. Backs recline (a negative turn about x tips the top
   // toward the tail).
+  // Front seats are drawn from their side profile: the back reclines 17 degrees from the
+  // rear of the cushion, bulges a little at the small of the back, and rises into a narrower
+  // headrest that is part of the same upholstery. The profile is extruded across the seat's
+  // width with rounded edges.
+  const SEAT = { hz: 0.29, hy: 1.05, rec: 0.3 };
+  const seatDir = [-Math.sin(SEAT.rec), Math.cos(SEAT.rec)], seatFwd = [Math.cos(SEAT.rec), Math.sin(SEAT.rec)];
+  /** A point on the seat back: u up along the back from the hinge, v forward from its front face. */
+  const seatPt = (u, v) => [SEAT.hz + seatDir[0] * u + seatFwd[0] * v, SEAT.hy + seatDir[1] * u + seatFwd[1] * v];
+  const profileSlab = (x, width, front, rear, bev = 0.018) => {
+    // front, rear: [u, v] lists, bottom to top (the outline is front up, then rear down).
+    const shape = new THREE.Shape();
+    const outline = [...front, ...[...rear].reverse()].map(([u, v]) => seatPt(u, v));
+    shape.moveTo(-outline[0][0], outline[0][1]);
+    for (const [z, y] of outline.slice(1)) shape.lineTo(-z, y);
+    shape.closePath();
+    const depth = width - 2 * bev;
+    const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: 3, curveSegments: 4 });
+    // Shape x = -z, y = y, extruded along its z: turn so the extrusion runs across the cabin.
+    return g.applyMatrix4(RY(Math.PI / 2)).applyMatrix4(T(x - depth / 2, 0, 0));
+  };
   for (const x of [0.27, -0.27]) {
-    add("body", part(pad(0.42, 0.11, 0.46, x, 0.98, 0.5), XMAT.fabric, cSeat, INSIDE));
-    add("body", part(pad(0.42, 0.62, 0.1, x, 1.32, 0.24, -0.2), XMAT.fabric, cSeat, INSIDE));
-    add("body", part(pad(0.26, 0.14, 0.09, x, 1.69, 0.17, -0.2, 0.04), XMAT.fabric, cSeatDark, INSIDE));
-    add("body", part(box(0.38, 0.12, 0.4, x, 0.9, 0.5), MAT.dark, C("#2b2d30"), INSIDE));
+    // Cushion, its front edge a little higher than the back (thighs supported).
+    add("body", part(pad(0.44, 0.12, 0.48, x, 0.99, 0.52, -0.07), XMAT.fabric, cSeat, INSIDE));
+    const b = 0.018; // the rounded edge adds this all round, so the outline is drawn inside it
+    add("body", part(profileSlab(x, 0.44,
+      [[0.02, -b], [0.12, 0.02 - b], [0.25, 0.03 - b], [0.4, 0.018 - b], [0.55, 0.004 - b], [0.63, -b]],
+      [[0.02, -0.11 + b], [0.3, -0.1 + b], [0.63, -0.085 + b]]), XMAT.fabric, cSeat, INSIDE));
+    add("body", part(profileSlab(x, 0.28,
+      [[0.6, -0.002 - b], [0.7, 0.006 - b], [0.8, -b]],
+      [[0.6, -0.075 + b], [0.8, -0.07 + b]], 0.03), XMAT.fabric, cSeat, INSIDE));
+    // A darker seam where the headrest meets the back.
+    add("body", part(profileSlab(x, 0.3, [[0.6, -0.012], [0.612, -0.012]], [[0.6, -0.068], [0.612, -0.068]], 0.004), XMAT.fabric, cSeatDark, INSIDE));
+    // Seat frame and rails under the cushion.
+    add("body", part(box(0.38, 0.1, 0.4, x, 0.89, 0.52), MAT.dark, C("#2b2d30"), INSIDE));
+    for (const s of [-1, 1]) add("body", part(box(0.03, 0.02, 0.7, x + s * 0.15, 0.855, 0.55), MAT.metal, cMetal, INSIDE));
   }
   // The rear bench: one cushion, a back split in two (each side folds on the real one).
   add("body", part(pad(0.98, 0.11, 0.44, 0, 0.95, -0.42), XMAT.fabric, cSeat, INSIDE));
@@ -439,19 +469,21 @@ export function buildC172(ac, kit) {
     const limb = (a, b, r, c) => pp.push(part(cylinderBetween(a, b, r, 10), XMAT.fabric, c, INSIDE));
     const ball = (p, r, c, mat = XMAT.fabric) => pp.push(part(new THREE.SphereGeometry(r, 14, 10).applyMatrix4(T(p.x, p.y, p.z)), mat, c, INSIDE));
     const x = 0.27;
-    pp.push(part(new THREE.SphereGeometry(1, 16, 12).applyMatrix4(new THREE.Matrix4().compose(V(x, 1.29, 0.39), new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.15, 0, 0)), V(0.18, 0.26, 0.12))), XMAT.fabric, cShirt, INSIDE));
-    const head = V(x, 1.63, 0.38);
+    pp.push(part(new THREE.SphereGeometry(1, 16, 12).applyMatrix4(new THREE.Matrix4().compose(V(x, 1.3, 0.35), new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.3, 0, 0)), V(0.18, 0.26, 0.12))), XMAT.fabric, cShirt, INSIDE));
+    // Sitting back in the seat: the torso along the seat back, the head just clear of the headrest.
+    const head = V(x, 1.66, 0.235);
+    limb(V(x, 1.48, 0.3), head.clone().add(V(0, -0.06, 0.01)), 0.045, cSkin);
     ball(head, 0.1, cSkin);
     pp.push(part(new THREE.SphereGeometry(0.104, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.45).applyMatrix4(new THREE.Matrix4().compose(head.clone().add(V(0, 0.005, -0.012)), new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.35, 0, 0)), V(1, 1, 1))), XMAT.fabric, cHair, INSIDE));
     for (const s of [-1, 1]) ball(head.clone().add(V(s * 0.1, -0.01, 0)), 0.04, cHeadset, MAT.dark);
     pp.push(part(new THREE.TorusGeometry(0.105, 0.012, 6, 16, Math.PI).applyMatrix4(new THREE.Matrix4().makeRotationY(Math.PI / 2)).applyMatrix4(new THREE.Matrix4().makeRotationX(0)).applyMatrix4(T(head.x, head.y + 0.005, head.z)), MAT.dark, cHeadset, INSIDE));
     pp.push(part(cylinderBetween(head.clone().add(V(0.1, -0.03, 0.02)), head.clone().add(V(0.03, -0.07, 0.1)), 0.006, 6), MAT.dark, cHeadset, INSIDE));
     for (const s of [-1, 1]) {
-      const sh = V(x + s * 0.17, 1.45, 0.36), el = V(x + s * 0.2, 1.22, 0.62), hand = V(x + s * 0.135, 1.2, 0.97);
+      const sh = V(x + s * 0.17, 1.46, 0.31), el = V(x + s * 0.2, 1.24, 0.6), hand = V(x + s * 0.135, 1.2, 0.97);
       limb(sh, el, 0.042, cShirt);
       limb(el, hand, 0.036, cSkin);
       ball(hand, 0.035, cSkin);
-      const hip = V(x + s * 0.09, 1.06, 0.46), knee = V(x + s * 0.11, 1.12, 0.84), foot = V(x + s * 0.1, 0.9, 1.08);
+      const hip = V(x + s * 0.09, 1.11, 0.41), knee = V(x + s * 0.11, 1.15, 0.8), foot = V(x + s * 0.1, 0.9, 1.08);
       limb(hip, knee, 0.065, cTrousers);
       ball(knee, 0.063, cTrousers);
       limb(knee, foot, 0.05, cTrousers);
@@ -461,11 +493,11 @@ export function buildC172(ac, kit) {
   }
 
   // Where the pilot's eyes are, and a passenger's in the left rear seat (looking out the window).
-  // Where a seated person's eyes are: the pilot sits back against the seat, about 0.2 m above
-  // the glareshield; the passenger on the left of the rear bench. A wide view (degrees, across
+  // Where a seated person's eyes are: the pilot sits back against the seat (head just clear of
+  // the headrest), about 0.22 m above the glareshield; the passenger on the left of the rear bench. A wide view (degrees, across
   // the longer side of the screen) takes in the panel, both windshield posts and the roof edge,
   // as a person sitting there sees them.
-  rig.eye = [0.27, 1.62, 0.38];
+  rig.eye = [0.27, 1.67, 0.31];
   rig.windowEye = [0.2, 1.55, -0.45];
   rig.fov = 85;
   return { nodes, extraMaterials, rig };

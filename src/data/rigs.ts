@@ -27,8 +27,8 @@ export const RIGS: Record<string, Rig> = {
     },
     "eye": [
       0.27,
-      1.62,
-      0.38
+      1.67,
+      0.31
     ],
     "windowEye": [
       0.2,

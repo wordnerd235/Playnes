@@ -186,7 +186,10 @@ stays in pixels even when the size is in metres), which is why the frames are la
   them. The F-16 keeps 60. `PlaneView.updateCamera` applies it and puts 60 back otherwise.
 - **Seat backs leaned forward.** In these models a positive turn about x tips the top toward
   the nose; reclining backs need a negative angle. Check seats from the side before trusting
-  the eye position.
+  the eye position. The owner still found boxes-for-seats odd (and a floating headrest), so the
+  Cessna's front seats are now extruded from a side profile (`profileSlab` in
+  `model-c172.mjs`): a 17-degree recline, a small lumbar bulge and a headrest that is part of
+  the same upholstery. Seat the person against it and put `rig.eye` in their head.
 - **Paint looks darker in the game than in the preview tool.** The game's lighting is harsher
   than the preview's. Judge colours from `tools/shot-plane.cjs`, not the preview.
 - **The game hid the whole model in cockpit view** (the old flat-panel approach). Anything with
