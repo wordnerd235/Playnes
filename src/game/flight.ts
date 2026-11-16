@@ -2161,6 +2161,7 @@ export class FlightSession {
   private updateHud(): void {
     this.updateCockpit();
     const s = this.s;
+    this.d.world.setMotion?.(s.speed);
     if (this.mission.kind === "sandbox") this.d.hud.updateMaps({ pos: s, heading: s.heading, target: this.navTarget, route: this.route ? this.route.points.slice(this.routeIndex + 1) : null, direct: this.heli });
     const ref = this.arr && this.cruiseProgressFraction() > 0.5 ? this.arr : this.dep;
     const altFt = (s.alt + ref.mslOffset) / FT;

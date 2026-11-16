@@ -58,6 +58,8 @@ export interface World {
   obstacleTop(p: LatLon, radius: number): number | null;
   /** The playne jumped somewhere new (respawn, line-up): let go of map tiles from the old spot. */
   afterTeleport?(): void;
+  /** How fast the playne is going (m/s): streaming maps ease detail at jet speed. */
+  setMotion?(speed: number): void;
   destroy(): void;
 }
 
@@ -122,6 +124,18 @@ function installCommandGuard(widget: CesiumWidget): void {
     const prims = scene.primitives;
     if (prims.length && prims.get(prims.length - 1) !== guard) prims.raiseToTop(guard);
   });
+}
+
+/**
+ * Change a tileset's detail without throwing away Cesium's memory relief: setting
+ * maximumScreenSpaceError also resets memoryAdjustedScreenSpaceError (Cesium's own easing
+ * when the tile cache is full), which let memory climb whenever the governor stepped in.
+ */
+function setSseKeepingMemoryRelief(tileset: Cesium3DTileset, sse: number): void {
+  const t = tileset as unknown as { _memoryAdjustedScreenSpaceError?: number };
+  const relief = t._memoryAdjustedScreenSpaceError ?? sse;
+  tileset.maximumScreenSpaceError = sse;
+  t._memoryAdjustedScreenSpaceError = Math.max(relief, sse);
 }
 
 /** Runs the detail governor on every rendered frame; `apply` gets the new detail scale. */
@@ -254,7 +268,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   const b = detailBudget(q);
   // Google serves over HTTP/2: more requests at once means tiles arrive sooner.
   RequestScheduler.requestsByServer["tile.googleapis.com:443"] = 24;
-  const tileset: Cesium3DTileset = await createGooglePhotorealistic3DTileset(
+  const makeTileset = (): Promise<Cesium3DTileset> => createGooglePhotorealistic3DTileset(
     { key },
     {
       // Memory: Cesium keeps the tiles in view within this budget by easing detail a little
@@ -278,10 +292,73 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       dynamicScreenSpaceError: true,
     },
   );
+  let tileset = await makeTileset();
   scene.primitives.add(tileset);
-  // Busy areas (cities) can mean more tiles than the device can keep up with: ease detail a
-  // little while frames are dropping, sharpen again when smooth.
-  installGovernor(scene, (k) => (tileset.maximumScreenSpaceError = b.tilesSse * k));
+  // Detail = base x frame-rate governor x speed. Busy areas (cities) can mean more tiles than
+  // the device can keep up with: the governor eases detail while frames drop. At jet speed
+  // the ground flashes past too fast to see fine detail, and every tile is on screen only
+  // briefly, so detail relaxes with speed too (or tile streaming snowballs).
+  let govK = 1;
+  let speedK = 1;
+  const applyDetail = () => {
+    const target = Math.min(72, b.tilesSse * govK * speedK);
+    if (Math.abs(target - tileset.maximumScreenSpaceError) < target * 0.04) return;
+    setSseKeepingMemoryRelief(tileset, target);
+  };
+  installGovernor(scene, (k) => {
+    govK = k;
+    applyDetail();
+  });
+  let lastSpeedApply = 0;
+
+  // Cesium never lets go of the tile tree it has explored (only the tiles' contents), so on
+  // a long flight - above all a fast jet's - memory and per-frame work grow with the ground
+  // covered until it crawls. Every ~150 km (or 25 minutes), load a fresh copy of the 3D world
+  // in the background, switch over once it has the ground around us, and drop the old one.
+  let travel = 0;
+  let lastMotion = performance.now();
+  let createdAt = performance.now();
+  let recycling = false;
+  let groundVisible = true;
+  const recycle = async () => {
+    recycling = true;
+    try {
+      const fresh = await makeTileset();
+      if (widget.isDestroyed()) return;
+      // Keep the overlap small: the old copy lets go of everything out of view first.
+      tileset.trimLoadedTiles();
+      fresh.preloadWhenHidden = true;
+      fresh.show = false;
+      fresh.loadSiblings = tileset.loadSiblings;
+      setSseKeepingMemoryRelief(fresh, tileset.maximumScreenSpaceError);
+      scene.primitives.add(fresh);
+      const t0 = performance.now();
+      await new Promise<void>((resolve) => {
+        const off = scene.postRender.addEventListener(() => {
+          const waited = performance.now() - t0;
+          if ((fresh.tilesLoaded && waited > 1500) || waited > 12000) {
+            off();
+            resolve();
+          }
+        });
+      });
+      if (widget.isDestroyed()) return;
+      const old = tileset;
+      tileset = fresh;
+      fresh.show = groundVisible;
+      fresh.preloadWhenHidden = false;
+      scene.primitives.remove(old); // destroys it, tile tree and all
+      for (const m of heightMemo) m.t = -1e9;
+      travel = 0;
+      createdAt = performance.now();
+    } catch (e) {
+      console.warn("Couldn't refresh the 3D world; keeping the current one", e);
+      travel = 0; // try again later, not every frame
+    } finally {
+      recycling = false;
+    }
+  };
+
   // With no globe, Cesium leaves out the blue sky (you'd see stars at noon): turn it back on.
   if (scene.skyAtmosphere) scene.skyAtmosphere.show = true;
   if (scene.skyBox) scene.skyBox.show = false;
@@ -317,12 +394,26 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       }
     },
     setGroundVisible(v) {
+      groundVisible = v;
       tileset.show = v;
     },
     afterTeleport() {
       // Old tiles out of view are unloaded on the next frame instead of being evicted bit by
       // bit while the new area streams in (that overlap is what made respawns choppy).
       tileset.trimLoadedTiles();
+    },
+    setMotion(speed) {
+      const now = performance.now();
+      travel += speed * Math.min(1, (now - lastMotion) / 1000);
+      lastMotion = now;
+      if (!recycling && (travel > 150_000 || (now - createdAt > 25 * 60_000 && travel > 30_000))) void recycle();
+      if (now - lastSpeedApply < 500) return;
+      lastSpeedApply = now;
+      // 1x up to ~230 kt, up to 3x at Mach speeds.
+      speedK = Math.min(3, Math.max(1, speed / 120));
+      // Pre-loading the tiles beside the view helps slow turns; at jet speed it doubles the work.
+      tileset.loadSiblings = speed < 100;
+      applyDetail();
     },
     groundReady() {
       return tileset.tilesLoaded;
@@ -356,7 +447,7 @@ async function createIonWorld(container: HTMLElement, token: string, q: "high" |
   }
   installGovernor(scene, (k) => {
     scene.globe.maximumScreenSpaceError = globeSse * Math.min(k, 2);
-    if (buildings) buildings.maximumScreenSpaceError = 16 * k;
+    if (buildings) setSseKeepingMemoryRelief(buildings, 16 * k);
   });
   return {
     kind: "ion",
