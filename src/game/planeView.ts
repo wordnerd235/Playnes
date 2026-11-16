@@ -1,6 +1,7 @@
 // The player's plane on screen: model, moving control surfaces, blinking lights, ground
 // shadow, and the camera (chase / cockpit, with drag-to-look offsets).
 
+import { asset } from "../assets.ts";
 import { Cartesian3, Cartesian4, Cartographic, Color, Matrix3, Matrix4, Model, Transforms, type ModelNode } from "cesium";
 import type { AircraftDef } from "../data/aircraft.ts";
 import { angleDiff, clamp, DEG, destination, type LatLon } from "../sim/geo.ts";
@@ -47,7 +48,7 @@ export class PlaneView {
 
   async load(): Promise<void> {
     const scene = this.world.widget.scene;
-    this.model = await Model.fromGltfAsync({ url: `./models/${this.ac.id}.glb`, minimumPixelSize: 48, maximumScale: 20000 });
+    this.model = await Model.fromGltfAsync({ url: asset(`models/${this.ac.id}.glb`), minimumPixelSize: 48, maximumScale: 20000 });
     scene.primitives.add(this.model);
     this.world.exclude.push(this.model);
     this.model.readyEvent.addEventListener(() => {
@@ -63,12 +64,12 @@ export class PlaneView {
       if (this.originals.prop) Matrix4.getTranslation(this.originals.prop, this.propT);
       for (const r of ["rotorF", "rotorR"] as const) if (this.originals[r]) this.rotorT[r] = Matrix4.getTranslation(this.originals[r], new Cartesian3());
     });
-    this.shadow = await Model.fromGltfAsync({ url: "./models/shadow.glb", color: Color.WHITE.withAlpha(0.8) });
+    this.shadow = await Model.fromGltfAsync({ url: asset("models/shadow.glb"), color: Color.WHITE.withAlpha(0.8) });
     scene.primitives.add(this.shadow);
     this.world.exclude.push(this.shadow);
     // Only playnes that can get close to the speed of sound need the vapor cone.
     if (this.ac.mmo >= 0.95) {
-      this.vapor = await Model.fromGltfAsync({ url: "./models/vaporcone.glb", color: Color.WHITE.withAlpha(0) });
+      this.vapor = await Model.fromGltfAsync({ url: asset("models/vaporcone.glb"), color: Color.WHITE.withAlpha(0) });
       this.vapor.show = false;
       scene.primitives.add(this.vapor);
       this.world.exclude.push(this.vapor);

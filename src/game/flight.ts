@@ -2,6 +2,7 @@
 // or a Flight School lesson built from the same pieces. Drives physics, the co-pilot,
 // prompts, hoops, camera, scoring and the 3D models.
 
+import { asset } from "../assets.ts";
 import {
   Cartesian3,
   Cartographic,
@@ -662,7 +663,7 @@ export class FlightSession {
     }
     this.hoopModels = [];
     for (const h of this.hoops) {
-      const model = await Model.fromGltfAsync({ url: "./models/ring.glb", color: Color.fromCssColorString("#ffc21a"), colorBlendMode: ColorBlendMode.MIX, colorBlendAmount: 0.85 });
+      const model = await Model.fromGltfAsync({ url: asset("models/ring.glb"), color: Color.fromCssColorString("#ffc21a"), colorBlendMode: ColorBlendMode.MIX, colorBlendAmount: 0.85 });
       if (this.destroyed) return;
       model.modelMatrix = frameMatrix(h.pos, h.alt, h.heading, h.pitch, 0, h.radius);
       this.d.world.widget.scene.primitives.add(model);

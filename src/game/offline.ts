@@ -1,6 +1,7 @@
 // "Save for offline play": fetches every map tile, plane model and voice line once so the
 // service worker keeps them. Afterwards the cartoon world works with no internet at all.
 
+import { asset } from "../assets.ts";
 import { AIRCRAFT } from "../data/aircraft.ts";
 import type { WorldMeta } from "../world/cartoon.ts";
 
@@ -30,12 +31,13 @@ export async function saveForOffline(onProgress: (done: number, total: number) =
     "./world/dem.bin.gz",
     "./world/landcover.bin.gz",
     "./world/buildings.json",
-    "./models/thumbs/meet-c172.webp",
-    ...AIRCRAFT.map((a) => `./models/thumbs/${a.id}.webp`),
+    asset("models/thumbs/meet-c172.webp"),
+    ...AIRCRAFT.map((a) => asset(`models/thumbs/${a.id}.webp`)),
     ...tileUrls(meta),
-    ...AIRCRAFT.map((a) => `./models/${a.id}.glb`),
-    "./models/ring.glb",
-    "./models/shadow.glb",
+    ...AIRCRAFT.map((a) => asset(`models/${a.id}.glb`)),
+    asset("models/ring.glb"),
+    asset("models/shadow.glb"),
+    asset("models/vaporcone.glb"),
     ...Object.values(manifest).map((f) => `./audio/voice/${f}`),
   ];
   // The hangar's 3D viewer is loaded on demand: fetch it now so it's kept for offline too.

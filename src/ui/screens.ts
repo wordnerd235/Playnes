@@ -1,6 +1,7 @@
 // Menu screens: title, home, Flight School, charter board, hangar, debrief, parent corner.
 // Big touch targets, icons first, every important thing also spoken by the co-pilot.
 
+import { asset } from "../assets.ts";
 import { AIRCRAFT, aircraftById, carriesPassengers, isHelicopter, type AircraftDef } from "../data/aircraft.ts";
 import { AIRPORTS, airportByCode } from "../data/airports.ts";
 import { LINES, PASSENGERS, tpl, type Line, type Passenger } from "../data/lines.ts";
@@ -216,7 +217,7 @@ export class Screens {
     ];
     const found = new Set<string>();
     // A picture rendered from the real Cessna model, with a glowing spot on each part to tap.
-    const stage = h("div.meet-stage", {}, [h("img.meet-pic", { src: "./models/thumbs/meet-c172.webp", alt: "A Cessna 172 with parts to tap", draggable: false })]);
+    const stage = h("div.meet-stage", {}, [h("img.meet-pic", { src: asset("models/thumbs/meet-c172.webp"), alt: "A Cessna 172 with parts to tap", draggable: false })]);
     for (const part of parts) {
       const at = MEET_SPOTS[part.id];
       if (!at) continue;
@@ -390,7 +391,7 @@ export class Screens {
 
   /** A rendered picture of the playne (from its 3D model) on a sky-and-livery background. */
   private planePicture(ac: AircraftDef, big = false): HTMLElement {
-    const img = h("img.plane-pic", { src: `./models/thumbs/${ac.id}.webp`, alt: `${ac.maker} ${ac.model}`, draggable: false, loading: "lazy" });
+    const img = h("img.plane-pic", { src: asset(`models/thumbs/${ac.id}.webp`), alt: `${ac.maker} ${ac.model}`, draggable: false, loading: "lazy" });
     return h(`div.plane-swatch${big ? ".big" : ""}`, { style: { background: `linear-gradient(160deg, #d8ecfb 0%, #f4f9fd 60%, ${ac.livery.stripe}22 100%)` } }, [img]);
   }
 
@@ -472,7 +473,7 @@ export class Screens {
     const pic = this.planePicture(ac, true);
     pic.append(h("div.spin-hint", { "aria-hidden": "true" }, "👆 Drag to spin"));
     void import("./planeSpin.ts")
-      .then((m) => m.mountPlaneSpinner(pic, `./models/${ac.id}.glb`, (e) => console.warn("3D viewer unavailable", e)))
+      .then((m) => m.mountPlaneSpinner(pic, asset(`models/${ac.id}.glb`), (e) => console.warn("3D viewer unavailable", e)))
       .catch((e) => console.warn("3D viewer unavailable", e));
     const sheet = h("div.plane-sheet", { onclick: (e: Event) => e.target === sheet && close() }, [
       h("div.plane-sheet-card", {}, [
