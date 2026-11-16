@@ -9,16 +9,17 @@ const { chromium } = require("playwright");
   const [base, secsArg, variant = "base"] = process.argv.slice(2);
   const secs = Number(secsArg || 240);
   const browser = await chromium.launch({
-    proxy: process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY, bypass: "127.0.0.1,localhost" } : undefined,
+    proxy: (process.env.HTTPS_PROXY || process.env.https_proxy) ? { server: process.env.HTTPS_PROXY || process.env.https_proxy, bypass: "127.0.0.1,localhost" } : undefined,
     args: ["--enable-precise-memory-info", "--js-flags=--expose-gc"],
   });
-  const ctx = await browser.newContext({ viewport: { width: 960, height: 600 }, reducedMotion: "reduce" });
-  // The key comes from the network's saved credential (a header). Drop the placeholder key
-  // from the address, and say we're the game's website (for keys locked to it).
+  // Say we're the game's website (for keys locked to it).
+  const ctx = await browser.newContext({ viewport: { width: 960, height: 600 }, reducedMotion: "reduce", extraHTTPHeaders: { referer: "https://wordnerd235.github.io/Playnes/" } });
+  // The key comes from the network's saved credential (a header): drop the placeholder key
+  // from the address.
   await ctx.route(/tile\.googleapis\.com/, (route) => {
     const u = new URL(route.request().url());
     u.searchParams.delete("key");
-    route.continue({ url: u.toString(), headers: { ...route.request().headers(), referer: "https://wordnerd235.github.io/Playnes/" } });
+    route.continue({ url: u.toString() });
   });
   await ctx.addInitScript(() => {
     try {
