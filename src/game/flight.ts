@@ -2178,16 +2178,19 @@ export class FlightSession {
     const real = this.view.has3dCockpit;
     const drawn = inside && !real;
     if (this.cockpit.visible !== drawn) this.cockpit.show(drawn);
-    const pax = this.view.mode === "window";
+    // A modelled cabin is its own window frame; the others get the drawn porthole.
+    const pax = this.view.mode === "window" && !this.view.hasCabinSeat;
     if (this.paxWindow.visible !== pax) this.paxWindow.show(pax);
     if (this.view.model) this.view.model.show = !inside || real;
     this.hudGlass.place(inside && real && !this.paused ? this.view.hudOnScreen() : null);
-    if (!inside) return;
     const ref = this.arr && this.cruiseProgressFraction() > 0.5 ? this.arr : this.dep;
+    const altFt = this.phase === "cruise" ? this.ac.cruiseAltFt + this.cruise.altOffset / FT : (s.alt + ref.mslOffset) / FT;
+    this.view.altimeterFt = altFt;
+    if (!inside) return;
     if (real) {
       this.hudGlass.update({
         iasKt: indicated(s.speed, s.alt) / KT,
-        altFt: this.phase === "cruise" ? this.ac.cruiseAltFt + this.cruise.altOffset / FT : (s.alt + ref.mslOffset) / FT,
+        altFt,
         heading: s.heading,
         pitch: s.pitch,
         bank: s.bank,

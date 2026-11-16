@@ -1,6 +1,6 @@
 // Dev tool: render every playne model to a transparent picture for the hangar tiles, plus a big
 // side view of the Cessna (with tap spots) for the "Meet your playne" lesson.
-// Usage: serve the repo root on :8765, then  node tools/render-planes.cjs
+// Usage: serve the repo root on :8765, then  node tools/render-planes.cjs [id ...]
 // Writes public/models/thumbs/<id>.png and src/data/meetSpots.ts; then convert to WebP:
 //   python3 -c "from PIL import Image;import glob,os;[ (Image.open(f).convert('RGBA').save(f[:-4]+'.webp','WEBP',quality=82,method=6), os.remove(f)) for f in glob.glob('public/models/thumbs/*.png')]"
 const { chromium } = require("playwright");
@@ -8,17 +8,18 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.join(__dirname, "..");
-const ids = fs.readdirSync(path.join(root, "public/models")).filter((f) => f.endsWith(".glb") && !["ring.glb", "shadow.glb", "vaporcone.glb"].includes(f)).map((f) => f.replace(".glb", ""));
+const only = process.argv.slice(2); // optional: just these ids
+const ids = fs.readdirSync(path.join(root, "public/models")).filter((f) => f.endsWith(".glb") && !["ring.glb", "shadow.glb", "vaporcone.glb"].includes(f)).map((f) => f.replace(".glb", "")).filter((id) => !only.length || only.includes(id));
 const outDir = path.join(root, "public/models/thumbs");
 fs.mkdirSync(outDir, { recursive: true });
 
 // Cessna 172 parts in model coordinates (metres; nose +Z, up +Y, left wing +X).
 const MEET_POINTS = [
-  { id: "wings", p: [-3.9, 2.25, 0.4] },
-  { id: "tail", p: [0, 2.85, -3.4] },
-  { id: "prop", p: [0, 1.55, 4.55] },
-  { id: "wheels", p: [-1.25, 0.25, 0] },
-  { id: "cockpit", p: [-0.45, 2.05, 2.75] },
+  { id: "wings", p: [-3.9, 2.05, 0.1] },
+  { id: "tail", p: [0, 2.3, -5.1] },
+  { id: "prop", p: [0, 1.17, 2.62] },
+  { id: "wheels", p: [-1.27, 0.22, 0] },
+  { id: "cockpit", p: [-0.5, 1.62, 0.75] },
 ];
 
 (async () => {

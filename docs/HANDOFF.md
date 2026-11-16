@@ -20,7 +20,15 @@ and the model section of `docs/SETUP.md`.
 - **Also done in the test copy:** the audit's physics items 1 to 3 (turns now cost energy,
   stall speed rises in a turn, g limits; `src/sim/physics.ts`, with tests), and the cartoon
   map's trees and buildings (see "Trees and buildings" below).
-- **Not done:** every other aircraft, passenger cabins, and the rest of the audit's list
+- **Also done in the test copy:** the Cessna 172 (`scripts/model-c172.mjs`), built from its
+  real dimensions: fuselage with see-through cabin glass, strut-braced high wing with flaps and
+  ailerons, fixed gear with teardrop wheel covers, a steering nose wheel and turning wheels, a
+  full cabin (panel with six dials, radios, two yokes, pedals, two front seats and a rear
+  bench, a pilot). The airspeed, altimeter and attitude dials move with the flight. The
+  propeller becomes a faint blur disc once it is turning fast, and from the pilot's seat only
+  the disc shows. The passenger-window view sits on the rear bench (`rig.windowEye`) instead of
+  the drawn porthole. "Meet your playne" and the hangar picture were re-rendered.
+- **Not done:** the other thirteen aircraft, a jet passenger cabin, and the rest of the audit's list
   (per-type truth, "Real controls", "real stalls", wind).
 - The owner has seen the F-16 exterior pictures and the first cockpit; they have **not yet
   reported on the test copy on an iPad or in Google mode**. Ask before assuming it is fine.
@@ -97,7 +105,8 @@ it move with another node.
 gear is out), `ailL ailR elevL elevR rudder flapL flapR` (hinges: for surfaces whose hinge points
 toward +X, negative = trailing edge down; rudder positive = trailing edge right),
 `brakeLU brakeLD brakeRU brakeRD`, `burner` (shown above 93% power), `strobe`, `beacon`,
-`prop`, `pilot` and `canopy` (hidden in the cockpit view). Old models keep the single `gear`
+`prop`, `pilot` and `canopy` (hidden in the cockpit view), and on the Cessna `needleIas`,
+`needleAlt`, `attBall` (panel dials, turned about local Z) and `propDisc` (the blur disc). Old models keep the single `gear`
 node that is just shown or hidden.
 
 **The 3D cockpit:** if a rig has `eye` (the pilot's eye in model coordinates) the cockpit view
@@ -129,7 +138,11 @@ Model coordinates `(x, y, z)` become Cesium model-frame `(z, x, y)` (forward, le
    `public/models/thumbs/<id>.webp`. Then unit tests, commit, deploy, and tell the owner what
    was and wasn't tested.
 
-**For passenger cabins** (not started): the same trick as the cockpit tub should work. Cut the
+**Interior lighting:** a closed cabin bakes almost black with the full shadow strength. Give
+interior parts `aoStrength` (the Cessna uses 0.42); `bakeAO` reads it per part.
+
+**For passenger cabins** (the Cessna's rear bench and `rig.windowEye` prove the window view;
+a jet cabin is not started): the same trick as the cockpit tub should work. Cut the
 cabin into the fuselage rings, cut real window openings (or use a see-through material for the
 window band), put seats and a floor inside, and add `rig.windowEye` for the passenger-window
 view so it looks out from a real seat. Draw the interior only when the camera is close or
@@ -161,6 +174,11 @@ stays in pixels even when the size is in metres), which is why the frames are la
 - **Letters sunk into the fuselage.** The body narrows toward the top; `xAt` must use the
   letter's own height (`xAt(z, y)`), not one height for the whole line.
 - **Seat through the canopy.** The first seat was sized by eye. See recipe step 5.
+- **A body panel looked grey from outside.** `sheet()` faces its triangles by the order of the
+  points: rows running nose to tail with each ring going right-to-left gives inward faces, and
+  the shadow bake then "sees" the cabin interior and darkens the skin. Run the ring the other
+  way (the Cessna's `uRing` returns its points reversed).
+- **A still frame of a propeller is a frozen blade.** Fast props need a blur disc (`propDisc`).
 - **Paint looks darker in the game than in the preview tool.** The game's lighting is harsher
   than the preview's. Judge colours from `tools/shot-plane.cjs`, not the preview.
 - **The game hid the whole model in cockpit view** (the old flat-panel approach). Anything with
@@ -193,10 +211,10 @@ upgrade Cesium casually, and re-run `tools/diag-google.cjs` if you do.
 
 1. Get the owner's verdict on the F-16 in the test copy (iPad, and Google mode).
 2. (Done: the audit's physics items 1 to 3.)
-3. The next aircraft. The Cessna 172 is the best second one (it is the first playne every
-   player flies, has the simplest cabin, and "Meet your playne" uses its picture, whose tap
-   spots come from `tools/render-planes.cjs`). Then one cabin-class jet to prove the passenger
-   interior, then roll the pattern out to the rest.
+3. (Done: the Cessna 172.) Next, one cabin-class jet to prove the passenger interior (the
+   Phenom 300E or the PC-12 are good choices), then roll the pattern out to the rest.
+   `node tools/render-planes.cjs <id>` re-renders just one hangar picture (and always the
+   "Meet your playne" picture and its tap spots).
 4. Per-type truth from the audit (reversers only where real, F-16 automatic flaps, Chinook
    water landings), then "Real controls" and "real stalls" as grown-up settings.
 5. (Done: cartoon-map trees and buildings.)

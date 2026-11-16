@@ -9,9 +9,31 @@ export interface Rig {
   eye?: number[];
   /** The HUD glass: its centre and half its height, in the same coordinates. */
   hud?: { centre: number[]; halfHeight: number };
+  /** A passenger's eye, for the window view from a modelled cabin. */
+  windowEye?: number[];
 }
 
 export const RIGS: Record<string, Rig> = {
+  "c172": {
+    "retractDeg": {
+      "gearN": 0
+    },
+    "wheelRadius": {
+      "wheelL": 0.215,
+      "wheelR": 0.215,
+      "wheelN": 0.19
+    },
+    "eye": [
+      0.27,
+      1.65,
+      0.46
+    ],
+    "windowEye": [
+      0.22,
+      1.56,
+      -0.42
+    ]
+  },
   "f16": {
     "retractDeg": {
       "gearL": 123.5,

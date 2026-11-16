@@ -6,7 +6,7 @@ import { Cartesian3, Cartesian4, Cartographic, Color, Matrix3, Matrix4, Model, T
 import { RIGS } from "../data/rigs.ts";
 import type { AircraftDef } from "../data/aircraft.ts";
 import { angleDiff, clamp, DEG, destination, type LatLon } from "../sim/geo.ts";
-import { speedOfSound, type FlightState } from "../sim/physics.ts";
+import { indicated, speedOfSound, type FlightState } from "../sim/physics.ts";
 import type { World } from "../world/world.ts";
 
 export type CameraMode = "chase" | "cockpit" | "window";
@@ -49,6 +49,8 @@ export class PlaneView {
   lookYaw = 0;
   lookPitch = 0;
   mode: CameraMode = "chase";
+  /** What the panel altimeter reads (feet above the sea), set by the flight each frame. */
+  altimeterFt: number | null = null;
   /** Camera shake amount (meters), decays (crash effect). */
   shake = 0;
 
@@ -60,7 +62,7 @@ export class PlaneView {
     scene.primitives.add(this.model);
     this.world.exclude.push(this.model);
     this.model.readyEvent.addEventListener(() => {
-      for (const n of ["gear", "prop", "flapL", "flapR", "ailL", "ailR", "elevL", "elevR", "rudder", "beacon", "strobe", "rotorF", "rotorR", "gearL", "gearR", "gearN", "wheelL", "wheelR", "wheelN", "gearDoors", "brakeLU", "brakeLD", "brakeRU", "brakeRD", "burner", "pilot", "canopy"]) {
+      for (const n of ["gear", "prop", "flapL", "flapR", "ailL", "ailR", "elevL", "elevR", "rudder", "beacon", "strobe", "rotorF", "rotorR", "gearL", "gearR", "gearN", "wheelL", "wheelR", "wheelN", "gearDoors", "brakeLU", "brakeLD", "brakeRU", "brakeRD", "burner", "pilot", "canopy", "needleIas", "needleAlt", "attBall", "propDisc"]) {
         try {
           const node = this.model!.getNode(n) ?? null;
           this.nodes[n] = node;
@@ -158,6 +160,13 @@ export class PlaneView {
     if (n.prop) {
       this.propAngle += dt * (10 + s.throttle * 55);
       n.prop.matrix = Matrix4.multiply(Matrix4.fromTranslation(this.propT), Matrix4.fromRotation(Matrix3.fromRotationZ(this.propAngle)), new Matrix4());
+      // Once it's turning fast, show the blur disc; from the pilot's seat the blades vanish into it
+      // (a single still frame of a 2,400 rpm propeller would otherwise look like a frozen blade).
+      if (n.propDisc) {
+        const fast = s.throttle > 0.15 || !s.onGround;
+        n.propDisc.show = fast;
+        n.prop.show = !(fast && this.mode === "cockpit");
+      }
     }
     // Chinook: the two rotors turn opposite ways (a blur of blades, faster with more lift).
     if (n.rotorF && n.rotorR && this.rotorT.rotorF && this.rotorT.rotorR) {
@@ -194,6 +203,11 @@ export class PlaneView {
     return !!RIGS[this.ac.id]?.eye;
   }
 
+  /** This playne has a modelled cabin seat for the passenger's window view. */
+  get hasCabinSeat(): boolean {
+    return !!RIGS[this.ac.id]?.windowEye;
+  }
+
   /** Where the HUD glass is on screen right now (null if it isn't in view). */
   hudOnScreen(): { x: number; y: number; half: number; degHalf: number } | null {
     const rig = RIGS[this.ac.id];
@@ -218,8 +232,23 @@ export class PlaneView {
     if (rig.eye) {
       const inside = this.mode === "cockpit";
       if (n.pilot) n.pilot.show = !inside;
-      if (n.canopy) n.canopy.show = !inside;
+      if (n.canopy) n.canopy.show = !inside && !(this.mode === "window" && rig.windowEye);
     }
+    // Panel instruments that work: airspeed (one turn = 200 kt, nearly), altimeter (one turn of
+    // the long hand = 1,000 ft), and the attitude ball (rolls opposite the bank, drops as the
+    // nose rises). Turning about local Z is clockwise as the pilot sees it.
+    const turn = (name: string, rad: number, dy = 0) => {
+      const node = n[name], orig = this.originals[name];
+      if (!node || !orig) return;
+      const m = Matrix4.multiply(orig, Matrix4.fromRotation(Matrix3.fromRotationZ(rad)), new Matrix4());
+      if (dy) Matrix4.multiply(m, Matrix4.fromTranslation(new Cartesian3(0, dy, 0)), m);
+      node.matrix = m;
+    };
+    const kt = indicated(s.speed, s.alt) * 1.94384;
+    turn("needleIas", (clamp(kt, 0, 200) / 200) * 330 * DEG);
+    const ft = Math.max(0, this.altimeterFt ?? s.alt * 3.28084);
+    turn("needleAlt", ((ft % 1000) / 1000) * 2 * Math.PI);
+    turn("attBall", -s.bank * DEG, -clamp(s.pitch, -20, 20) * 0.0003);
     // Legs take about 2.5 s to travel. (dt 0 = placing the model: jump to where it should be.)
     const want = s.gearDown ? 1 : 0;
     this.gearT = dt === 0 ? want : clamp(this.gearT + Math.sign(want - this.gearT) * (dt / 2.5), 0, 1);
@@ -288,16 +317,19 @@ export class PlaneView {
       const base = frameVectors(s, s.alt, s.heading, s.pitch, s.bank);
       const D = this.ac.shape.fuselageDiameter;
       const left = Cartesian3.negate(base.right, new Cartesian3());
+      // A modelled cabin has a real seat; the others float just outside the skin.
+      const seat = RIGS[this.ac.id]?.windowEye;
+      const [sx, sy, sz] = seat ?? [D * 0.5 + 0.12, D * 0.75 + 0.75, L * 0.12];
       const eye = Cartesian3.add(
         base.pos,
         Cartesian3.add(
-          Cartesian3.add(Cartesian3.multiplyByScalar(base.fwd, L * 0.12, new Cartesian3()), Cartesian3.multiplyByScalar(left, D * 0.5 + 0.12, new Cartesian3()), new Cartesian3()),
-          Cartesian3.multiplyByScalar(base.up, D * 0.75 + 0.75, new Cartesian3()),
+          Cartesian3.add(Cartesian3.multiplyByScalar(base.fwd, sz, new Cartesian3()), Cartesian3.multiplyByScalar(left, sx, new Cartesian3()), new Cartesian3()),
+          Cartesian3.multiplyByScalar(base.up, sy, new Cartesian3()),
           new Cartesian3(),
         ),
         new Cartesian3(),
       );
-      const f = frameVectors(s, s.alt, s.heading - 112 + this.lookYaw, s.pitch - 10 + this.lookPitch, s.bank);
+      const f = frameVectors(s, s.alt, s.heading - (seat ? 88 : 112) + this.lookYaw, s.pitch - 10 + this.lookPitch, s.bank);
       const ec = Cartographic.fromCartesian(eye);
       const safe = this.aboveTerrain(ec.latitude / DEG, ec.longitude / DEG, ec.height);
       const dest = safe === ec.height ? eye : Cartesian3.fromRadians(ec.longitude, ec.latitude, safe);
@@ -317,6 +349,8 @@ export class PlaneView {
         Cartesian3.add(Cartesian3.multiplyByScalar(base.fwd, ahead, new Cartesian3()), Cartesian3.multiplyByScalar(base.up, above, new Cartesian3()), new Cartesian3()),
         new Cartesian3(),
       );
+      // A side-by-side cockpit: the pilot sits left of the middle (model +x is left).
+      if (at?.[0]) Cartesian3.add(eye, Cartesian3.multiplyByScalar(base.right, -at[0], new Cartesian3()), eye);
       const ec = Cartographic.fromCartesian(eye);
       const safe = this.aboveTerrain(ec.latitude / DEG, ec.longitude / DEG, ec.height);
       const dest = safe === ec.height ? eye : Cartesian3.fromRadians(ec.longitude, ec.latitude, safe);
