@@ -31,7 +31,7 @@ import { CartoonData } from "./cartoon.ts";
 import { Scenery } from "./scenery.ts";
 import { AirportBuildings } from "./buildings.ts";
 import { LandmarkMarkers } from "./landmarks.ts";
-import { detailBudget } from "./device.ts";
+import { detailBudget, deviceClass } from "./device.ts";
 import { DetailGovernor } from "./governor.ts";
 import { degrade, FEATURE_NAMES, gfxOn, type GfxFeature } from "./safety.ts";
 
@@ -313,8 +313,14 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
 
   // Cesium never lets go of the tile tree it has explored (only the tiles' contents), so on
   // a long flight - above all a fast jet's - memory and per-frame work grow with the ground
-  // covered until it crawls. Every ~150 km (or 25 minutes), load a fresh copy of the 3D world
-  // in the background, switch over once it has the ground around us, and drop the old one.
+  // covered until it crawls. When the explored tree has grown to ~3x its size just after the
+  // last fresh start (or after ~90 km on iPhone/iPad, 150 km on a computer, or 15 minutes),
+  // load a fresh copy of the 3D world in the background, switch over once it has the ground
+  // around us, and drop the old one.
+  const mobile = deviceClass() !== "desktop";
+  const maxTravel = mobile ? 90_000 : 150_000;
+  const treeSize = () => (tileset as unknown as { _statistics?: { numberOfTilesTotal?: number } })._statistics?.numberOfTilesTotal ?? 0;
+  let treeBaseline = 0;
   let travel = 0;
   let lastMotion = performance.now();
   let createdAt = performance.now();
@@ -350,6 +356,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       scene.primitives.remove(old); // destroys it, tile tree and all
       for (const m of heightMemo) m.t = -1e9;
       travel = 0;
+      treeBaseline = 0;
       createdAt = performance.now();
     } catch (e) {
       console.warn("Couldn't refresh the 3D world; keeping the current one", e);
@@ -406,7 +413,11 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       const now = performance.now();
       travel += speed * Math.min(1, (now - lastMotion) / 1000);
       lastMotion = now;
-      if (!recycling && (travel > 150_000 || (now - createdAt > 25 * 60_000 && travel > 30_000))) void recycle();
+      const age = now - createdAt;
+      // The tree's size ~30 s after a fresh start is "normal" for this flight.
+      if (!treeBaseline && age > 30_000) treeBaseline = Math.max(2000, treeSize());
+      const treeGrown = treeBaseline > 0 && treeSize() > treeBaseline * 3;
+      if (!recycling && age > 90_000 && (treeGrown || travel > maxTravel || (age > 15 * 60_000 && travel > 20_000))) void recycle();
       if (now - lastSpeedApply < 500) return;
       lastSpeedApply = now;
       // 1x up to ~230 kt, up to 3x at Mach speeds.
