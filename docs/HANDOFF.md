@@ -221,6 +221,13 @@ stays in pixels even when the size is in metres), which is why the frames are la
   side-on photo against the real length (grid overlay) for ride height, nose, wing sweep,
   engine and fin positions and window spacing. The Phenom was 34 cm too low and its engines
   and fin 1.5 m and 0.35 m too far back before this check.
+- **Outline overlay against a side-on photo** is the quickest way to catch proportion errors:
+  render a near-orthographic side view (`eye=80,1.5,-1.3&at=0,1.3,-1.3&fov=7.5`), scale it to
+  the photo by overall length, align the wheels, and draw its outline over the photo. It showed
+  the Cessna's belly, cowling and tailcone 20 cm too high and its fin too tall and too far back.
+- **Joining differently shaped sections:** where a round section (the Cessna's cowling) meets
+  a boxy one (its cabin), blend the last stretch of one into the other's exact cross-section;
+  butting them together left a gap with sky showing through underneath.
 - **Automatic interior check:** `model-phenom300.mjs` ends by testing every interior part's
   corners against the fuselage cross-section and prints any that poke through the skin. Keep
   it (and copy it into the next cabin model); it found four that renders had missed.

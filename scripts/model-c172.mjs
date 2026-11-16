@@ -40,14 +40,7 @@ export function buildC172(ac, kit) {
   // ---- colours: classic white with a red-and-blue side stripe
   const cWhite = C(ac.livery.body), cRed = C(ac.livery.stripe), cBlue = C(ac.livery.accent);
   const cLine = C("#9aa0a6"), cBlack = C("#16181b"), cMetal = C("#9aa0a7"), cTyre = C("#1c1d1f");
-  /** Side stripe: a red band with a thin blue one under it, along the whole fuselage. */
-  const stripeAt = (p) => {
-    const y0 = 1.13 - Math.max(0, -p.z - 0.8) * 0.018;
-    if (p.y > y0 && p.y < y0 + 0.085) return cRed;
-    if (p.y > y0 - 0.05 && p.y < y0 - 0.02) return cBlue;
-    return null;
-  };
-  const skin = (p, n) => (Math.abs(n.x) > 0.35 ? stripeAt(p) : null) ?? cWhite;
+  const skin = cWhite; // the side stripe is drawn as thin ribbons on the skin (below), so its edges are clean
 
   const superRing = (z, hw, top, bot, e, n = 48) => {
     const yc = (top + bot) / 2, hh = (top - bot) / 2;
@@ -67,29 +60,56 @@ export function buildC172(ac, kit) {
 
   // ---- cowling: [z, half-width, top, bottom, roundness]
   const cowl = curve([
-    [2.46, 0.3, 1.36, 0.97, 2.4],
-    [2.36, 0.4, 1.41, 0.88, 2.6],
-    [2.1, 0.46, 1.43, 0.8, 2.8],
-    [1.7, 0.5, 1.43, 0.76, 3.0],
-    [1.32, 0.53, 1.43, 0.73, 3.2],
+    [2.46, 0.3, 1.36, 0.93, 2.4],
+    [2.36, 0.4, 1.41, 0.8, 2.6],
+    [2.1, 0.46, 1.43, 0.68, 2.8],
+    [1.7, 0.5, 1.43, 0.6, 3.0],
+    [1.32, 0.53, 1.43, 0.56, 3.2],
   ]);
-  const czs = [];
-  for (let z = 2.46; z > 1.32; z -= 0.08) czs.push(z);
-  czs.push(1.32);
-  add("body", part(smooth(loft(czs.map((z) => superRing(z, ...cowl(z))))), MAT.paint, skin));
   // Air intakes either side of the spinner, oil door on top, exhaust under the right side.
   for (const side of [1, -1]) {
     const g = new THREE.CylinderGeometry(0.075, 0.075, 0.03, 18).applyMatrix4(RX(Math.PI / 2)).applyMatrix4(new THREE.Matrix4().makeScale(1.25, 0.8, 1)).applyMatrix4(T(side * 0.2, 1.1, 2.465));
     add("body", part(g, MAT.dark, cBlack, { noAO: true }));
   }
-  add("body", part(new THREE.BoxGeometry(0.22, 0.012, 0.28).applyMatrix4(T(0, 1.435, 1.78)), MAT.paint, cLine, { noAO: true, noOcclude: true }));
-  add("body", part(cylinderBetween(V(-0.18, 0.8, 1.6), V(-0.2, 0.72, 1.35), 0.025, 10), MAT.metal, C("#6a6560")));
+  add("body", part(new THREE.BoxGeometry(0.22, 0.006, 0.28).applyMatrix4(T(0, 1.432, 1.78)), MAT.paint, C("#e2e4e6"), { noAO: true, noOcclude: true }));
+  add("body", part(cylinderBetween(V(-0.18, 0.66, 1.56), V(-0.2, 0.52, 1.42), 0.025, 10), MAT.metal, C("#6a6560")));
   // Landing light in the front of the cowling.
   add("body", part(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 14).applyMatrix4(RX(Math.PI / 2)).applyMatrix4(T(0.05, 0.94, 2.43)), MAT.white, C("#ffffff"), { noAO: true }));
 
   // ---- cabin: the lower body up to the window sill (an open U-shape along the cabin)
-  const SILL = 1.3, ROOF = 1.9, BELLY = 0.72;
+  const SILL = 1.3, ROOF = 1.9, BELLY = 0.55; // belly checked against a side-on photo
   const cabinHW = (z) => lerp(0.535, 0.56, Math.min(1, Math.max(0, (1.4 - z) / 0.4)));
+  // The cowling is round and the cabin below the windows is a box with rounded corners; over
+  // the cowling's last 30 cm its lower half blends into the cabin's exact shape, so the two meet
+  // with no step or gap (they used to be butted together, leaving sky showing underneath).
+  const cowlBlend = (z) => Math.min(1, Math.max(0, (1.7 - z) / 0.3));
+  const cabinEdge = (z, cy, dx, dy) => {
+    // Where a ray from (0, cy) in direction (dx, dy) leaves the cabin's rounded box.
+    const hw = cabinHW(z), r = 0.2, bx = 0, by = (BELLY + SILL) / 2, hx = hw, hy = (SILL - BELLY) / 2;
+    const sdf = (x, y) => {
+      const qx = Math.abs(x - bx) - (hx - r), qy = Math.abs(y - by) - (hy - r);
+      return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
+    };
+    let lo = 0, hi = 2;
+    for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (sdf(dx * m, cy + dy * m) < 0) lo = m; else hi = m; }
+    return [dx * lo, cy + dy * lo];
+  };
+  const cowlRing = (z) => {
+    const [hw, top, bot, e] = cowl(z), cy = (top + bot) / 2, w = cowlBlend(z);
+    return superRing(z, hw, top, bot, e).map((p) => {
+      const wy = w * Math.min(1, Math.max(0, (SILL - 0.02 - p.y) / 0.15));
+      if (wy <= 0) return p;
+      const len = Math.hypot(p.x, p.y - cy) || 1;
+      const [tx, ty] = cabinEdge(z, cy, p.x / len, (p.y - cy) / len);
+      return V(lerp(p.x, tx, wy), lerp(p.y, ty, wy), z);
+    });
+  };
+  {
+    const czs = [];
+    for (let z = 2.46; z > 1.4; z -= 0.06) czs.push(z);
+    czs.push(1.4);
+    add("body", part(smooth(loft(czs.map(cowlRing))), MAT.paint, skin));
+  }
   const uRing = (z) => {
     const hw = cabinHW(z), r = 0.2, pts = [];
     pts.push(V(hw, SILL, z));
@@ -113,8 +133,8 @@ export function buildC172(ac, kit) {
   // Door seams (thin grey lines just proud of the skin) and handles.
   for (const side of [1, -1]) {
     const x = side * 0.565;
-    for (const z of [1.28, 0.06]) add("body", part(new THREE.BoxGeometry(0.004, SILL - 0.8, 0.012).applyMatrix4(T(x, (SILL + 0.8) / 2, z)), MAT.paint, cLine, { noAO: true, noOcclude: true }));
-    add("body", part(new THREE.BoxGeometry(0.004, 0.012, 1.22).applyMatrix4(T(x, 0.8, 0.67)), MAT.paint, cLine, { noAO: true, noOcclude: true }));
+    for (const z of [1.28, 0.06]) add("body", part(new THREE.BoxGeometry(0.004, SILL - 0.76, 0.012).applyMatrix4(T(x, (SILL + 0.76) / 2, z)), MAT.paint, cLine, { noAO: true, noOcclude: true }));
+    add("body", part(new THREE.BoxGeometry(0.004, 0.012, 1.22).applyMatrix4(T(x, 0.76, 0.67)), MAT.paint, cLine, { noAO: true, noOcclude: true }));
     add("body", part(new THREE.BoxGeometry(0.02, 0.025, 0.12).applyMatrix4(T(side * 0.572, 1.18, 0.2)), MAT.metal, cMetal));
   }
 
@@ -162,14 +182,14 @@ export function buildC172(ac, kit) {
 
   // ---- tailcone: [z, half-width, top, bottom, roundness]; the rear window is in its top
   const tail = curve([
-    [-0.8, 0.56, 1.9, 0.72, 3.4],
-    [-1.2, 0.53, 1.8, 0.74, 3.0],
-    [-1.8, 0.47, 1.66, 0.79, 2.6],
-    [-2.6, 0.38, 1.55, 0.87, 2.3],
-    [-3.5, 0.28, 1.47, 0.95, 2.1],
-    [-4.4, 0.19, 1.41, 1.02, 2.0],
-    [-5.2, 0.11, 1.38, 1.08, 2.0],
-    [-5.5, 0.04, 1.36, 1.12, 2.0],
+    [-0.8, 0.56, 1.9, 0.55, 3.4],
+    [-1.2, 0.53, 1.8, 0.58, 3.0],
+    [-1.8, 0.47, 1.66, 0.64, 2.6],
+    [-2.6, 0.38, 1.55, 0.73, 2.3],
+    [-3.5, 0.28, 1.47, 0.84, 2.1],
+    [-4.4, 0.19, 1.41, 0.95, 2.0],
+    [-5.2, 0.11, 1.38, 1.05, 2.0],
+    [-5.5, 0.04, 1.36, 1.1, 2.0],
   ]);
   const tailX = halfWidthAt(tail);
   // The tailcone is open at the front (it joins the cabin) and has a real rear window: the
@@ -187,13 +207,13 @@ export function buildC172(ac, kit) {
       for (let j = 0; j < TN; j++) {
         if (keep(zc, ((j + 0.5) / TN) * Math.PI * 2) === false) continue;
         const a = i * TN + j, b = i * TN + ((j + 1) % TN), c = (i + 1) * TN + j, d = (i + 1) * TN + ((j + 1) % TN);
-        idx.push(a, b, c, b, d, c);
+        idx.push(a, c, b, b, c, d); // faces outward (the shadow bake looks along the normals)
       }
     }
     if (inset === 0) {
       const tip = pos.length / 3, last = tzs.length - 1, zl = tzs[last], [, tt, tb] = tail(zl);
       pos.push(0, (tt + tb) / 2, zl - 0.01);
-      for (let j = 0; j < TN; j++) idx.push(tip, last * TN + ((j + 1) % TN), last * TN + j);
+      for (let j = 0; j < TN; j++) idx.push(tip, last * TN + j, last * TN + ((j + 1) % TN));
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
@@ -203,6 +223,34 @@ export function buildC172(ac, kit) {
   };
   add("body", part(tailSkin(0, (zc, ac) => !inRearWindow(zc, ac)), MAT.paint, skin));
   add("canopy", part(tailSkin(0.004, (zc, ac) => inRearWindow(zc, ac)), XMAT.glass, C("#ffffff"), { noAO: true, noOcclude: true }));
+
+  // ---- side stripe: a red band with a thin blue one under it, nose to tail, as ribbons laid on
+  // the skin (painting it into the skin's colours gave blurry, saw-toothed edges)
+  {
+    const cowlX = halfWidthAt(cowl);
+    const sideX = (z, y) => (z > 1.4 ? lerp(cowlX(Math.min(z, 2.46), y), cabinHW(z), cowlBlend(z)) : z > -0.8 ? cabinHW(z) : tailX(z, y));
+    const y0 = (z) => 1.13 - Math.max(0, -z - 0.8) * 0.018;
+    const ribbon = (side, zFrom, zTo, lo, hi, colour) => {
+      const pos = [], idx = [];
+      const n = Math.ceil((zFrom - zTo) / 0.06);
+      for (let i = 0; i <= n; i++) {
+        const z = lerp(zFrom, zTo, i / n);
+        for (const y of [lo(z), hi(z)]) pos.push(side * (sideX(z, y) + 0.003), y, z);
+        if (i) idx.push(2 * i - 2, 2 * i, 2 * i - 1, 2 * i - 1, 2 * i, 2 * i + 1);
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      g.setIndex(side > 0 ? idx : idx.map((v, k) => idx[k - (k % 3) + [0, 2, 1][k % 3]]));
+      g.computeVertexNormals();
+      add("body", part(g, MAT.paint, colour, { noOcclude: true }));
+    };
+    for (const side of [1, -1]) {
+      // Both bands taper to a point on the tailcone before it gets too thin to carry them.
+      const t = (z) => Math.min(1, Math.max(0, (z + 4.3) / 0.7));
+      ribbon(side, 2.38, -4.3, y0, (z) => y0(z) + 0.085 * t(z), cRed);
+      ribbon(side, 2.3, -4.3, (z) => y0(z) - 0.02 - 0.03 * t(z), (z) => y0(z) - 0.02, cBlue);
+    }
+  }
 
   // ---- wings: constant chord to 2.6 m out, then tapering (the trailing edge stays straight)
   const DIH = (1.73 * Math.PI) / 180;
@@ -229,7 +277,7 @@ export function buildC172(ac, kit) {
     mk(FLAP, FCUT, side > 0 ? "flapL" : "flapR");
     mk(AIL, ACUT, side > 0 ? "ailL" : "ailR");
     // Wing strut, from the bottom of the cabin to about 55% of the way out.
-    add("body", part(cylinderBetween(V(side * 0.5, 0.86, 0.02), V(side * 2.95, wingY(2.95) - 0.08, 0.28), 0.032, 10).applyMatrix4(new THREE.Matrix4()), MAT.paint, cWhite));
+    add("body", part(cylinderBetween(V(side * 0.53, 0.74, 0.02), V(side * 2.95, wingY(2.95) - 0.08, 0.28), 0.032, 10).applyMatrix4(new THREE.Matrix4()), MAT.paint, cWhite));
     // Fuel cap near the root, navigation and strobe lights at the tip.
     add("body", part(new THREE.CylinderGeometry(0.035, 0.035, 0.012, 12).applyMatrix4(T(side * 1.6, wingY(1.6) + 0.1, 0.25)), MAT.metal, cMetal));
     add("body", part(new THREE.SphereGeometry(0.035, 10, 8).applyMatrix4(T(side * (XT + 0.07), wingY(XT) + 0.02, leAt(XT) - 0.15)), side > 0 ? MAT.navRed : MAT.navGreen, C("#ffffff"), { noAO: true }));
@@ -250,7 +298,7 @@ export function buildC172(ac, kit) {
   }
 
   // ---- fin, rudder and the dorsal fillet in front of it
-  const fin = { rootLE: V(0, 1.4, -4.12), tipLE: V(0, 2.72, -5.0), rootChord: 1.38, tipChord: 0.8 };
+  const fin = { rootLE: V(0, 1.4, -3.85), tipLE: V(0, 2.58, -5.0), rootChord: 1.4, tipChord: 0.8 };
   const RF = 0.4;
   const finColor = (p) => (p.y > 2.2 && p.y < 2.33 ? cRed : p.y > 2.15 && p.y < 2.19 ? cBlue : cWhite);
   add("body", part(surface({ rootLE: fin.rootLE, tipLE: fin.tipLE, rootChord: fin.rootChord, tipChord: fin.tipChord, thickness: 0.1, camber: 0, up: V(1, 0, 0), stations: [{ t: 0, cut: 1 - RF }, { t: 1, cut: 1 - RF }] }), MAT.paint, finColor));
@@ -269,7 +317,7 @@ export function buildC172(ac, kit) {
       const yc = (top + bot) / 2, hh = (top - bot) / 2;
       return yc + hh * Math.max(0, 1 - Math.abs(x / hw) ** e) ** (1 / e);
     };
-    const Z0 = -2.25, Z1 = -4.45, ZE = -4.95; // starts, meets the fin's leading edge, ends
+    const Z0 = -2.1, Z1 = -4.2, ZE = -4.75; // starts, meets the fin's leading edge, ends
     const rings = [];
     for (let i = 0; i <= 18; i++) {
       const z = lerp(Z0, ZE, i / 18);
@@ -295,7 +343,7 @@ export function buildC172(ac, kit) {
     }
     add("body", part(smooth(loft(rings)), MAT.paint, cWhite));
   }
-  nodes.beacon = { parts: [part(new THREE.SphereGeometry(0.045, 10, 8), MAT.navRed, C("#ffffff"), { noAO: true })], translation: [0, 2.76, -5.25] };
+  nodes.beacon = { parts: [part(new THREE.SphereGeometry(0.045, 10, 8), MAT.navRed, C("#ffffff"), { noAO: true })], translation: [0, 2.63, -5.25] };
   // Antennas: a whip on the roof and the navigation "V" on the fin.
   add("body", part(cylinderBetween(V(0, ROOF + 0.25, -0.3), V(0, ROOF + 0.9, -0.55), 0.006, 6), MAT.dark, cBlack));
   for (const side of [1, -1]) add("body", part(cylinderBetween(V(0, 2.0, -4.6), V(side * 0.35, 2.12, -4.35), 0.006, 6), MAT.metal, cMetal));
