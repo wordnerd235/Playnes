@@ -13,6 +13,7 @@
 //
 // Nodes the game animates (src/game/planeView.ts):
 //   flapL flapR ailL ailR    hinge about local X (negative = trailing edge down)
+//   attBall attBall2         the two PFDs' attitude balls: turn with the bank, drop as the nose rises
 //   elevL elevR rudder       hinges
 //   gearL gearR gearN        legs: rotate about their local X to retract (angles in the rig)
 //   wheelL wheelR wheelN     spin about local X (children of the legs)
@@ -30,7 +31,9 @@ export function buildPhenom300(ac, kit) {
   const extraMaterials = [
     { name: "cabinGlass", pbrMetallicRoughness: { baseColorFactor: [0.3, 0.38, 0.46, 0.4], metallicFactor: 0.85, roughnessFactor: 0.04 }, alphaMode: "BLEND", doubleSided: true },
     { name: "fabric", pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: 0.85 }, doubleSided: true },
-    { name: "display", pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: 0.9 }, emissiveFactor: [0.32, 0.32, 0.32] },
+    // Screens glow in their own colours whatever the light (unlit): a grey glow added on top washed
+    // every colour out to blank-looking grey.
+    { name: "display", pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: 1 }, extensions: { KHR_materials_unlit: {} }, doubleSided: true },
     // The skin is two-sided: from the cockpit you see the inside of the frame around the windshield.
     { name: "skin", pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], metallicFactor: 0.2, roughnessFactor: 0.3 }, doubleSided: true },
     { name: "leather", pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: 0.55 }, doubleSided: true },
@@ -670,32 +673,97 @@ export function buildPhenom300(ac, kit) {
   for (const side of [1, -1]) seat(at(side * 0.36, 0.75, 4.9), { width: 0.5, colour: cPilotSeat, trim: C("#3f4246"), rec: 0.2, backLen: 0.68 });
   add("body", part(box(1.5, 0.54, 0.08, 0, 1.4, PZ + 0.04), MAT.dark, C("#2a2d31"), INSIDE));
   add("body", part(box(1.4, 0.05, 0.28, 0, 1.69, PZ + 0.1), MAT.dark, cBlack, INSIDE));
-  const screen = (x, kind) => {
-    const z = PZ - 0.004, cy = 1.49, w = 0.3, h = 0.2;
-    add("body", part(box(w + 0.03, h + 0.03, 0.01, x, cy, z + 0.002), MAT.dark, C("#101215"), { noAO: true }));
-    if (kind === "pfd") {
-      add("body", part(box(w * 0.62, h * 0.5, 0.004, x, cy + h * 0.25, z - 0.004), XMAT.display, C("#1f6fd6"), { noAO: true }));
-      add("body", part(box(w * 0.62, h * 0.5, 0.004, x, cy - h * 0.25, z - 0.004), XMAT.display, C("#8a4f1c"), { noAO: true }));
-      add("body", part(box(w * 0.62, 0.004, 0.004, x, cy, z - 0.007), XMAT.display, C("#ffffff"), { noAO: true }));
-      for (const sx of [-1, 1]) add("body", part(box(w * 0.14, h * 0.86, 0.004, x + sx * w * 0.4, cy, z - 0.006), XMAT.display, C("#30343a"), { noAO: true }));
-      add("body", part(box(0.06, 0.006, 0.004, x, cy - 0.006, z - 0.009), XMAT.display, C("#f2c230"), { noAO: true }));
-    } else {
-      add("body", part(box(w, h, 0.004, x, cy, z - 0.004), XMAT.display, C("#0a1a33"), { noAO: true }));
-      add("body", part(box(w * 0.5, h * 0.4, 0.004, x - 0.04, cy + 0.02, z - 0.006), XMAT.display, C("#2f8f3c"), { noAO: true }));
-      add("body", part(box(w * 0.28, h * 0.25, 0.004, x + 0.06, cy - 0.05, z - 0.007), XMAT.display, C("#3a8fc0"), { noAO: true }));
-      add("body", part(box(w * 0.6, 0.005, 0.004, x, cy + 0.01, z - 0.009, 0, 0).applyMatrix4(new THREE.Matrix4()), XMAT.display, C("#d63bd0"), { noAO: true }));
+  // The Prodigy Touch screens, laid out like the real ones. Each pilot's display (PFD) has an
+  // attitude ball that rolls and pitches with the jet (node attBall / attBall2, turned about its
+  // local Z by the game) seen through a mask, with speed and altitude tapes, a heading scale and
+  // nav data; the middle display (MFD) has a moving-map page and the engine strip.
+  const D0 = PZ - 0.008; // screen glass, just in front of the bezel
+  const disp = (w, h, x, y, dz, c, rz = 0) => add("body", part(box(w, h, 0.002, x, y, D0 - dz).applyMatrix4(new THREE.Matrix4()), XMAT.display, C(c), { noAO: true, noOcclude: true }));
+  const dispR = (w, h, x, y, dz, c, rz) => add("body", part(new THREE.BoxGeometry(w, h, 0.002).applyMatrix4(RZ(rz)).applyMatrix4(T(x, y, D0 - dz)), XMAT.display, C(c), { noAO: true, noOcclude: true }));
+  const DSW = 0.3, DSH = 0.2, SCY = 1.49;
+  const bezel = (x) => add("body", part(box(DSW + 0.03, DSH + 0.06, 0.01, x, SCY, PZ - 0.002), MAT.dark, C("#101215"), { noAO: true }));
+  const pfd = (x, node) => {
+    bezel(x);
+    disp(DSW, DSH, x, SCY, 0, "#05070a");
+    const ax = x, ay = SCY + 0.01, HW = 0.075, HH = 0.07, R = 0.112;
+    // Attitude ball: sky, ground, horizon and a pitch ladder, on a disc bigger than its window.
+    const ball = [];
+    const flat = (g, c) => ball.push(part(g, XMAT.display, C(c), { noAO: true, noOcclude: true }));
+    flat(new THREE.CircleGeometry(R, 40, 0, Math.PI), "#2a7fe0");
+    flat(new THREE.CircleGeometry(R, 40, Math.PI, Math.PI), "#9a5a22");
+    flat(new THREE.BoxGeometry(2 * R, 0.0025, 0.001).applyMatrix4(T(0, 0, -0.0005)), "#ffffff");
+    for (const [dy, len] of [[0.018, 0.022], [0.036, 0.045], [0.054, 0.022], [0.072, 0.045], [-0.018, 0.022], [-0.036, 0.045], [-0.054, 0.022]]) {
+      flat(new THREE.BoxGeometry(len, 0.0016, 0.001).applyMatrix4(T(0, dy, -0.0005)), "#ffffff");
+    }
+    nodes[node] = { parts: ball, translation: [ax, ay, D0 - 0.002] };
+    // Mask: covers the disc everywhere but its window.
+    const mask = new THREE.Shape([new THREE.Vector2(-(DSW + 0.03) / 2, -(DSH + 0.06) / 2), new THREE.Vector2((DSW + 0.03) / 2, -(DSH + 0.06) / 2), new THREE.Vector2((DSW + 0.03) / 2, (DSH + 0.06) / 2), new THREE.Vector2(-(DSW + 0.03) / 2, (DSH + 0.06) / 2)]);
+    mask.holes.push(new THREE.Path([new THREE.Vector2(-HW, 0.01 - HH), new THREE.Vector2(-HW, 0.01 + HH), new THREE.Vector2(HW, 0.01 + HH), new THREE.Vector2(HW, 0.01 - HH)]));
+    add("body", part(new THREE.ShapeGeometry(mask).applyMatrix4(T(x, SCY, D0 - 0.004)), MAT.dark, C("#07090c"), { noAO: true, noOcclude: true }));
+    // Bank scale ticks along the top of the window, and the fixed yellow aircraft symbol.
+    for (const a of [-60, -45, -30, -20, -10, 10, 20, 30, 45, 60]) {
+      const t = (a * Math.PI) / 180, rr = 0.064;
+      dispR(0.0018, Math.abs(a) % 30 === 0 ? 0.01 : 0.006, ax + Math.sin(t) * rr, ay + Math.cos(t) * rr, 0.005, "#ffffff", -t);
+    }
+    for (const sx of [-1, 1]) {
+      dispR(0.03, 0.004, ax + sx * 0.016, ay - 0.006, 0.006, "#f5c518", sx * 0.45);
+      disp(0.018, 0.004, ax + sx * 0.058, ay, 0.006, "#f5c518");
+    }
+    disp(0.004, 0.004, ax, ay, 0.007, "#f5c518");
+    // Speed tape (left) and altitude tape (right), with ticks and a readout window.
+    for (const sx of [-1, 1]) {
+      const tx = x + sx * 0.108;
+      disp(0.04, 0.15, tx, ay, 0.005, "#2b3038");
+      for (let k = -6; k <= 6; k++) disp(k % 2 ? 0.006 : 0.011, 0.0014, tx - sx * 0.016, ay + k * 0.011, 0.006, "#d9dde3");
+      disp(0.042, 0.018, tx, ay, 0.007, "#000000");
+      disp(0.03, 0.006, tx, ay, 0.008, "#ffffff");
+    }
+    disp(0.008, 0.11, x + 0.139, ay, 0.005, "#2b3038"); // vertical speed
+    // Heading scale under the ball, with the magenta heading bug; nav data along the top.
+    disp(0.15, 0.03, x, SCY - 0.085, 0.005, "#1d2128");
+    for (let k = -6; k <= 6; k++) disp(0.0014, k % 3 ? 0.005 : 0.01, x + k * 0.011, SCY - 0.077, 0.006, "#d9dde3");
+    disp(0.008, 0.006, x + 0.02, SCY - 0.072, 0.007, "#e040d8");
+    for (const [dx, w, c] of [[-0.11, 0.04, "#3fd46b"], [-0.055, 0.035, "#e040d8"], [0.03, 0.05, "#45c6e8"], [0.1, 0.03, "#ffffff"]]) disp(w, 0.007, x + dx, SCY + 0.09, 0.006, c);
+  };
+  const mfd = (x) => {
+    bezel(x);
+    disp(DSW, DSH, x, SCY, 0, "#08111f");
+    // Map: land and water, a magenta route, range rings and the white ownship symbol.
+    const mx = x + 0.03;
+    for (const [dx, dy, w, h, c] of [[-0.06, 0.04, 0.12, 0.09, "#2e6a3a"], [0.04, 0.05, 0.1, 0.08, "#3f7d46"], [-0.02, -0.04, 0.14, 0.08, "#5a7a3a"], [0.07, -0.05, 0.08, 0.07, "#7a6d3c"], [0.0, 0.0, 0.05, 0.03, "#2a5c9a"], [-0.08, -0.06, 0.04, 0.05, "#2a5c9a"]]) disp(w, h, mx + dx, SCY + dy, 0.004, c);
+    for (const rr of [0.045, 0.085]) add("body", part(new THREE.TorusGeometry(rr, 0.0011, 4, 48).applyMatrix4(T(mx, SCY - 0.04, D0 - 0.007)), XMAT.display, C("#e8ecf2"), { noAO: true, noOcclude: true }));
+    dispR(0.16, 0.003, mx + 0.03, SCY + 0.005, 0.008, "#e040d8", 0.55);
+    add("body", part(new THREE.CircleGeometry(0.01, 3).applyMatrix4(RZ(Math.PI / 2)).applyMatrix4(new THREE.Matrix4().makeScale(0.8, 1.3, 1)).applyMatrix4(T(mx, SCY - 0.04, D0 - 0.009)), XMAT.display, C("#ffffff"), { noAO: true, noOcclude: true }));
+    for (const [dx, dy] of [[-0.05, 0.07], [0.07, 0.03], [0.02, -0.075]]) disp(0.022, 0.006, mx + dx, SCY + dy, 0.008, "#e8ecf2");
+    // Engine strip on the left: two N1 bars, temperatures, fuel.
+    disp(0.07, DSH, x - 0.115, SCY, 0.003, "#0e1218");
+    for (const sx of [-1, 1]) {
+      const bx = x - 0.115 + sx * 0.014;
+      disp(0.012, 0.09, bx, SCY + 0.035, 0.004, "#262c34");
+      disp(0.012, 0.068, bx, SCY + 0.024, 0.005, "#3fd46b");
+      disp(0.018, 0.003, bx, SCY + 0.058, 0.006, "#ffffff");
+      disp(0.012, 0.035, bx, SCY - 0.05, 0.004, "#262c34");
+      disp(0.012, 0.026, bx, SCY - 0.054, 0.005, "#45c6e8");
     }
   };
-  screen(0.38, "pfd");
-  screen(0, "mfd");
-  screen(-0.38, "pfd");
+  pfd(0.38, "attBall");
+  mfd(0);
+  pfd(-0.38, "attBall2");
   // Pedestal with two thrust levers and the two touch controllers.
   add("body", part(box(0.18, 0.42, 0.55, 0, 0.96, 5.33), MAT.dark, C("#2a2d31"), INSIDE));
   for (const x of [0.03, -0.03]) {
     add("body", part(cylinderBetween(V(x, 1.17, 5.36), V(x, 1.29, 5.3), 0.008, 6), MAT.metal, cMetal, INSIDE));
     add("body", part(box(0.04, 0.03, 0.05, x, 1.3, 5.3), MAT.dark, C("#1c1e21"), INSIDE));
   }
-  for (const x of [0.07, -0.07]) add("body", part(box(0.09, 0.006, 0.13, x, 1.172, 5.08, -0.35), XMAT.display, C("#1f3a5a"), { noAO: true }));
+  // The two touch controllers: tilted screens with a grid of buttons.
+  for (const x of [0.07, -0.07]) {
+    const tilt = new THREE.Matrix4().compose(V(x, 1.172, 5.08), new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.35, 0, 0)), V(1, 1, 1));
+    add("body", part(new THREE.BoxGeometry(0.09, 0.006, 0.13).applyMatrix4(tilt), XMAT.display, C("#0b1220"), { noAO: true }));
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) {
+      const g = new THREE.BoxGeometry(0.022, 0.002, 0.02).applyMatrix4(T(-0.026 + c * 0.026, 0.0035, -0.04 + r * 0.026)).applyMatrix4(tilt);
+      add("body", part(g, XMAT.display, C(r === 0 ? "#2f8fd8" : "#5a6472"), { noAO: true, noOcclude: true }));
+    }
+  }
   for (const side of [1, -1]) {
     const x = side * 0.38;
     add("body", part(cylinderBetween(V(x, 1.16, PZ), V(x, 1.2, PZ - 0.32), 0.02, 10), MAT.dark, C("#2a2c2f"), INSIDE));

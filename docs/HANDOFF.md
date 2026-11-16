@@ -228,6 +228,14 @@ stays in pixels even when the size is in metres), which is why the frames are la
 - **Joining differently shaped sections:** where a round section (the Cessna's cowling) meets
   a boxy one (its cabin), blend the last stretch of one into the other's exact cross-section;
   butting them together left a gap with sky showing through underneath.
+- **Check in the game, from behind, at phone size, not just in the preview tool.** The owner
+  found the Cessna's square cabin frame not meeting the round tailcone, seen from the default
+  chase view; the preview's soft lighting hid it. `tailRing()` now blends the tailcone's first
+  70 cm from the cabin's exact rear shape into its own.
+- **Screens use an unlit material** (`KHR_materials_unlit`, supported by `build-models.mjs`):
+  lit with a grey glow they washed out to blank grey squares in the game.
+- **Registration letters** are paint-thin solid blocks; thick blocks with gaps between them
+  turned into black speckle when seen at an angle.
 - **Automatic interior check:** `model-phenom300.mjs` ends by testing every interior part's
   corners against the fuselage cross-section and prints any that poke through the skin. Keep
   it (and copy it into the next cabin model); it found four that renders had missed.

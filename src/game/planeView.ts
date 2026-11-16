@@ -67,7 +67,7 @@ export class PlaneView {
     scene.primitives.add(this.model);
     this.world.exclude.push(this.model);
     this.model.readyEvent.addEventListener(() => {
-      for (const n of ["gear", "prop", "flapL", "flapR", "ailL", "ailR", "elevL", "elevR", "rudder", "beacon", "strobe", "rotorF", "rotorR", "gearL", "gearR", "gearN", "wheelL", "wheelR", "wheelN", "gearDoors", "brakeLU", "brakeLD", "brakeRU", "brakeRD", "burner", "pilot", "canopy", "needleIas", "needleAlt", "attBall", "propDisc"]) {
+      for (const n of ["gear", "prop", "flapL", "flapR", "ailL", "ailR", "elevL", "elevR", "rudder", "beacon", "strobe", "rotorF", "rotorR", "gearL", "gearR", "gearN", "wheelL", "wheelR", "wheelN", "gearDoors", "brakeLU", "brakeLD", "brakeRU", "brakeRD", "burner", "pilot", "canopy", "needleIas", "needleAlt", "attBall", "attBall2", "propDisc"]) {
         try {
           const node = this.model!.getNode(n) ?? null;
           this.nodes[n] = node;
@@ -272,6 +272,7 @@ export class PlaneView {
     const ft = Math.max(0, this.altimeterFt ?? s.alt * 3.28084);
     turn("needleAlt", ((ft % 1000) / 1000) * 2 * Math.PI);
     turn("attBall", -s.bank * DEG, -clamp(s.pitch, -20, 20) * 0.0003);
+    turn("attBall2", -s.bank * DEG, -clamp(s.pitch, -20, 20) * 0.0003); // a second display (the Phenom's co-pilot side)
     // Legs take about 2.5 s to travel. (dt 0 = placing the model: jump to where it should be.)
     const want = s.gearDown ? 1 : 0;
     this.gearT = dt === 0 ? want : clamp(this.gearT + Math.sign(want - this.gearT) * (dt / 2.5), 0, 1);

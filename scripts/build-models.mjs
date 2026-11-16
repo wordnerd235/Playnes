@@ -267,8 +267,10 @@ function registration(text, side, xAt, y0, zMid, h) {
       const u = i * 6 + c - cols / 2;
       const z = zMid + dir * u * px;
       const y = y0 + (3 - r) * px;
-      const x = side * (xAt(z, y) + 0.012);
-      const b = new THREE.BoxGeometry(0.02, px * 0.92, px * 0.92);
+      // Thin as paint, just proud of the skin: thick blocks bunched into a black blotch when
+      // the lettering was seen edge-on (from behind or ahead).
+      const x = side * (xAt(z, y) + 0.004);
+      const b = new THREE.BoxGeometry(0.004, px * 1.01, px * 1.01); // solid letters: gaps between pixels read as dots at an angle
       b.applyMatrix4(T(x, y, z));
       boxes.push(b);
     }
@@ -1111,6 +1113,8 @@ function writeGlb(nodes, file, extraMaterials = []) {
     nodes: gltfNodes,
     meshes,
     materials: [...MATERIALS.map((m) => ({ ...m, doubleSided: true })), ...extraMaterials],
+    // A material can ask to be shown unlit (screens: their own colours, untouched by the sun).
+    ...(extraMaterials.some((m) => m.extensions?.KHR_materials_unlit) ? { extensionsUsed: ["KHR_materials_unlit"] } : {}),
     accessors,
     bufferViews,
     buffers: [{ byteLength: offset }],

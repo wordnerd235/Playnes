@@ -199,9 +199,33 @@ export function buildC172(ac, kit) {
   tzs.push(-5.5);
   const TN = 48;
   const inRearWindow = (zc, ac) => zc < -0.86 && zc > -1.7 && Math.sin(ac) > 0.72;
+  // The cabin ends in a square-cornered frame (roof edge, rear window posts) and the tailcone is
+  // rounder: over its first 70 cm the tailcone's cross-section blends from the cabin's exact
+  // shape into its own, so the two meet flush instead of the cabin's corners sticking out.
+  const tailBlend = (z) => { const t = Math.min(1, Math.max(0, (z + 1.5) / 0.7)); return t * t * (3 - 2 * t); };
+  const cabinBackEdge = (cy, dx, dy, inset) => {
+    const hx = 0.56 - inset, yb = BELLY + inset, yt = ROOF + 0.02 - inset, by = (yb + yt) / 2, hy = (yt - yb) / 2;
+    const sdf = (x, y) => {
+      const r = y > by ? 0.05 : 0.2;
+      const qx = Math.abs(x) - (hx - r), qy = Math.abs(y - by) - (hy - r);
+      return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
+    };
+    let lo = 0, hi = 2;
+    for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (sdf(dx * m, cy + dy * m) < 0) lo = m; else hi = m; }
+    return [dx * lo, cy + dy * lo];
+  };
+  const tailRing = (z, inset, n = 48) => {
+    const [hw, top, bot, e] = tail(z), cy = (top + bot) / 2, w = tailBlend(z);
+    return superRing(z, hw - inset, top - inset, bot + inset, e, n).map((p) => {
+      if (w <= 0) return p;
+      const len = Math.hypot(p.x, p.y - cy) || 1;
+      const [tx, ty] = cabinBackEdge(cy, p.x / len, (p.y - cy) / len, inset);
+      return V(lerp(p.x, tx, w), lerp(p.y, ty, w), z);
+    });
+  };
   const tailSkin = (inset, keep) => {
     const pos = [], idx = [];
-    for (const z of tzs) { const [hw, top, bot, e] = tail(z); for (const p of superRing(z, hw - inset, top - inset, bot + inset, e, TN)) pos.push(p.x, p.y, p.z); }
+    for (const z of tzs) for (const p of tailRing(z, inset, TN)) pos.push(p.x, p.y, p.z);
     for (let i = 0; i < tzs.length - 1; i++) {
       const zc = (tzs[i] + tzs[i + 1]) / 2;
       for (let j = 0; j < TN; j++) {
@@ -228,7 +252,7 @@ export function buildC172(ac, kit) {
   // the skin (painting it into the skin's colours gave blurry, saw-toothed edges)
   {
     const cowlX = halfWidthAt(cowl);
-    const sideX = (z, y) => (z > 1.4 ? lerp(cowlX(Math.min(z, 2.46), y), cabinHW(z), cowlBlend(z)) : z > -0.8 ? cabinHW(z) : tailX(z, y));
+    const sideX = (z, y) => (z > 1.4 ? lerp(cowlX(Math.min(z, 2.46), y), cabinHW(z), cowlBlend(z)) : z > -0.8 ? cabinHW(z) : lerp(tailX(z, y), 0.56, tailBlend(z)));
     const y0 = (z) => 1.13 - Math.max(0, -z - 0.8) * 0.018;
     const ribbon = (side, zFrom, zTo, lo, hi, colour) => {
       const pos = [], idx = [];
@@ -350,7 +374,7 @@ export function buildC172(ac, kit) {
 
   // ---- registration on the tailcone
   for (const side of [1, -1]) {
-    for (const b of registration(REGISTRATION, side, (z, y) => tailX(z, y), 1.22, -2.95, 0.2)) add("body", part(b, MAT.paint, C("#22262b"), { noAO: true, noOcclude: true }));
+    for (const b of registration(REGISTRATION, side, (z, y) => tailX(z, y), 1.31, -2.95, 0.2)) add("body", part(b, MAT.paint, C("#22262b"), { noAO: true, noOcclude: true }));
   }
 
   // ---- landing gear: spring-steel main legs, nose oleo strut, wheels with speed fairings
@@ -466,10 +490,7 @@ export function buildC172(ac, kit) {
   {
     const IN = 0.025, ZA = -0.8, ZB = -1.95, n = 48, rows = [];
     for (let z = ZA; z > ZB - 1e-6; z -= 0.1) rows.push(Math.max(z, ZB));
-    const ringAt = (z) => {
-      const [hw, top, bot, e] = tail(z);
-      return superRing(z, hw - IN, top - IN, bot + IN, e, n);
-    };
+    const ringAt = (z) => tailRing(z, IN, n);
     const pos = [], idx = [];
     for (const z of rows) for (const p of ringAt(z)) pos.push(p.x, p.y, p.z);
     for (let i = 0; i < rows.length - 1; i++) {
