@@ -59,26 +59,52 @@ export class DetailGovernor {
 }
 
 /**
- * Stop Cesium's memory easing from see-sawing. Cesium coarsens detail 2% a frame while the
- * tile cache is over its limit and sharpens it 2% a frame as soon as it's under, so near the
- * limit (a dense city on an iPad) detail bounced every few frames and distant hills flickered
- * between a coarse and a fine shape. Coarsening still happens at once; sharpening back now
- * waits for real headroom (under 85% of the budget) and then goes slowly.
+ * Keep a Google 3D tileset's level of detail steady, so distant hills don't flicker between a
+ * coarse and a fine shape.
+ *
+ * Memory: Cesium coarsens detail 2% a frame while the tile cache is over its limit and
+ * sharpens it 2% a frame as soon as it's under, so near the limit (a dense city on an iPad)
+ * detail bounced every few frames. Coarsening still happens at once; sharpening back is slow
+ * while the cache is nearly full and quicker once there's real room (under 85%).
+ *
+ * Distance falloff: Cesium recomputes how fast detail falls off with distance every frame
+ * from where the camera points (more falloff looking at the horizon), so banking and
+ * pitching in a turn swapped far tiles back and forth. Ease it gently instead.
  */
-export interface MemoryEasedTileset {
+export interface SteadyTileset {
   totalMemoryUsageInBytes: number;
   cacheBytes: number;
 }
-export function steadyMemoryRelief(tileset: MemoryEasedTileset): void {
-  const t = tileset as unknown as { _memoryAdjustedScreenSpaceError: number; prePassesUpdate: (fs: unknown) => void };
+export function steadyTileDetail(tileset: SteadyTileset): void {
+  const t = tileset as unknown as {
+    _memoryAdjustedScreenSpaceError: number;
+    _dynamicScreenSpaceErrorComputedDensity?: number;
+    prePassesUpdate: (fs: unknown) => void;
+  };
   const original = t.prePassesUpdate;
   if (typeof original !== "function") return;
+  let density: number | null = null;
   t.prePassesUpdate = function (frameState: unknown) {
     const before = t._memoryAdjustedScreenSpaceError;
     original.call(this, frameState);
     const after = t._memoryAdjustedScreenSpaceError;
-    if (after >= before) return;
-    const roomy = tileset.totalMemoryUsageInBytes < tileset.cacheBytes * 0.85;
-    t._memoryAdjustedScreenSpaceError = roomy ? Math.max(after, before / 1.0015) : before;
+    if (after < before) {
+      const used = tileset.totalMemoryUsageInBytes / tileset.cacheBytes;
+      t._memoryAdjustedScreenSpaceError = Math.max(after, before / (used < 0.85 ? 1.0015 : 1.0004));
+    }
+    const raw = t._dynamicScreenSpaceErrorComputedDensity;
+    if (typeof raw === "number" && Number.isFinite(raw)) {
+      density = density === null ? raw : density + (raw - density) * 0.01;
+      t._dynamicScreenSpaceErrorComputedDensity = density;
+    }
   };
+}
+
+const SPEED_STEPS = [1, 1.5, 2.2, 3];
+/** Next speed-detail step: up once `want` reaches the next step, down once 20% below this one. */
+export function speedStep(current: number, want: number): number {
+  let i = Math.max(0, SPEED_STEPS.indexOf(current));
+  while (i < SPEED_STEPS.length - 1 && want >= SPEED_STEPS[i + 1]) i++;
+  while (i > 0 && want < SPEED_STEPS[i] * 0.8) i--;
+  return SPEED_STEPS[i];
 }

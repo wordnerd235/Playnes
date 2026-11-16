@@ -1064,7 +1064,6 @@ export class FlightSession {
     if (mach >= 1 && this.lastMach < 1 && this.time - this.lastBoom > 20) {
       this.lastBoom = this.time;
       this.d.audio.sfx("boom");
-      this.d.hud.toast("SONIC BOOM!", "big");
       this.view.shake = 0.4;
       void this.say(LINES.sonicBoom, true);
     }

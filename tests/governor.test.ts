@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DetailGovernor, steadyMemoryRelief } from "../src/world/governor.ts";
+import { DetailGovernor, speedStep, steadyTileDetail } from "../src/world/governor.ts";
 
 /** Feed `seconds` of frames at a steady interval (with an optional pause every `pauseEvery` frames). */
 function run(g: DetailGovernor, t0: number, seconds: number, dt: number, pauseEvery = 0): number {
@@ -64,7 +64,7 @@ describe("detail governor", () => {
   });
 });
 
-describe("steady memory relief", () => {
+describe("steady tile detail", () => {
   /** A stand-in for Cesium's tileset: its own easing moves detail 2% a frame either way. */
   function fakeTileset(mem: { bytes: number }) {
     const ts = {
@@ -82,22 +82,42 @@ describe("steady memory relief", () => {
     return ts;
   }
 
-  it("coarsens at once when memory runs out but doesn't sharpen straight back near the limit", () => {
+  it("coarsens at once when memory runs out but sharpens back only slowly near the limit", () => {
     const mem = { bytes: 140 };
     const ts = fakeTileset(mem);
-    steadyMemoryRelief(ts);
+    steadyTileDetail(ts);
     for (let i = 0; i < 20; i++) ts.prePassesUpdate(null);
     const eased = ts._memoryAdjustedScreenSpaceError;
     expect(eased).toBeGreaterThan(20);
-    mem.bytes = 95; // just under the budget: Cesium would sharpen 2% a frame here
+    mem.bytes = 95; // just under the budget: Cesium would sharpen 2% a frame (~70% a second)
     for (let i = 0; i < 60; i++) ts.prePassesUpdate(null);
-    expect(ts._memoryAdjustedScreenSpaceError).toBe(eased);
+    expect(ts._memoryAdjustedScreenSpaceError).toBeGreaterThan(eased * 0.97);
+    expect(ts._memoryAdjustedScreenSpaceError).toBeLessThan(eased);
+  });
+
+  it("eases the distance falloff instead of jumping with every camera tilt", () => {
+    const mem = { bytes: 50 };
+    const ts = fakeTileset(mem) as ReturnType<typeof fakeTileset> & { _dynamicScreenSpaceErrorComputedDensity: number };
+    let raw = 2e-4;
+    const update = ts.prePassesUpdate;
+    ts.prePassesUpdate = function (fs: unknown) {
+      update.call(this, fs);
+      this._dynamicScreenSpaceErrorComputedDensity = raw;
+    };
+    steadyTileDetail(ts);
+    ts.prePassesUpdate(null);
+    expect(ts._dynamicScreenSpaceErrorComputedDensity).toBeCloseTo(2e-4, 9);
+    raw = 1e-4; // the camera tilted
+    ts.prePassesUpdate(null);
+    expect(ts._dynamicScreenSpaceErrorComputedDensity).toBeGreaterThan(1.95e-4);
+    for (let i = 0; i < 600; i++) ts.prePassesUpdate(null);
+    expect(ts._dynamicScreenSpaceErrorComputedDensity).toBeCloseTo(1e-4, 6);
   });
 
   it("sharpens back slowly once there's real room", () => {
     const mem = { bytes: 140 };
     const ts = fakeTileset(mem);
-    steadyMemoryRelief(ts);
+    steadyTileDetail(ts);
     for (let i = 0; i < 20; i++) ts.prePassesUpdate(null);
     const eased = ts._memoryAdjustedScreenSpaceError;
     mem.bytes = 50;
@@ -105,5 +125,26 @@ describe("steady memory relief", () => {
     expect(ts._memoryAdjustedScreenSpaceError).toBeGreaterThan(eased / 1.002);
     for (let i = 0; i < 2000; i++) ts.prePassesUpdate(null);
     expect(ts._memoryAdjustedScreenSpaceError).toBeCloseTo(16, 5);
+  });
+});
+
+describe("speed detail steps", () => {
+  it("steps up with speed and only steps down well below a step (no flapping in turns)", () => {
+    let k = 1;
+    k = speedStep(k, 1.2);
+    expect(k).toBe(1);
+    k = speedStep(k, 1.6);
+    expect(k).toBe(1.5);
+    k = speedStep(k, 2.3);
+    expect(k).toBe(2.2);
+    // Speed bled off in a turn: small dips keep the step.
+    k = speedStep(k, 2.0);
+    expect(k).toBe(2.2);
+    k = speedStep(k, 1.8);
+    expect(k).toBe(2.2);
+    k = speedStep(k, 1.7);
+    expect(k).toBe(1.5);
+    k = speedStep(k, 0.5);
+    expect(k).toBe(1);
   });
 });

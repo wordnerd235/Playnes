@@ -32,7 +32,7 @@ import { Scenery } from "./scenery.ts";
 import { AirportBuildings } from "./buildings.ts";
 import { LandmarkMarkers } from "./landmarks.ts";
 import { detailBudget, deviceClass } from "./device.ts";
-import { DetailGovernor, steadyMemoryRelief } from "./governor.ts";
+import { DetailGovernor, speedStep, steadyTileDetail } from "./governor.ts";
 import { degrade, FEATURE_NAMES, gfxOn, type GfxFeature } from "./safety.ts";
 
 /** "cartoon" = offline cartoon world; "basic" = bare globe if the offline data is missing. */
@@ -62,6 +62,8 @@ export interface World {
   setMotion?(speed: number): void;
   /** The grown-up "Clouds" setting: puffy clouds and the cruise cloud layer on or off. */
   setClouds(on: boolean): void;
+  /** Numbers for the optional performance readout (grown-up setting). */
+  perfStats?(): string;
   destroy(): void;
 }
 
@@ -249,6 +251,7 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
     setClouds(on: boolean) {
       scenery.setClouds(on);
     },
+    perfStats: w.perfStats?.bind(w),
     updateScenery(p, alt, agl) {
       scenery.update(p, alt, agl);
       buildings?.update(p);
@@ -286,20 +289,17 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       skipScreenSpaceErrorFactor: 6,
       // Load the tiles beside the ones in view too, so turning doesn't reveal blurry ground.
       loadSiblings: true,
-      // Cesium normally loads the middle of the screen while the camera moves and waits for
-      // it to stop before loading the edges. A flying camera never stops, so the sides stayed
-      // blurry and then snapped sharp as you turned toward them. Keep "middle first", but
-      // load the edges right after instead of waiting.
-      foveatedScreenSpaceError: true,
-      foveatedConeSize: 0.3,
-      foveatedTimeDelay: 0,
+      // No "middle of the screen first": it gives tiles off to the sides coarser detail than
+      // the same tiles in the middle, so turning swapped them back and forth (flicker at the
+      // screen edges in every turn), and a flying camera never stops for the sides to catch up.
+      foveatedScreenSpaceError: false,
       preloadWhenHidden: false,
       dynamicScreenSpaceError: true,
     },
   );
   const makeSteadyTileset = async () => {
     const ts = await makeTileset();
-    steadyMemoryRelief(ts);
+    steadyTileDetail(ts);
     return ts;
   };
   let tileset = await makeSteadyTileset();
@@ -335,6 +335,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   let lastMotion = performance.now();
   let createdAt = performance.now();
   let recycling = false;
+  let recycles = 0;
   let groundVisible = true;
   const recycle = async () => {
     recycling = true;
@@ -364,6 +365,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       fresh.show = groundVisible;
       fresh.preloadWhenHidden = false;
       scene.primitives.remove(old); // destroys it, tile tree and all
+      recycles++;
       for (const m of heightMemo) m.t = -1e9;
       travel = 0;
       treeBaseline = 0;
@@ -445,6 +447,16 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       groundVisible = v;
       tileset.show = v;
     },
+    perfStats() {
+      const t = tileset as unknown as { _memoryAdjustedScreenSpaceError?: number; _statistics?: { numberOfTilesTotal?: number; numberOfPendingRequests?: number; numberOfTilesProcessing?: number } };
+      const st = t._statistics ?? {};
+      const mb = (b: number) => Math.round(b / 1048576);
+      return [
+        `tiles ${mb(tileset.totalMemoryUsageInBytes)}/${mb(tileset.cacheBytes)} MB  tree ${st.numberOfTilesTotal ?? "?"}${treeBaseline ? ` (start ${treeBaseline})` : ""}`,
+        `detail ${tileset.maximumScreenSpaceError.toFixed(0)}→${(t._memoryAdjustedScreenSpaceError ?? 0).toFixed(0)}  gov ${govK.toFixed(2)}  speed ${speedK}`,
+        `loading ${st.numberOfPendingRequests ?? 0}+${st.numberOfTilesProcessing ?? 0}  fresh starts ${recycles}${recycling ? " (now)" : ""}  ${(travel / 1000).toFixed(0)} km`,
+      ].join("\n");
+    },
     afterTeleport() {
       // Old tiles out of view are unloaded on the next frame instead of being evicted bit by
       // bit while the new area streams in (that overlap is what made respawns choppy).
@@ -461,10 +473,12 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       if (!recycling && age > 90_000 && (treeGrown || travel > maxTravel || (age > 15 * 60_000 && travel > 20_000))) void recycle();
       if (now - lastSpeedApply < 500) return;
       lastSpeedApply = now;
-      // 1x up to ~230 kt, up to 3x at Mach speeds.
-      speedK = Math.min(3, Math.max(1, speed / 120));
+      // Coarser at jet speed: 1x up to ~230 kt, up to 3x at Mach speeds, in a few steps with a
+      // margin between them, so speed bled off in a turn doesn't keep swapping distant tiles.
+      speedK = speedStep(speedK, speed / 120);
       // Pre-loading the tiles beside the view helps slow turns; at jet speed it doubles the work.
-      tileset.loadSiblings = speed < 100;
+      if (speed > 110) tileset.loadSiblings = false;
+      else if (speed < 85) tileset.loadSiblings = true;
       applyDetail();
     },
     groundReady() {

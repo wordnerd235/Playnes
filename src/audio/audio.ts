@@ -217,6 +217,65 @@ export class Audio {
     src.start();
   }
 
+  /**
+   * Sonic boom: the double "crack-crack" of the nose and tail shock waves (two N-shaped
+   * pressure jumps ~0.13 s apart), then a rolling rumble with a couple of echoes off the
+   * ground. Kept mostly above ~120 Hz, so iPad and phone speakers can actually play it
+   * (a deep thump alone is inaudible on them).
+   */
+  private sonicBoom(): void {
+    if (!this.ctx || !this.master) return;
+    const rate = this.ctx.sampleRate;
+    const len = Math.floor(rate * 2.6);
+    const buf = this.ctx.createBuffer(1, len, rate);
+    const d = buf.getChannelData(0);
+    const nWave = (t0: number, dur: number, amp: number) => {
+      const a = Math.floor(t0 * rate);
+      const n = Math.floor(dur * rate);
+      for (let i = 0; i < n && a + i < len; i++) {
+        // Sudden jump up, straight ramp down past zero, sudden jump back.
+        d[a + i] += amp * (1 - (2 * i) / n);
+      }
+    };
+    const crack = (t0: number, amp: number) => {
+      nWave(t0, 0.085, amp);
+      nWave(t0 + 0.13, 0.085, amp * 0.9);
+    };
+    crack(0.02, 0.9);
+    crack(0.42, 0.22); // echo off the ground
+    crack(0.95, 0.08); // farther echo
+    // Rumble: low-passed noise that swells after the crack and dies away.
+    let lp = 0;
+    let lp2 = 0;
+    const k = 1 - Math.exp((-2 * Math.PI * 380) / rate);
+    for (let i = Math.floor(0.03 * rate); i < len; i++) {
+      const t = i / rate;
+      lp += k * (Math.random() * 2 - 1 - lp);
+      lp2 += k * (lp - lp2);
+      const env = Math.min(1, (t - 0.03) / 0.08) * Math.exp(-(t - 0.03) / 0.55);
+      d[i] += lp2 * 2.6 * env;
+    }
+    let peak = 0;
+    for (let i = 0; i < len; i++) peak = Math.max(peak, Math.abs(d[i]));
+    if (peak > 0) for (let i = 0; i < len; i++) d[i] /= peak;
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    // Round off the very top so the crack is punchy, not a harsh click.
+    const f = this.ctx.createBiquadFilter();
+    f.type = "lowpass";
+    f.frequency.value = 2400;
+    // A little extra body where small speakers still respond.
+    const body = this.ctx.createBiquadFilter();
+    body.type = "peaking";
+    body.frequency.value = 160;
+    body.Q.value = 0.8;
+    body.gain.value = 6;
+    const g = this.ctx.createGain();
+    g.gain.value = 0.95;
+    src.connect(f).connect(body).connect(g).connect(this.master);
+    src.start();
+  }
+
   sfx(name: "ding" | "hoop" | "thunk" | "chirp" | "star" | "click" | "cash" | "whoosh" | "crash" | "boom"): void {
     switch (name) {
       case "ding":
@@ -250,10 +309,7 @@ export class Audio {
         this.tone(60, 0, 0.8, "sine", 0.4);
         break;
       case "boom":
-        // Sonic boom: a double thump.
-        this.noiseBurst(0.5, 160, 1.3);
-        this.tone(45, 0, 0.5, "sine", 0.5);
-        this.tone(42, 0.16, 0.6, "sine", 0.45);
+        this.sonicBoom();
         break;
       case "whoosh":
         this.noiseBurst(1.2, 900, 0.35);

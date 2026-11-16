@@ -28,6 +28,8 @@ export interface Settings {
   freeTips: boolean;
   /** Puffy clouds and the cruise cloud layer. */
   clouds: boolean;
+  /** Small performance readout in the corner while flying (for troubleshooting slowdowns). */
+  perfStats: boolean;
 }
 
 const KEY = "playnes.settings.v1";
@@ -49,6 +51,7 @@ export const DEFAULT_SETTINGS: Settings = {
   freeLandingHelp: false,
   freeTips: false,
   clouds: true,
+  perfStats: false,
 };
 
 export function loadSettings(): Settings {

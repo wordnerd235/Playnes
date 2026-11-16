@@ -155,12 +155,49 @@ class Game implements ScreenHost {
     });
   }
 
+  // ----- optional performance readout -----
+  private perfEl: HTMLElement | null = null;
+  private perfAt = 0;
+  private perfStart = 0;
+  private perfFrames: number[] = [];
+
+  private updatePerf(now: number, dt: number): void {
+    if (!this.settings.perfStats || !this.world) {
+      this.perfEl?.remove();
+      this.perfEl = null;
+      return;
+    }
+    this.perfFrames.push(dt * 1000);
+    if (now - this.perfAt < 1000) return;
+    this.perfAt = now;
+    if (!this.perfEl) {
+      this.perfEl = document.createElement("pre");
+      this.perfEl.className = "perf-stats";
+      document.body.append(this.perfEl);
+      this.perfStart = now;
+    }
+    const f = this.perfFrames.sort((a, b) => a - b);
+    this.perfFrames = [];
+    const avg = f.length ? f.reduce((a, b) => a + b, 0) / f.length : 0;
+    const worst = f.length ? f[Math.floor(f.length * 0.95)] : 0;
+    const heap = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize;
+    const mins = Math.floor((now - this.perfStart) / 60000);
+    const secs = Math.floor(((now - this.perfStart) / 1000) % 60);
+    const lines = [
+      `${avg ? Math.round(1000 / avg) : 0} fps  slowest ${Math.round(worst)} ms  ${mins}:${String(secs).padStart(2, "0")}  ${this.world.kind}`,
+      ...(this.world.perfStats ? [this.world.perfStats()] : []),
+      ...(heap ? [`js ${Math.round(heap / 1048576)} MB`] : []),
+    ];
+    this.perfEl.textContent = lines.join("\n");
+  }
+
   private frame(): void {
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
     if (this.flight) {
       this.flight.update(dt);
+      this.updatePerf(now, dt);
       // Keep a Free Flight saved every few seconds, so it survives leaving or closing the app.
       if (now - this.lastFreeSave > 5000) {
         this.lastFreeSave = now;
@@ -388,6 +425,8 @@ class Game implements ScreenHost {
   }
 
   private endFlight(): void {
+    this.perfEl?.remove();
+    this.perfEl = null;
     if (this.flight) this.storeFreeSave(this.flight.snapshot());
     this.flight?.destroy();
     this.flight = null;

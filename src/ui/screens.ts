@@ -649,6 +649,7 @@ export class Screens {
     const freeHelp = check("set-freehelp", s.freeLandingHelp === true);
     const clouds = check("set-clouds", s.clouds !== false);
     const freeTips = check("set-freetips", s.freeTips === true);
+    const perf = check("set-perf", s.perfStats === true);
     const unlock = check("set-unlock", p.unlockAll);
     const volume = h("input", { id: "set-volume", type: "range", min: "0", max: "1", step: "0.05", value: String(s.volume) });
     const minutes = sel("set-minutes", String(s.sessionMinutes), [["0", "Off"], ["15", "15 minutes"], ["20", "20 minutes"], ["30", "30 minutes"], ["45", "45 minutes"]]);
@@ -672,6 +673,7 @@ export class Screens {
       s.freeLandingHelp = freeHelp.checked;
       s.clouds = clouds.checked;
       s.freeTips = freeTips.checked;
+      s.perfStats = perf.checked;
       s.volume = Number(volume.value);
       s.sessionMinutes = Number(minutes.value);
       p.unlockAll = unlock.checked;
@@ -706,6 +708,7 @@ export class Screens {
             field("Cesium ion token (optional)", ion),
             field("Graphics quality", quality),
             h("label.check", {}, [clouds, "Clouds (puffy clouds and the cloud layer on long charters)"]),
+            h("label.check", {}, [perf, "Show performance numbers while flying (to help track down slowdowns: take a screenshot when it gets slow)"]),
             h("div.code-row", {}, [
               h("button.btn.secondary", {
                 type: "button",
