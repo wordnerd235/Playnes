@@ -234,13 +234,42 @@ export function buildC172(ac, kit) {
     const cs = controlSurface(a, b, RF * fin.rootChord, RF * fin.tipChord, 0.06);
     nodes.rudder = { parts: [part(cs.geo, MAT.paint, finColor)], translation: cs.translation, rotation: cs.rotation };
   }
-  const dorsal = curve([
-    [-2.5, 0.015, 1.57, 1.52],
-    [-3.3, 0.04, 1.68, 1.46],
-    [-4.1, 0.055, 1.92, 1.42],
-    [-4.4, 0.05, 2.05, 1.4],
-  ]);
-  add("body", part(smooth(loft([-2.5, -2.9, -3.3, -3.7, -4.1, -4.4].map((z) => superRing(z, ...dorsal(z), 2, 16)))), MAT.paint, cWhite));
+  // Dorsal fillet: wide where it meets the tailcone and narrowing to a rounded ridge, rising from
+  // behind the rear window into the fin's leading edge (and ending hidden inside the fin). Each
+  // cross-section has concave sides that start just below the skin, so it blends in.
+  {
+    const finLE = (z) => fin.rootLE.y + ((fin.rootLE.z - z) / (fin.rootLE.z - fin.tipLE.z)) * (fin.tipLE.y - fin.rootLE.y);
+    const skinTop = (z, x) => {
+      const [hw, top, bot, e] = tail(z);
+      const yc = (top + bot) / 2, hh = (top - bot) / 2;
+      return yc + hh * Math.max(0, 1 - Math.abs(x / hw) ** e) ** (1 / e);
+    };
+    const Z0 = -2.25, Z1 = -4.45, ZE = -4.95; // starts, meets the fin's leading edge, ends
+    const rings = [];
+    for (let i = 0; i <= 18; i++) {
+      const z = lerp(Z0, ZE, i / 18);
+      const sRise = Math.min(1, (Z0 - z) / (Z0 - Z1));
+      const top0 = tail(z)[1];
+      let apex = top0 + 0.015 + Math.pow(sRise, 1.5) * (finLE(Z1) - tail(Z1)[1]);
+      if (z < Z1) apex = finLE(z) - 0.06; // behind the meeting point: tucked inside the fin
+      const hw = tail(z)[0];
+      let wb = Math.min(0.72 * hw, 0.04 + 0.16 * Math.sqrt(sRise));
+      if (z < Z1) wb = lerp(wb, 0.03, (Z1 - z) / (Z1 - ZE)); // narrow to the fin's thickness
+      const ring = [];
+      const side = 9;
+      // Left base (+x) up to the ridge and down to the right base; then a point inside the cone.
+      for (let k = 0; k <= side; k++) {
+        const t = k / side;
+        const xr = wb * Math.pow(1 - t, 2.2); // concave sides closing to the ridge
+        const yb = skinTop(z, wb) - 0.03;
+        ring.push(V(xr, lerp(yb, apex, t), z));
+      }
+      for (let k = side - 1; k >= 0; k--) ring.push(V(-ring[k].x, ring[k].y, z));
+      ring.push(V(0, skinTop(z, 0) - 0.08, z));
+      rings.push(ring);
+    }
+    add("body", part(smooth(loft(rings)), MAT.paint, cWhite));
+  }
   nodes.beacon = { parts: [part(new THREE.SphereGeometry(0.045, 10, 8), MAT.navRed, C("#ffffff"), { noAO: true })], translation: [0, 2.76, -5.25] };
   // Antennas: a whip on the roof and the navigation "V" on the fin.
   add("body", part(cylinderBetween(V(0, ROOF + 0.25, -0.3), V(0, ROOF + 0.9, -0.55), 0.006, 6), MAT.dark, cBlack));
