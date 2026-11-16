@@ -82,7 +82,10 @@ const { chromium } = require("playwright");
   // at true speed (the headless renderer is too slow to let the physics run in real time).
   const t0 = Date.now();
   let last = 0;
-  console.log("t(s)  km   fps  tree   tilesMB  heapMB  liveTiles  tilesets  pending  fresh");
+  console.log("t(s)  km   fps  tree   tilesMB  heapMB(raw)  liveTiles  tilesets  pending  fresh");
+  // Optional: sample where JS memory is allocated, from ALLOC_FROM to ALLOC_TO seconds.
+  const allocFrom = Number(process.env.ALLOC_FROM || 0), allocTo = Number(process.env.ALLOC_TO || 0);
+  let sampling = false;
   while ((Date.now() - t0) / 1000 < secs) {
     await page.evaluate((elapsed) => {
       const f = window.playnes.flight;
@@ -98,9 +101,30 @@ const { chromium } = require("playwright");
     }, (Date.now() - t0) / 1000);
     await page.waitForTimeout(1000);
     const el = (Date.now() - t0) / 1000;
+    if (allocTo && !sampling && el >= allocFrom && el < allocTo) {
+      sampling = true;
+      await cdp.send("HeapProfiler.enable");
+      await cdp.send("HeapProfiler.startSampling", { samplingInterval: 16384, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true });
+    }
+    if (sampling && el >= allocTo) {
+      sampling = false;
+      const { profile } = await cdp.send("HeapProfiler.stopSampling");
+      const by = new Map();
+      const walk = (n) => {
+        const f = n.callFrame;
+        const k = `${f.functionName || "(anon)"} ${String(f.url).split("/").pop()}:${f.lineNumber}`;
+        by.set(k, (by.get(k) || 0) + n.selfSize);
+        for (const c of n.children || []) walk(c);
+      };
+      walk(profile.head);
+      const total = [...by.values()].reduce((a, b) => a + b, 0);
+      console.log(`--- allocations ${allocFrom}-${allocTo}s: ${(total / 1048576).toFixed(0)} MB sampled (incl. collected)`);
+      for (const [k, v] of [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25)) console.log(`${(v / 1048576).toFixed(1).padStart(7)} MB  ${k}`);
+    }
     if (el - last >= 10 || el >= secs) {
       last = el;
-      await page.evaluate(() => window.gc && window.gc());
+      const rawMB = await page.evaluate(() => Math.round(performance.memory.usedJSHeapSize / 1048576));
+      if (!process.env.NOGC) await page.evaluate(() => window.gc && window.gc());
       const r = await page.evaluate(() => {
         const ts = window.__tilesets();
         const t = ts[0];
@@ -120,15 +144,15 @@ const { chromium } = require("playwright");
       // Live Cesium3DTile objects (catches old tile trees that never get freed).
       let live = "?";
       try {
-        const proto = await page.evaluateHandle(() => window.__tilesets()[0].root.constructor.prototype);
-        const { objects } = await cdp.send("Runtime.queryObjects", { prototypeObjectId: proto._remoteObject.objectId });
+        const { result } = await cdp.send("Runtime.evaluate", { expression: "window.__tilesets()[0].root.constructor.prototype" });
+        const { objects } = await cdp.send("Runtime.queryObjects", { prototypeObjectId: result.objectId });
         const props = await cdp.send("Runtime.callFunctionOn", { objectId: objects.objectId, functionDeclaration: "function(){return this.length}", returnByValue: true });
         live = props.result.value;
         await cdp.send("Runtime.releaseObject", { objectId: objects.objectId });
       } catch (e) {
         live = "err";
       }
-      console.log(`${el.toFixed(0).padStart(4)} ${((330 * el) / 1000).toFixed(0).padStart(4)} ${String(r.fps).padStart(4)} ${String(r.tree).padStart(6)} ${String(r.tilesMB).padStart(8)} ${String(r.heapMB).padStart(7)} ${String(live).padStart(10)} ${String(r.tilesets).padStart(9)} ${String(r.pending).padStart(8)} ${String(r.fresh).padStart(6)}`);
+      console.log(`${el.toFixed(0).padStart(4)} ${((330 * el) / 1000).toFixed(0).padStart(4)} ${String(r.fps).padStart(4)} ${String(r.tree).padStart(6)} ${String(r.tilesMB).padStart(8)} ${String(r.heapMB).padStart(6)}(${rawMB}) ${String(live).padStart(10)} ${String(r.tilesets).padStart(9)} ${String(r.pending).padStart(8)} ${String(r.fresh).padStart(6)}`);
     }
   }
   console.log(errors.length ? `errors: ${[...new Set(errors)].slice(0, 6).join(" | ")}` : "no page errors");
