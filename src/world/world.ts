@@ -32,7 +32,7 @@ import { Scenery } from "./scenery.ts";
 import { AirportBuildings } from "./buildings.ts";
 import { LandmarkMarkers } from "./landmarks.ts";
 import { detailBudget, deviceClass } from "./device.ts";
-import { DetailGovernor, speedStep, steadyTileDetail } from "./governor.ts";
+import { DetailGovernor, shareTextureCounts, speedStep, steadyTileDetail } from "./governor.ts";
 import { degrade, FEATURE_NAMES, gfxOn, type GfxFeature } from "./safety.ts";
 
 /** "cartoon" = offline cartoon world; "basic" = bare globe if the offline data is missing. */
@@ -300,6 +300,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   const makeSteadyTileset = async () => {
     const ts = await makeTileset();
     steadyTileDetail(ts);
+    shareTextureCounts((ts as unknown as { _statistics: object })._statistics);
     return ts;
   };
   let tileset = await makeSteadyTileset();

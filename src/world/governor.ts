@@ -108,3 +108,29 @@ export function speedStep(current: number, want: number): number {
   while (i > 0 && want < SPEED_STEPS[i] * 0.8) i--;
   return SPEED_STEPS[i];
 }
+
+/**
+ * Cesium copies a tileset's statistics a few times every frame (and on every ground-height
+ * reading), and each copy duplicated a table with one entry per loaded map texture. With a lot
+ * of map loaded (a long, fast flight in Google 3D), that churned out hundreds of megabytes of
+ * throwaway memory a minute, so the game got slower the longer it flew and the browser kept
+ * pausing to clean up. The copies are only ever read, so let them share the table instead.
+ * `stats` is any tileset's statistics object (Cesium doesn't export its class).
+ */
+export function shareTextureCounts(stats: object): void {
+  const Stats = stats.constructor as unknown as { clone?: (s: Record<string, unknown>, r: Record<string, unknown>) => void; __playnesShared?: boolean };
+  if (!Stats || typeof Stats.clone !== "function" || Stats.__playnesShared) return;
+  const clone = Stats.clone;
+  const empty = {};
+  Stats.clone = (s, r) => {
+    const table = s.texturesReferenceCounterById;
+    s.texturesReferenceCounterById = empty;
+    try {
+      clone(s, r);
+    } finally {
+      s.texturesReferenceCounterById = table;
+    }
+    r.texturesReferenceCounterById = table;
+  };
+  Stats.__playnesShared = true;
+}

@@ -148,3 +148,27 @@ describe("speed detail steps", () => {
     expect(k).toBe(1);
   });
 });
+
+describe("shared texture counts in tileset statistics", () => {
+  it("copies statistics without duplicating the per-texture table", async () => {
+    const { shareTextureCounts } = await import("../src/world/governor.ts");
+    class Stats {
+      selected = 0;
+      texturesReferenceCounterById: Record<string, number> = {};
+      static clone(s: Stats, r: Stats) {
+        r.selected = s.selected;
+        r.texturesReferenceCounterById = { ...s.texturesReferenceCounterById };
+      }
+    }
+    const main = new Stats();
+    for (let i = 0; i < 1000; i++) main.texturesReferenceCounterById[`t${i}`] = 1;
+    main.selected = 7;
+    shareTextureCounts(main);
+    shareTextureCounts(main); // patching twice is harmless
+    const copy = new Stats();
+    Stats.clone(main, copy);
+    expect(copy.selected).toBe(7);
+    expect(copy.texturesReferenceCounterById).toBe(main.texturesReferenceCounterById);
+    expect(Object.keys(main.texturesReferenceCounterById).length).toBe(1000);
+  });
+});

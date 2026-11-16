@@ -110,13 +110,15 @@ const { chromium } = require("playwright");
       sampling = false;
       const { profile } = await cdp.send("HeapProfiler.stopSampling");
       const by = new Map();
-      const walk = (n) => {
-        const f = n.callFrame;
-        const k = `${f.functionName || "(anon)"} ${String(f.url).split("/").pop()}:${f.lineNumber}`;
+      const name = (f) => `${f.functionName || "(anon)"}:${f.lineNumber}`;
+      const walk = (n, stack) => {
+        const here = [name(n.callFrame), ...stack];
+        // Self allocations with their 4 nearest callers.
+        const k = here.slice(0, 5).join(" < ");
         by.set(k, (by.get(k) || 0) + n.selfSize);
-        for (const c of n.children || []) walk(c);
+        for (const c of n.children || []) walk(c, here);
       };
-      walk(profile.head);
+      walk(profile.head, []);
       const total = [...by.values()].reduce((a, b) => a + b, 0);
       console.log(`--- allocations ${allocFrom}-${allocTo}s: ${(total / 1048576).toFixed(0)} MB sampled (incl. collected)`);
       for (const [k, v] of [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25)) console.log(`${(v / 1048576).toFixed(1).padStart(7)} MB  ${k}`);
