@@ -273,6 +273,13 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
 async function createGoogleWorld(container: HTMLElement, key: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setClouds">> {
   const widget = baseWidget(container, "google", q, { globe: false, baseLayer: false });
   const scene = widget.scene;
+  // Every frame the camera moves, Cesium asks the 3D map for the ground height under the
+  // camera (only to tell whether the camera is underground) by testing rays against the tiles
+  // on the CPU, and re-asks each time a tile arrives: work that grows with every tile loaded.
+  // Nothing here uses it (the game measures the ground itself, with sampleHeight), so skip it.
+  const sceneHeights = scene as unknown as { getHeight: (...a: unknown[]) => number | undefined; updateHeight: (...a: unknown[]) => () => void };
+  sceneHeights.getHeight = () => undefined;
+  sceneHeights.updateHeight = () => () => {};
   const b = detailBudget(q);
   // Google serves over HTTP/2: more requests at once means tiles arrive sooner.
   RequestScheduler.requestsByServer["tile.googleapis.com:443"] = 24;

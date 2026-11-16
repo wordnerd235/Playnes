@@ -86,6 +86,9 @@ const { chromium } = require("playwright");
   // Optional: sample where JS memory is allocated, from ALLOC_FROM to ALLOC_TO seconds.
   const allocFrom = Number(process.env.ALLOC_FROM || 0), allocTo = Number(process.env.ALLOC_TO || 0);
   let sampling = false;
+  // Optional: CPU profile from CPU_FROM to CPU_TO seconds (where the frame time goes).
+  const cpuFrom = Number(process.env.CPU_FROM || 0), cpuTo = Number(process.env.CPU_TO || 0);
+  let profiling = false;
   while ((Date.now() - t0) / 1000 < secs) {
     await page.evaluate((elapsed) => {
       const f = window.playnes.flight;
@@ -101,6 +104,37 @@ const { chromium } = require("playwright");
     }, (Date.now() - t0) / 1000);
     await page.waitForTimeout(1000);
     const el = (Date.now() - t0) / 1000;
+    if (cpuTo && !profiling && el >= cpuFrom && el < cpuTo) {
+      profiling = true;
+      await cdp.send("Profiler.enable");
+      await cdp.send("Profiler.setSamplingInterval", { interval: 500 });
+      await cdp.send("Profiler.start");
+    }
+    if (profiling && el >= cpuTo) {
+      profiling = false;
+      const { profile } = await cdp.send("Profiler.stop");
+      const byId = new Map(profile.nodes.map((n) => [n.id, n]));
+      const parent = new Map();
+      for (const n of profile.nodes) for (const c of n.children || []) parent.set(c, n.id);
+      const counts = new Map();
+      for (const id of profile.samples) counts.set(id, (counts.get(id) || 0) + 1);
+      const self = new Map();
+      let total = 0;
+      for (const [id, c] of counts) {
+        total += c;
+        const n = byId.get(id);
+        const chain = [];
+        for (let k = id, i = 0; k && i < 3; k = parent.get(k), i++) {
+          const f = byId.get(k).callFrame;
+          chain.push(`${f.functionName || "(anon)"}:${f.lineNumber}`);
+        }
+        const key = chain.join(" < ");
+        self.set(key, (self.get(key) || 0) + c);
+        void n;
+      }
+      console.log(`--- CPU ${cpuFrom}-${cpuTo}s (self time, % of samples)`);
+      for (const [k, v] of [...self.entries()].sort((a, b) => b[1] - a[1]).slice(0, 22)) console.log(`${((100 * v) / total).toFixed(1).padStart(5)}%  ${k}`);
+    }
     if (allocTo && !sampling && el >= allocFrom && el < allocTo) {
       sampling = true;
       await cdp.send("HeapProfiler.enable");
