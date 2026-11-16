@@ -34,6 +34,14 @@ const { chromium } = require("playwright");
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text().slice(0, 200)));
   const cdp = await ctx.newCDPSession(page);
+  // Count map index files (tileset JSON) and tile models fetched.
+  const fetched = { json: 0, glb: 0 };
+  page.on("request", (r) => {
+    const u = r.url();
+    if (!u.includes("tile.googleapis.com")) return;
+    if (u.includes(".json")) fetched.json++;
+    else if (u.includes(".glb")) fetched.glb++;
+  });
   await page.goto(base);
   for (let i = 0; i < 40 && !(await page.$(".home-grid")); i++) {
     await page.click(".big-go", { timeout: 5000 }).catch(() => {});
@@ -83,7 +91,7 @@ const { chromium } = require("playwright");
   // at true speed (the headless renderer is too slow to let the physics run in real time).
   const t0 = Date.now();
   let last = 0;
-  console.log("t(s)  km   fps  tree   tilesMB  heapMB(raw)  liveTiles  tilesets  pending  fresh");
+  console.log("t(s)  km   fps  tree   tilesMB  heapMB(raw)  liveTiles  tilesets  pending  fresh  json  glb");
   // Optional: sample where JS memory is allocated, from ALLOC_FROM to ALLOC_TO seconds.
   const allocFrom = Number(process.env.ALLOC_FROM || 0), allocTo = Number(process.env.ALLOC_TO || 0);
   let sampling = false;
@@ -192,7 +200,7 @@ const { chromium } = require("playwright");
       } catch (e) {
         live = "err";
       }
-      console.log(`${el.toFixed(0).padStart(4)} ${((330 * el) / 1000).toFixed(0).padStart(4)} ${String(r.fps).padStart(4)} ${String(r.tree).padStart(6)} ${String(r.tilesMB).padStart(8)} ${String(r.heapMB).padStart(6)}(${rawMB}) ${String(live).padStart(10)} ${String(r.tilesets).padStart(9)} ${String(r.pending).padStart(8)} ${String(r.fresh).padStart(6)}`);
+      console.log(`${el.toFixed(0).padStart(4)} ${((330 * el) / 1000).toFixed(0).padStart(4)} ${String(r.fps).padStart(4)} ${String(r.tree).padStart(6)} ${String(r.tilesMB).padStart(8)} ${String(r.heapMB).padStart(6)}(${rawMB}) ${String(live).padStart(10)} ${String(r.tilesets).padStart(9)} ${String(r.pending).padStart(8)} ${String(r.fresh).padStart(6)} ${String(fetched.json).padStart(5)} ${String(fetched.glb).padStart(5)}`);
     }
   }
   console.log(errors.length ? `errors: ${[...new Set(errors)].slice(0, 6).join(" | ")}` : "no page errors");
