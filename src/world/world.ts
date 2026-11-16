@@ -33,6 +33,7 @@ import { AirportBuildings } from "./buildings.ts";
 import { LandmarkMarkers } from "./landmarks.ts";
 import { detailBudget, deviceClass } from "./device.ts";
 import { DetailGovernor, shareTextureCounts, speedStep, steadyTileDetail } from "./governor.ts";
+import { pruneTileTree, type PrunableTileset } from "./tilePruner.ts";
 import { degrade, FEATURE_NAMES, gfxOn, type GfxFeature } from "./safety.ts";
 
 /** "cartoon" = offline cartoon world; "basic" = bare globe if the offline data is missing. */
@@ -387,6 +388,34 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
     }
   };
 
+  // Trim the tile index as we go (see tilePruner.ts): every few seconds, branches the camera
+  // hasn't used for 20 s and that are over 20 km away are freed (Cesium fetches them again if
+  // we come back). Without this the index grew past a million entries (~3 GB) on a long jet
+  // flight. `window.__playnesPrune` overrides the timings (dev tests).
+  const frameLog: { t: number; f: number }[] = [];
+  let lastPrune = 0;
+  let trimmed = 0;
+  scene.postRender.addEventListener(() => {
+    const now = performance.now();
+    const f = (scene as unknown as { frameState: { frameNumber: number } }).frameState.frameNumber;
+    if (!frameLog.length || now - frameLog[frameLog.length - 1].t >= 1000) {
+      frameLog.push({ t: now, f });
+      if (frameLog.length > 90) frameLog.shift();
+    }
+    const dev = (window as unknown as { __playnesPrune?: { idleMs?: number; minDistance?: number; everyMs?: number } }).__playnesPrune;
+    if (recycling || now - lastPrune < (dev?.everyMs ?? 3000)) return;
+    lastPrune = now;
+    const idleMs = dev?.idleMs ?? 20_000;
+    let since: number | null = null;
+    for (const e of frameLog) if (now - e.t >= idleMs) since = e.f;
+    if (since === null) return;
+    try {
+      trimmed += pruneTileTree(tileset as unknown as PrunableTileset, { untouchedSince: since, camera: scene.camera.positionWC, minDistance: dev?.minDistance ?? 20_000, budget: 50_000 });
+    } catch (e) {
+      console.warn("tile trim failed", e);
+    }
+  });
+
   // With no globe, Cesium leaves out the blue sky (you'd see stars at noon): turn it back on.
   if (scene.skyAtmosphere) scene.skyAtmosphere.show = true;
   if (scene.skyBox) scene.skyBox.show = false;
@@ -464,6 +493,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
         `tiles ${mb(tileset.totalMemoryUsageInBytes)}/${mb(tileset.cacheBytes)} MB  tree ${st.numberOfTilesTotal ?? "?"}${treeBaseline ? ` (start ${treeBaseline})` : ""}`,
         `detail ${tileset.maximumScreenSpaceError.toFixed(0)}→${(t._memoryAdjustedScreenSpaceError ?? 0).toFixed(0)}  gov ${govK.toFixed(2)}  speed ${speedK}`,
         `loading ${st.numberOfPendingRequests ?? 0}+${st.numberOfTilesProcessing ?? 0}  fresh starts ${recycles}${recycling ? " (now)" : ""}  ${(travel / 1000).toFixed(0)} km`,
+        `trimmed ${trimmed}`,
       ].join("\n");
     },
     afterTeleport() {

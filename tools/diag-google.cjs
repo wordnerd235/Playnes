@@ -22,6 +22,11 @@ const { chromium } = require("playwright");
     u.searchParams.delete("key");
     route.continue({ url: u.toString() });
   });
+  // PRUNE=idleMs,minDistance,everyMs: make the game's tile-index trimming aggressive.
+  if (process.env.PRUNE) {
+    const [idleMs, minDistance, everyMs] = process.env.PRUNE.split(",").map(Number);
+    await ctx.addInitScript((o) => { window.__playnesPrune = o; }, { idleMs, minDistance, everyMs });
+  }
   await ctx.addInitScript(() => {
     try {
       const s = JSON.parse(localStorage.getItem("playnes.settings.v1") || "{}");
@@ -81,6 +86,7 @@ const { chromium } = require("playwright");
       };
     }
     window.__variant = variant;
+    window.__half = Number(new URL(location.href).searchParams.get("back")) || 0;
     window.__sse = Number(new URL(location.href).searchParams.get("sse")) || 0;
     window.__applyDsse = () => {
       if (variant !== "dsse" && variant !== "both") return;
@@ -104,12 +110,14 @@ const { chromium } = require("playwright");
       const f = window.playnes.flight;
       const s = f.s;
       if (!window.__start) window.__start = { lat: s.lat, lon: s.lon };
-      const d = 330 * elapsed; // metres flown
+      // BACK: turn around halfway and fly back over the same ground.
+      const half = window.__half || 1e9;
+      const d = elapsed < half ? 330 * elapsed : 330 * (2 * half - elapsed); // distance out from the start
       const hdg = (315 * Math.PI) / 180;
       s.lat = window.__start.lat + (Math.cos(hdg) * d) / 111320;
       s.lon = window.__start.lon + (Math.sin(hdg) * d) / (111320 * Math.cos((s.lat * Math.PI) / 180));
       const ground = window.playnes.world.groundHeight(s) ?? 0;
-      Object.assign(s, { alt: ground + 950, onGround: false, speed: 330, heading: 315, pitch: 0, bank: 0, vs: 0, gamma: 0, gearDown: false, flaps: 0 });
+      Object.assign(s, { alt: ground + 950, onGround: false, speed: 330, heading: elapsed < half ? 315 : 135, pitch: 0, bank: 0, vs: 0, gamma: 0, gearDown: false, flaps: 0 });
       window.__applyDsse?.();
       // SSE=n: pin the detail level (the slow headless renderer otherwise makes the game's
       // governor coarsen it far more than on a real computer).
@@ -181,7 +189,7 @@ const { chromium } = require("playwright");
         const ts = window.__tilesets();
         const t = ts[0];
         const fps = document.querySelector(".perf-stats")?.textContent.match(/^(\d+) fps/)?.[1] ?? "?";
-        const fresh = document.querySelector(".perf-stats")?.textContent.match(/fresh starts (\d+)/)?.[1] ?? "?";
+        const fresh = (document.querySelector(".perf-stats")?.textContent.match(/fresh starts (\d+)/)?.[1] ?? "?") + "/" + (document.querySelector(".perf-stats")?.textContent.match(/trimmed (\d+)/)?.[1] ?? "?");
         return {
           fps,
           fresh,
