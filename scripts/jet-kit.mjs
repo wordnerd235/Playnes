@@ -629,8 +629,11 @@ export function buildJet(ac, kit, S) {
   const at = (x, y, z, rx = 0, ry = 0) => new THREE.Matrix4().compose(V(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, 0, "YXZ")), V(1, 1, 1));
 
   const CK = S.cockpit, PZ = CK.panelZ, CX = CK.seatX;
-  const cabinLen = CK.bulkheadZ - Z_LIN1, cabinMid = (CK.bulkheadZ + Z_LIN1) / 2;
-  const floorHalf = Math.min(halfW(cabinMid, AISLE - 0.02), halfW(CK.bulkheadZ, AISLE - 0.02), halfW(Z_LIN1 + 0.3, AISLE - 0.02)) - LIN;
+  // The cabin floor runs from the cockpit bulkhead back until the belly starts to rise into it.
+  let floorEnd = S.cabin.lavZ;
+  while (floorEnd > Z_LIN1 + 0.05 && FUS(floorEnd - 0.05)[2] < AISLE - 0.22) floorEnd -= 0.05;
+  const cabinLen = CK.bulkheadZ - floorEnd, cabinMid = (CK.bulkheadZ + floorEnd) / 2;
+  const floorHalf = Math.min(halfW(cabinMid, AISLE - 0.02), halfW(CK.bulkheadZ, AISLE - 0.02), halfW(floorEnd, AISLE - 0.02), halfW(floorEnd, LEDGE)) - LIN;
   // Floors: cockpit, the aisle, and raised side ledges (where the cabin has a dropped aisle).
   { const fy = LEDGE - (CK.floorDrop ?? 0.03) - 0.02; add("body", part(box(2 * (Math.min(halfW(PZ, fy - 0.02), halfW(CK.bulkheadZ, fy - 0.02)) - 0.08), 0.04, PZ - CK.bulkheadZ, 0, fy, (PZ + CK.bulkheadZ) / 2), XMAT.fabric, cCarpet, INSIDE)); }
   const aisleHalf = S.cabin.aisleHalf ?? 0.38;
@@ -673,7 +676,7 @@ export function buildJet(ac, kit, S) {
   // a polished side shelf under the windows (the outboard armrest), a divan if the spec has one.
   const CB = S.cabin, SW = CB.seatWidth ?? 0.46;
   const wallAt = (z) => halfW(z, LEDGE + 0.645) - LIN;
-  const SX = CB.seatX ?? wallAt(cabinMid) - 0.355;
+  const SX = CB.seatX ?? Math.min(wallAt(cabinMid) - 0.355, halfW(cabinMid, LEDGE + 0.04) - LIN - SW / 2 - 0.09);
   for (const row of CB.rows) for (const side of [1, -1]) {
     if (row.sides && !row.sides.includes(side)) continue;
     const aft = row.facing === "aft";
@@ -803,7 +806,7 @@ export function buildJet(ac, kit, S) {
     const x = side * CX * 1.055;
     if (CK.sidestick) {
       // Side-stick on the outboard console (Falcon 8X and Gulfstreams have them).
-      const sx = side * (halfW(PZ - 0.7, FY + 0.6) - 0.16);
+      const sx = side * (Math.min(halfW(PZ - 0.7, FY + 0.6), halfW(PZ - 0.95, FY + 0.1), halfW(PZ - 0.25, FY + 0.1)) - 0.12);
       add("body", part(box(0.14, 0.5, 0.7, sx, FY + 0.35, PZ - 0.6), MAT.dark, C("#2a2d31"), INSIDE));
       add("body", part(cylinderBetween(V(sx, FY + 0.6, PZ - 0.55), V(sx, FY + 0.76, PZ - 0.57), 0.018, 10), MAT.dark, cBlack, INSIDE));
       add("body", part(new THREE.SphereGeometry(0.03, 12, 8).applyMatrix4(new THREE.Matrix4().makeScale(1, 1.5, 1.1)).applyMatrix4(T(sx, FY + 0.79, PZ - 0.57)), MAT.dark, cBlack, INSIDE));
@@ -832,7 +835,7 @@ export function buildJet(ac, kit, S) {
     pp.push(part(new THREE.TorusGeometry(0.105, 0.012, 6, 16, Math.PI).applyMatrix4(new THREE.Matrix4().makeRotationY(Math.PI / 2)).applyMatrix4(T(head.x, head.y + 0.005, head.z)), MAT.dark, cHeadset, INSIDE));
     pp.push(part(cylinderBetween(head.clone().add(V(0.1, -0.03, 0.02)), head.clone().add(V(0.03, -0.07, 0.1)), 0.006, 6), MAT.dark, cHeadset, INSIDE));
     for (const s of [-1, 1]) {
-      const handAt = CK.sidestick && s > 0 ? V(halfW(PZ - 0.7, FY + 0.6) - 0.16, FY + 0.8, PZ - 0.57) : V(x * 1.055 + s * 0.14 - (x * 1.055 - x), FY + 0.52, PZ - 0.34);
+      const handAt = CK.sidestick && s > 0 ? V(Math.min(halfW(PZ - 0.7, FY + 0.6), halfW(PZ - 0.95, FY + 0.1), halfW(PZ - 0.25, FY + 0.1)) - 0.12, FY + 0.8, PZ - 0.57) : V(x * 1.055 + s * 0.14 - (x * 1.055 - x), FY + 0.52, PZ - 0.34);
       const sh = V(x + s * 0.18, fy + 0.88, fz - 0.08), el = V(x + s * 0.21, fy + 0.62, fz + 0.2);
       limb(sh, el, 0.042, cShirt);
       limb(el, handAt, 0.036, cSkin);

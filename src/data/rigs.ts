@@ -80,9 +80,57 @@ export const RIGS: Record<string, Rig> = {
       5.39
     ],
     "windowEye": [
-      0.5252040062962382,
+      0.4546558281983014,
       2.4299999999999997,
       2.1
+    ],
+    "fov": 80,
+    "eyePitch": 9
+  },
+  "latitude": {
+    "retractDeg": {
+      "gearL": 102,
+      "gearR": 102,
+      "gearN": 95
+    },
+    "wheelRadius": {
+      "wheelL": 0.33,
+      "wheelR": 0.33,
+      "wheelN": 0.23
+    },
+    "eye": [
+      0.46,
+      2.465,
+      5.79
+    ],
+    "windowEye": [
+      0.4555273161030743,
+      2.5149999999999997,
+      2.33
+    ],
+    "fov": 80,
+    "eyePitch": 9
+  },
+  "praetor600": {
+    "retractDeg": {
+      "gearL": 102.5,
+      "gearR": 102.5,
+      "gearN": 95
+    },
+    "wheelRadius": {
+      "wheelL": 0.38,
+      "wheelR": 0.38,
+      "wheelN": 0.24
+    },
+    "eye": [
+      0.48,
+      2.66,
+      7.17
+    ],
+    "windowEye": [
+      0.48126358739112896,
+      2.67,
+      3.53
     ],
     "fov": 80,
     "eyePitch": 9

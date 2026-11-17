@@ -166,7 +166,7 @@ export const AIRCRAFT: AircraftDef[] = [
     unlock: { type: "wings", price: 275 },
     wow: "The Citation Latitude is so tall inside that grown-ups can stand up!",
     vr: 110, vapp: 115, vclimb: 180, vstall: 90, vmo: 305, mmo: 0.8, climbFpm: 3900, rollRate: 28, cruiseAltFt: 43000,
-    shape: { length: 19.0, span: 22.0, fuselageDiameter: 2.2, wing: "low", sweepDeg: 16, tail: "t-tail", engines: "rear-twin", winglets: true, fixedGear: false },
+    shape: { length: 19.0, span: 22.0, fuselageDiameter: 2.2, wing: "low", sweepDeg: 16, tail: "cruciform", engines: "rear-twin", winglets: true, fixedGear: false },
     livery: { body: "#fbfbfb", stripe: "#22426b", accent: "#b9c3cf" },
   },
   {

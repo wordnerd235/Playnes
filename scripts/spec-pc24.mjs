@@ -19,7 +19,7 @@ export const PC24 = {
   cockpit: { bulkheadZ: 4.8, panelZ: 6.18, seatX: 0.41, floorDrop: 0.16 },
   cabin: { lavZ: -1.3, rows: [{ z: 3.45, facing: "aft" }, { z: 2.25 }, { z: 0.8 }, { z: -0.5 }], tables: [2.85], galleyZ: 4.35, windowSeat: 2.1, aisleHalf: 0.36 },
   door: { z0: 3.95, z1: 4.68, y0: 1.25, y1: 2.78 },
-  exits: [{ side: 1, z0: 1.07, z1: 1.55, y0: 1.95, y1: 2.55 }],
+  exits: [{ side: -1, z0: 1.07, z1: 1.55, y0: 1.95, y1: 2.55 }], // over the right wing
   wing: { dihedral: 3, sweep: 12, span: 8.45, y0: 0.95, rootChord: 3.0, tipChord: 1.1, le0: 2.5, flap: [1.0, 5.4], aileron: [5.6, 7.9], thickness: 0.13, winglet: null },
   fairing: { top: 1.2, keys: [[3.3, 0.02, 0.95], [3.1, 0.15, 0.9], [2.8, 0.4, 0.8], [2.3, 0.55, 0.74], [1.5, 0.62, 0.71], [0.5, 0.62, 0.71], [-0.3, 0.58, 0.74], [-0.9, 0.45, 0.8], [-1.4, 0.25, 0.88], [-1.7, 0.02, 0.95]] },
   fin: { rootLE: [2.9, -3.45], tipLE: [5.2, -5.45], rootChord: 3.05, tipChord: 1.3 },
