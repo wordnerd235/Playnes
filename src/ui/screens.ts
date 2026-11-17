@@ -407,7 +407,7 @@ export class Screens {
   private planeStats(ac: AircraftDef, big = false): HTMLElement {
     const max = (f: (a: AircraftDef) => number) => Math.max(...AIRCRAFT.map(f));
     const rows: [string, string, number][] = [
-      ["Cruise", `${ac.cruiseKt.toLocaleString()} kt`, ac.cruiseKt / max((a) => a.cruiseKt)],
+      [ac.kind === "fighter" ? "Top speed" : "Cruise", `${ac.cruiseKt.toLocaleString()} kt`, ac.cruiseKt / max((a) => a.cruiseKt)], // the F-16's figure is its dash speed, not a cruise
       ["Range", `${ac.rangeNm.toLocaleString()} nm`, ac.rangeNm / max((a) => a.rangeNm)],
       ["Climb", `${ac.climbFpm.toLocaleString()} ft/min`, Math.sqrt(ac.climbFpm / max((a) => a.climbFpm))],
       ["Seats", String(ac.seats), ac.seats / max((a) => a.seats)],

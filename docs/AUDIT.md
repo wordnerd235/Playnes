@@ -15,15 +15,15 @@ the published figures for nearly every type. These are the things that are off:
 |---|---|---|---|
 | Pilatus PC-24 | Mmo 0.76 | **0.74** (confirmed by search) | fixed in the test copy |
 | Challenger 3500 | Mmo 0.85 | **0.83** (confirmed by search) | fixed in the test copy |
-| HondaJet Elite II | tail "conventional" | **T-tail** | not fixed (needs the model rebuilt) |
-| Citation Latitude | tail "t-tail" | **cruciform** (tailplane part-way up the fin) | not fixed; confirm first |
+| HondaJet Elite II | tail "conventional" | **T-tail** | fixed in the test copy |
+| Citation Latitude | tail "t-tail" | **cruciform** (tailplane part-way up the fin) | fixed in the test copy |
 | Pilatus PC-24 | winglets: no | has small winglets | not fixed; cosmetic |
-| Global 8000 | span 32.4 m | about 31.7 m (104 ft) | not fixed; confirm first |
-| Phenom 300E | span 16.2 m | about 15.9 m | not fixed; cosmetic |
-| PC-12 NGX | Vmo 236 kt | 240 kt | not fixed; tiny |
-| F-16 | "cruise 1000 kt" | that is its top speed (about Mach 2 high up); it cruises near 500 kt | wording only: shown on the hangar card |
+| Global 8000 | span 32.4 m | **31.7 m (104 ft)** (Bombardier factsheet) | fixed in the test copy (data and model) |
+| Phenom 300E | span 16.2 m | about 15.9 m | fixed in the test copy |
+| PC-12 NGX | Vmo 236 kt | **240 kt** (calibrated; Aviation Week, the POH) | fixed in the test copy |
+| F-16 | "cruise 1000 kt" | that is its top speed (about Mach 2 high up); it cruises near 500 kt | fixed in the test copy: the card says "Top speed" |
 | F-16 | roll rate 180 deg/s | the real one manages 240+ | a deliberate softening; could be raised |
-| Chinook | ceiling 4,600 m | service ceiling is about 6,100 m (20,000 ft) | not fixed; minor |
+| Chinook | ceiling 4,600 m | **6,100 m (20,000 ft)** (Boeing) | fixed in the test copy |
 
 Things every playne gets that only some should have (see section 3):
 

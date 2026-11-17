@@ -27,7 +27,7 @@ export const GLOBAL8000 = {
     tables: [11.65, 8.15, 4.45], divan: { z0: 1.6, z1: 3.2, side: 1 }, galleyZ: 13.6, windowSeat: 11.05, aisleHalf: 0.5, seatWidth: 0.56,
   },
   door: { z0: 13.86, z1: 14.9, y0: 2.26, y1: 4.62 },
-  wing: { dihedral: 4, sweep: 34, span: 15.0, y0: 1.75, rootChord: 6.8, tipChord: 1.4, le0: 6.8, flap: [1.8, 9.0], aileron: [9.3, 13.5], thickness: 0.11, winglet: { out: 0.5, height: 1.7, back: 1.6, tipChord: 0.55 } },
+  wing: { dihedral: 4, sweep: 34, span: 15.35, y0: 1.75, rootChord: 6.8, tipChord: 1.4, le0: 6.8, flap: [1.8, 9.0], aileron: [9.3, 13.5], thickness: 0.11, winglet: { out: 0.5, height: 1.7, back: 1.6, tipChord: 0.55 } },
   fairing: { top: 2.1, keys: [[9.4, 0.02, 1.9], [8.6, 0.6, 1.5], [7.2, 1.2, 1.25], [5.0, 1.5, 1.15], [2.0, 1.6, 1.15], [-0.5, 1.45, 1.2], [-2.0, 0.9, 1.45], [-3.0, 0.02, 1.8]] },
   fin: { rootLE: [5.0, -6.9], tipLE: [8.1, -11.6], rootChord: 5.4, tipChord: 2.6 },
   dorsal: { z0: -5.2, z1: -6.9, ze: -7.5, width: 0.25 },

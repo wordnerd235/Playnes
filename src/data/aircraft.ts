@@ -108,7 +108,7 @@ export const AIRCRAFT: AircraftDef[] = [
     cruiseKt: 290,
     unlock: { type: "wings", price: 75 },
     wow: "The P C twelve has one big propeller and can land on short runways.",
-    vr: 85, vapp: 95, vclimb: 120, vstall: 67, vmo: 236, mmo: 1, climbFpm: 1900, rollRate: 32, cruiseAltFt: 25000,
+    vr: 85, vapp: 95, vclimb: 120, vstall: 67, vmo: 240, mmo: 1, climbFpm: 1900, rollRate: 32, cruiseAltFt: 25000,
     shape: { length: 14.4, span: 16.3, fuselageDiameter: 1.7, wing: "low", sweepDeg: 0, tail: "t-tail", engines: "prop-nose", winglets: true, fixedGear: false },
     livery: { body: "#f9f9f6", stripe: "#0d7c7c", accent: "#c7a43a" },
   },
@@ -273,7 +273,7 @@ export const AIRCRAFT: AircraftDef[] = [
     unlock: { type: "wings", price: 750 },
     wow: "The Global eight thousand is the fastest business jet in the world!",
     vr: 135, vapp: 128, vclimb: 200, vstall: 102, vmo: 340, mmo: 0.94, climbFpm: 4000, rollRate: 25, cruiseAltFt: 45000,
-    shape: { length: 33.8, span: 32.4, fuselageDiameter: 3.0, wing: "low", sweepDeg: 35, tail: "t-tail", engines: "rear-twin", winglets: true, fixedGear: false },
+    shape: { length: 33.8, span: 31.7, fuselageDiameter: 3.0, wing: "low", sweepDeg: 35, tail: "t-tail", engines: "rear-twin", winglets: true, fixedGear: false },
     livery: { body: "#fafafa", stripe: "#a8102a", accent: "#2f2f2f" },
   },
   {
@@ -314,7 +314,7 @@ export const AIRCRAFT: AircraftDef[] = [
 ];
 
 /** The Chinook's flight numbers (metres, seconds). */
-export const CHINOOK_PERF = { maxSpeed: 160 * 0.514444, climb: 7.6, accel: 2.6, brake: 4, hoverYawRate: 32, maxBank: 30, ceiling: 4600, backSpeed: 35 * 0.514444, sideSpeed: 35 * 0.514444 };
+export const CHINOOK_PERF = { maxSpeed: 160 * 0.514444, climb: 7.6, accel: 2.6, brake: 4, hoverYawRate: 32, maxBank: 30, ceiling: 6100, backSpeed: 35 * 0.514444, sideSpeed: 35 * 0.514444 };
 
 /** Fighters have one seat, and the Chinook flies from anywhere (no runway routines): Free Flight only. */
 export function carriesPassengers(ac: AircraftDef): boolean {
