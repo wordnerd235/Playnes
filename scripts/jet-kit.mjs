@@ -502,7 +502,15 @@ export function buildJet(ac, kit, S) {
     }
     return r;
   };
-  if (S.fairing) add("body", part(smooth(loft(S.fairing.keys.map(([z, hw, bot]) => superRing(z, hw, S.fairing.top, bot, S.fairing.e ?? 2.0)))), XMAT.skin, cWhite));
+  // The belly (wing-to-body) fairing: keys [z, half width, bottom, top?] smoothed along its
+  // length (a key's own top lets the tail end follow the fuselage as its belly sweeps up).
+  if (S.fairing) {
+    const ks = S.fairing.keys.map(([z, hw, bot, top]) => [z, hw, bot, top ?? S.fairing.top]);
+    const F = curve(ks), z0 = Math.max(...ks.map((k) => k[0])), z1 = Math.min(...ks.map((k) => k[0]));
+    const rings = [];
+    for (let z = z0; z > z1 - 1e-6; z -= Math.min(0.25, (z0 - z1) / 8)) { const [hw, bot, top] = F(z); rings.push(superRing(z, Math.max(0.01, hw), top, bot, S.fairing.e ?? 2.0)); }
+    add("body", part(smooth(loft(rings)), XMAT.skin, cWhite));
+  }
 
   SECTION = "tail";
   // ---------------------------------------------------------------- tail
@@ -738,7 +746,7 @@ export function buildJet(ac, kit, S) {
       let i = 0;
       while (ks[i + 1][0] < z) i++;
       const t = (z - ks[i][0]) / (ks[i + 1][0] - ks[i][0]);
-      return { hw: lerp(ks[i][1], ks[i + 1][1], t), bot: lerp(ks[i][2], ks[i + 1][2], t), top: S.fairing.top };
+      return { hw: lerp(ks[i][1], ks[i + 1][1], t), bot: lerp(ks[i][2], ks[i + 1][2], t), top: lerp(ks[i][3] ?? S.fairing.top, ks[i + 1][3] ?? S.fairing.top, t) };
     };
   })();
   const wingHalf = (x, z) => {
