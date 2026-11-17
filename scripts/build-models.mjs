@@ -817,6 +817,80 @@ function asNode(parts, pivot, xAxis = V(1, 0, 0), yAxis = V(0, 1, 0), extra = {}
   return { parts, translation: [pivot.x, pivot.y, pivot.z], rotation: [q.x, q.y, q.z, q.w], ...extra };
 }
 
+/**
+ * GEAR_CHECK=1: fold each detailed model's gear in steps and report any part of a leg or wheel
+ * left exposed from above (nothing over it: poking up through a wing or out of the body).
+ * Under the playne is fine: that's the wheel well.
+ */
+function checkGear(id, nodes, rig) {
+  const legs = ["gearL", "gearR", "gearN"].filter((n) => nodes[n] && rig.retractDeg[n]);
+  if (!legs.length) return;
+  const skip = new Set(["gearL", "gearR", "gearN", "wheelL", "wheelR", "wheelN", "gearDoors", "canopy", "pilot", "rotorF", "rotorR", "burner", "prop", "propDisc", "beacon", "strobe"]);
+  // Occluders: the outside of the playne (interior parts carry aoStrength), triangles on an xz grid.
+  const tris = [];
+  for (const [name, n] of Object.entries(nodes)) {
+    if (skip.has(name) || (n.parent && skip.has(n.parent))) continue;
+    const m = n.translation || n.rotation || n.parent ? nodeWorldMatrix(nodes, name) : new THREE.Matrix4();
+    for (const pt of n.parts) {
+      if ((pt.aoStrength !== undefined && !process.env.GEAR_INTERIOR) || pt.noOcclude) continue;
+      const g = pt.geo, pos = g.attributes.position, idx = g.index ? g.index.array : null;
+      const cnt = idx ? idx.length : pos.count;
+      const P = (k) => V(pos.getX(k), pos.getY(k), pos.getZ(k)).applyMatrix4(m);
+      for (let i = 0; i < cnt; i += 3) tris.push([P(idx ? idx[i] : i), P(idx ? idx[i + 1] : i + 1), P(idx ? idx[i + 2] : i + 2)]);
+    }
+  }
+  const CELL = 0.2, grid = new Map(), key = (x, z) => `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
+  for (const t of tris) {
+    const x0 = Math.min(t[0].x, t[1].x, t[2].x), x1 = Math.max(t[0].x, t[1].x, t[2].x), z0 = Math.min(t[0].z, t[1].z, t[2].z), z1 = Math.max(t[0].z, t[1].z, t[2].z);
+    for (let x = Math.floor(x0 / CELL); x <= Math.floor(x1 / CELL); x++) for (let z = Math.floor(z0 / CELL); z <= Math.floor(z1 / CELL); z++) {
+      const k = `${x},${z}`;
+      if (!grid.has(k)) grid.set(k, []);
+      grid.get(k).push(t);
+    }
+  }
+  const covered = (p) => {
+    for (const [a, b, c] of grid.get(key(p.x, p.z)) ?? []) {
+      const d = (b.z - c.z) * (a.x - c.x) + (c.x - b.x) * (a.z - c.z);
+      if (Math.abs(d) < 1e-12) continue;
+      const l1 = ((b.z - c.z) * (p.x - c.x) + (c.x - b.x) * (p.z - c.z)) / d, l2 = ((c.z - a.z) * (p.x - c.x) + (a.x - c.x) * (p.z - c.z)) / d, l3 = 1 - l1 - l2;
+      if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
+      if (l1 * a.y + l2 * b.y + l3 * c.y > p.y + 0.005) return true;
+    }
+    return false;
+  };
+  const problems = [];
+  for (const f of [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1]) {
+    const saved = {};
+    for (const leg of legs) {
+      const n = nodes[leg];
+      saved[leg] = n.rotation;
+      const q = new THREE.Quaternion(...(n.rotation ?? [0, 0, 0, 1])).multiply(new THREE.Quaternion().setFromAxisAngle(V(1, 0, 0), (f * rig.retractDeg[leg] * Math.PI) / 180));
+      n.rotation = [q.x, q.y, q.z, q.w];
+    }
+    for (const name of ["gearL", "gearR", "gearN", "wheelL", "wheelR", "wheelN"]) {
+      const n = nodes[name];
+      if (!n) continue;
+      const m = nodeWorldMatrix(nodes, name);
+      let worst = null, count = 0;
+      for (const pt of n.parts) {
+        const pos = pt.geo.attributes.position;
+        for (let k = 0; k < pos.count; k += 3) {
+          const p = V(pos.getX(k), pos.getY(k), pos.getZ(k)).applyMatrix4(m);
+          if (!covered(p)) { count++; if (!worst || p.y > worst.y) worst = p; }
+        }
+      }
+      if (count > 2 && process.env.GEAR_DEBUG === id && f === 0) {
+        const hs = [];
+        for (const [a, b, c] of grid.get(key(worst.x, worst.z)) ?? []) hs.push(((a.y + b.y + c.y) / 3).toFixed(2));
+        console.log("debug", name, worst, "cell tris", hs.length, [...new Set(hs)].sort().join(" "));
+      }
+      if (count > 2) problems.push(`${Math.round(f * 100)}% folded: ${name} ${count} points exposed, highest at (${worst.x.toFixed(2)}, ${worst.y.toFixed(2)}, ${worst.z.toFixed(2)})`);
+    }
+    for (const leg of legs) nodes[leg].rotation = saved[leg];
+  }
+  console.log(problems.length ? `${id} gear:\n  ` + problems.join("\n  ") : `${id} gear: ok`);
+}
+
 function nodeWorldMatrix(nodes, name) {
   const n = nodes[name];
   const m = new THREE.Matrix4().compose(
@@ -1026,6 +1100,7 @@ for (const ac of AIRCRAFT) {
   if (DETAILED[ac.id]) {
     const { nodes, extraMaterials, rig } = DETAILED[ac.id](ac, kit);
     rigs[ac.id] = rig;
+    if (process.env.GEAR_CHECK) { checkGear(ac.id, nodes, rig); continue; }
     const t0 = Date.now();
     const verts = bakeAO(nodes);
     bytes = writeGlb(nodes, join(outDir, `${ac.id}.glb`), extraMaterials);

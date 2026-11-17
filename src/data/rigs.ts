@@ -41,9 +41,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "phenom100": {
     "retractDeg": {
-      "gearL": 107.6,
-      "gearR": 107.6,
-      "gearN": 95
+      "gearL": 103.5,
+      "gearR": 103.5,
+      "gearN": 112.5
     },
     "wheelRadius": {
       "wheelL": 0.26,
@@ -65,9 +65,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "pc12": {
     "retractDeg": {
-      "gearL": 107.3,
-      "gearR": 107.3,
-      "gearN": 95
+      "gearL": 121.2,
+      "gearR": 121.2,
+      "gearN": 115
     },
     "wheelRadius": {
       "wheelL": 0.3,
@@ -89,9 +89,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "hondajet": {
     "retractDeg": {
-      "gearL": 109.4,
-      "gearR": 109.4,
-      "gearN": 95
+      "gearL": 99.6,
+      "gearR": 99.6,
+      "gearN": 112.5
     },
     "wheelRadius": {
       "wheelL": 0.25,
@@ -113,8 +113,8 @@ export const RIGS: Record<string, Rig> = {
   },
   "phenom300": {
     "retractDeg": {
-      "gearL": 105.3,
-      "gearR": 105.3,
+      "gearL": 91.6,
+      "gearR": 91.6,
       "gearN": 95
     },
     "wheelRadius": {
@@ -137,9 +137,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "pc24": {
     "retractDeg": {
-      "gearL": 103.8,
-      "gearR": 103.8,
-      "gearN": 95
+      "gearL": 97.8,
+      "gearR": 97.8,
+      "gearN": 112.5
     },
     "wheelRadius": {
       "wheelL": 0.3,
@@ -161,9 +161,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "latitude": {
     "retractDeg": {
-      "gearL": 102,
-      "gearR": 102,
-      "gearN": 95
+      "gearL": 94.7,
+      "gearR": 94.7,
+      "gearN": 110
     },
     "wheelRadius": {
       "wheelL": 0.33,
@@ -185,9 +185,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "praetor600": {
     "retractDeg": {
-      "gearL": 102.5,
-      "gearR": 102.5,
-      "gearN": 95
+      "gearL": 95.2,
+      "gearR": 95.2,
+      "gearN": 102.5
     },
     "wheelRadius": {
       "wheelL": 0.38,
@@ -209,9 +209,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "challenger3500": {
     "retractDeg": {
-      "gearL": 101.5,
-      "gearR": 101.5,
-      "gearN": 95
+      "gearL": 99,
+      "gearR": 99,
+      "gearN": 112.5
     },
     "wheelRadius": {
       "wheelL": 0.42,
@@ -233,9 +233,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "falcon8x": {
     "retractDeg": {
-      "gearL": 93.4,
-      "gearR": 93.4,
-      "gearN": 95
+      "gearL": 78.1,
+      "gearR": 78.1,
+      "gearN": 70
     },
     "wheelRadius": {
       "wheelL": 0.43,
@@ -257,9 +257,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "g650er": {
     "retractDeg": {
-      "gearL": 93.4,
-      "gearR": 93.4,
-      "gearN": 95
+      "gearL": 90.2,
+      "gearR": 90.2,
+      "gearN": 110
     },
     "wheelRadius": {
       "wheelL": 0.5,
@@ -281,9 +281,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "g700": {
     "retractDeg": {
-      "gearL": 93.4,
-      "gearR": 93.4,
-      "gearN": 95
+      "gearL": 91.7,
+      "gearR": 91.7,
+      "gearN": 110
     },
     "wheelRadius": {
       "wheelL": 0.5,
@@ -305,9 +305,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "global8000": {
     "retractDeg": {
-      "gearL": 93.4,
-      "gearR": 93.4,
-      "gearN": 95
+      "gearL": 81,
+      "gearR": 81,
+      "gearN": 105
     },
     "wheelRadius": {
       "wheelL": 0.5,

@@ -552,9 +552,9 @@ export function buildPhenom300(ac, kit) {
   const MR = 0.27, MW = 0.17;
   for (const side of [1, -1]) {
     const name = side > 0 ? "gearL" : "gearR";
-    const P = V(side * 1.32, 0.58, 0.12), K = V(side * 1.32, MR - LIFT + 0.13, 0.13), A = V(side * 1.32, MR - LIFT, 0), W = V(side * 1.46, MR - LIFT, 0);
+    const P = V(side * 1.32, 0.5, 0.32), K = V(side * 1.32, MR - LIFT + 0.13, 0.13), A = V(side * 1.32, MR - LIFT, 0), W = V(side * 1.46, MR - LIFT, 0);
     const u = W.clone().sub(P).normalize();
-    const w = V(-side, 0.06, 0).normalize();
+    const w = V(-side, -0.35, 0.25).normalize(); // folds inward, a little down and forward: into the wing box ahead of the flap and the belly fairing
     const axis = u.clone().cross(w).normalize();
     rig.retractDeg[name] = +((Math.acos(u.dot(w)) * 180) / Math.PI).toFixed(1);
     const parts = [

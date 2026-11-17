@@ -648,14 +648,86 @@ export function buildJet(ac, kit, S) {
     return { ...child, translation: [t.x, t.y, t.z], rotation: [q.x, q.y, q.z, q.w], parent: parentName, moving: true };
   };
   const G = S.gear;
+  // Where a folded wheel can hide: inside the fuselage, the belly fairing or the wing. Points
+  // under the playne are "covered" (a wheel well seen from below); anything else is exposed
+  // (poking up through the wing or out of the side), which the fold must avoid.
+  const fairAt = (() => {
+    if (!S.fairing) return () => null;
+    const ks = [...S.fairing.keys].sort((a, b) => a[0] - b[0]);
+    return (z) => {
+      if (z <= ks[0][0] || z >= ks[ks.length - 1][0]) return null;
+      let i = 0;
+      while (ks[i + 1][0] < z) i++;
+      const t = (z - ks[i][0]) / (ks[i + 1][0] - ks[i][0]);
+      return { hw: lerp(ks[i][1], ks[i + 1][1], t), bot: lerp(ks[i][2], ks[i + 1][2], t), top: S.fairing.top };
+    };
+  })();
+  const wingHalf = (x, z) => {
+    const ax = Math.abs(x);
+    if (ax > XT) return null;
+    const c = chordAt(ax), u = (leAt(ax) - z) / c;
+    if (u < 0 || u > 1) return null;
+    const t = WG.thickness ?? 0.12;
+    const half = 5 * t * (0.2969 * Math.sqrt(u) - 0.126 * u - 0.3516 * u * u + 0.2843 * u ** 3 - 0.1036 * u ** 4) * c;
+    // Behind the flap hinge the flap itself is much thinner than the wing box.
+    if (ax > FLAP[0] && ax < FLAP[1] && u > FCUT - 0.02) return { lo: wingY(ax) - 0.035, hi: wingY(ax) + 0.012 };
+    const mid = wingY(ax) + 0.02 * 4 * u * (1 - u) * c;
+    return { lo: mid - half, hi: mid + half };
+  };
+  // Ahead of the windshield the nose is closed: the nose wheel may fold up into it.
+  const noseBay = S.windshield.z1 + 0.05;
+  const place = (p) => {
+    const f = FUS(Math.min(Z_NOSE, Math.max(Z_TAIL, p.z)));
+    let inBody = p.y < f[1] && p.y > f[2] && Math.abs(p.x) < halfW(p.z, p.y);
+    const fr = fairAt(p.z);
+    if (!inBody && fr && p.y < fr.top && p.y > fr.bot) {
+      const yc = (fr.top + fr.bot) / 2, hh = (fr.top - fr.bot) / 2;
+      if (Math.abs(p.x) < fr.hw * Math.sqrt(Math.max(0, 1 - ((p.y - yc) / hh) ** 2))) return 0;
+    }
+    if (inBody && p.y > S.floor - 0.04 && p.z < noseBay) return 10; // up in the cabin or cockpit
+    if (inBody) return 0;
+    const wg = wingHalf(p.x, p.z);
+    if (wg && p.y > wg.lo && p.y < wg.hi) return 0;
+    if ((wg && p.y <= wg.lo) || (p.y <= f[2] && Math.abs(p.x) < f[0]) || (fr && p.y <= fr.bot && Math.abs(p.x) < fr.hw)) return 1;
+    return 10;
+  };
+  /** How badly a leg folding from u to w (about pivot P) shows: sampled along the swing. */
+  const foldScore = (P, pts, u, w) => {
+    const axis = u.clone().cross(w).normalize(), ang = Math.acos(Math.max(-1, Math.min(1, u.dot(w))));
+    let score = 0;
+    for (const [f, wt] of [[0.35, 0.3], [0.7, 0.5], [1, 3]]) {
+      const q = new THREE.Quaternion().setFromAxisAngle(axis, ang * f);
+      for (const p of pts) score += wt * place(p.clone().sub(P).applyQuaternion(q).add(P));
+    }
+    return score;
+  };
   {
     const MR = G.mainR, MW = G.mainW, gx = G.mainX, gz = G.mainZ ?? 0;
     const dual = G.mainDual ? [-(MW * 0.55), MW * 0.55] : [0];
+    // The leg's top (the pivot) stays inside the wing.
+    const wr = wingHalf(gx, gz + 0.12);
+    if (process.env.GEAR_DEBUG === ac.id) console.log("wing at the leg top", wr, "spec pivot", G.pivotY);
+    const pivotY = wr ? Math.min(G.pivotY, wr.hi - (G.legR ?? 0.05) - 0.015) : G.pivotY;
     for (const side of [1, -1]) {
       const name = side > 0 ? "gearL" : "gearR";
-      const P = V(side * gx, G.pivotY, gz + 0.12), K = V(side * gx, MR - LIFT + 0.13, gz + 0.13), A = V(side * gx, MR - LIFT, gz), Wc = V(side * (gx + (G.mainDual ? 0 : 0.14)), MR - LIFT, gz);
+      const P = V(side * gx, pivotY, gz + 0.12), K = V(side * gx, MR - LIFT + 0.13, gz + 0.13), A = V(side * gx, MR - LIFT, gz), Wc = V(side * (gx + (G.mainDual ? 0 : 0.14)), MR - LIFT, gz);
       const u = Wc.clone().sub(P).normalize();
-      const w = V(-side, 0.06, 0).normalize();
+      // Sample the wheel(s) and the leg, then fold inward at whichever angle hides them best.
+      const pts = [];
+      for (const ox of dual) for (const sx of [-1, 1]) for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * Math.PI * 2;
+        pts.push(V(Wc.x + ox + (sx * MW) / 2, Wc.y + Math.cos(a) * MR, Wc.z + Math.sin(a) * MR));
+      }
+      for (let k = 0; k <= 4; k++) pts.push(P.clone().lerp(A, k / 4));
+      const dx = side * (gx + 0.07 + (G.mainDual ? MW * 0.9 : 0)), dh = (pivotY - MR + LIFT) * 0.62, dy = (pivotY + MR - LIFT) / 2 + 0.05, dl = 0.15 * (MR / 0.27);
+      for (const sy of [-1, 1]) for (const sz of [-1, 1]) pts.push(V(dx, dy + (sy * dh) / 2, gz + 0.13 + sz * dl));
+      let w = V(-side, 0.06, 0).normalize(), best = Infinity;
+      // ...also leaning forward, so the wheel can tuck into the deep wing box ahead of the flap.
+      for (const fwd of [0, 0.15, 0.3, 0.45]) for (let deg = -80; deg <= 25; deg += 2.5) {
+        const cand = V(-side * Math.cos(deg * DEG), Math.sin(deg * DEG), fwd).normalize();
+        const sc = foldScore(P, pts, u, cand) + Math.abs(deg) * 0.01 + fwd * 0.5;
+        if (sc < best) { best = sc; w = cand; }
+      }
       const axis = u.clone().cross(w).normalize();
       rig.retractDeg[name] = +((Math.acos(u.dot(w)) * 180) / Math.PI).toFixed(1);
       const legR = G.legR ?? 0.05;
@@ -663,7 +735,7 @@ export function buildJet(ac, kit, S) {
         part(cylinderBetween(P, K, legR, 12), MAT.metal, C("#c9cdd2")),
         part(cylinderBetween(P.clone().lerp(K, 0.55), K, legR * 0.72, 12), MAT.metal, C("#eef0f2")),
         part(cylinderBetween(K, A, legR * 0.68, 10), MAT.metal, cMetal),
-        part(new THREE.BoxGeometry(0.02, (G.pivotY - MR + LIFT) * 0.62, 0.3 * (MR / 0.27)).applyMatrix4(T(side * (gx + 0.07 + (G.mainDual ? MW * 0.9 : 0)), (G.pivotY + MR - LIFT) / 2 + 0.05, gz + 0.13)), XMAT.skin, cWing),
+        part(new THREE.BoxGeometry(0.02, (pivotY - MR + LIFT) * 0.62, 0.3 * (MR / 0.27)).applyMatrix4(T(side * (gx + 0.07 + (G.mainDual ? MW * 0.9 : 0)), (pivotY + MR - LIFT) / 2 + 0.05, gz + 0.13)), XMAT.skin, cWing),
       ];
       if (!G.mainDual) parts.push(part(cylinderBetween(A.clone().add(V(-side * 0.02, 0, 0)), Wc, 0.025, 8), MAT.metal, cMetal));
       else parts.push(part(cylinderBetween(A.clone().add(V(-MW * 1.1, 0, 0)), A.clone().add(V(MW * 1.1, 0, 0)), 0.03, 8), MAT.metal, cMetal));
@@ -685,8 +757,22 @@ export function buildJet(ac, kit, S) {
       part(cylinderBetween(V(0, py - 0.04, nz - 0.4), V(0, Fk + 0.25, nz), 0.02, 8), MAT.metal, cMetal),
       part(new THREE.SphereGeometry(0.045, 10, 8).applyMatrix4(T(0, Fk + 0.3, nz + 0.09)), MAT.white, C("#ffffff"), { noAO: true }),
     ];
-    nodes.gearN = asNode(parts, P, V(-1, 0, 0), V(0, 1, 0), { moving: true });
-    rig.retractDeg.gearN = G.noseRetract ?? 95;
+    // Folds forward (or back, if that hides it better) about the pivot.
+    let nAxis = V(-1, 0, 0), nDeg = G.noseRetract ?? 95;
+    if (G.noseRetract === undefined) {
+      const pts = [];
+      for (const sx of G.noseDual ? [-NW * 1.1, NW * 1.1] : [-NW / 2, NW / 2]) for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2; pts.push(V(sx, Wn.y + Math.cos(a) * NR, Wn.z + Math.sin(a) * NR)); }
+      const down = Wn.clone().sub(P).normalize();
+      let best = Infinity;
+      for (const dirSign of [1, -1]) for (let d = 70; d <= 115; d += 2.5) {
+        const ax = V(-dirSign, 0, 0);
+        const w = down.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(ax, d * DEG));
+        const sc = foldScore(P, pts, down, w) + Math.abs(d - 95) * 0.01 + (dirSign < 0 ? 0.05 : 0);
+        if (sc < best) { best = sc; nAxis = ax; nDeg = d; }
+      }
+    }
+    nodes.gearN = asNode(parts, P, nAxis, nAxis.x < 0 ? V(0, 1, 0) : V(0, -1, 0), { moving: true });
+    rig.retractDeg.gearN = nDeg;
     nodes.wheelN = adopt("gearN", { parts: wheelParts(NR, NW, G.noseDual ? [-NW * 0.6, NW * 0.6] : [0]), translation: [Wn.x, Wn.y, Wn.z], rotation: [0, 0, 0, 1] });
     rig.wheelRadius.wheelN = NR;
     const doors = [];
@@ -805,6 +891,17 @@ export function buildJet(ac, kit, S) {
   const panelW = 2 * (Math.min(halfW(PZ + 0.08, FY + 0.92), halfW(PZ + 0.08, FY + 0.38)) - 0.06), gsW = 2 * (Math.min(halfW(PZ + 0.24, FY + 0.94), halfW(PZ + 0.24, FY + 0.92)) - 0.06);
   add("body", part(box(panelW, 0.54, 0.08, 0, FY + 0.65, PZ + 0.04), MAT.dark, C("#2a2d31"), INSIDE));
   add("body", part(box(gsW, 0.05, 0.28, 0, FY + 0.94, PZ + 0.1), MAT.dark, cBlack, INSIDE));
+  // The coaming: the top of the nose bay, from the glareshield forward to the windshield, so
+  // nothing in the nose (the folded nose wheel) shows through the glass.
+  {
+    const cy = FY + 0.92, z0 = PZ + 0.24;
+    let z1 = z0;
+    while (z1 < S.windshield.z1 && FUS(z1 + 0.05)[1] > cy + 0.08 && FUS(z1 + 0.05)[2] < cy - 0.05) z1 += 0.05;
+    if (z1 > z0 + 0.1) {
+      const cw = Math.min(...[z0, (z0 + z1) / 2, z1].map((z) => halfW(z, cy))) - 0.05;
+      add("body", part(box(2 * cw, 0.02, z1 - z0, 0, cy, (z0 + z1) / 2), MAT.dark, cBlack, INSIDE));
+    }
+  }
   const D0 = PZ - 0.008;
   const disp = (w, h, x, y, dz, c) => add("body", part(box(w, h, 0.002, x, y, D0 - dz), XMAT.display, C(c), { noAO: true, noOcclude: true }));
   const dispR = (w, h, x, y, dz, c, rz) => add("body", part(new THREE.BoxGeometry(w, h, 0.002).applyMatrix4(RZ(rz)).applyMatrix4(T(x, y, D0 - dz)), XMAT.display, C(c), { noAO: true, noOcclude: true }));
