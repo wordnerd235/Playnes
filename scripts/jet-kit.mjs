@@ -446,9 +446,12 @@ export function buildJet(ac, kit, S) {
       nacelle(EX, E.y, E.zi, E.len, E.r);
       if (E.mount === "wing") {
         // Over-the-wing pylon (HondaJet): from the wing's top surface up to the nacelle.
-        const wz = E.zi - E.len * 0.55;
-        const yw = wingY(E.x) + 0.06;
-        add("body", part(surface({ rootLE: V(EX, yw, wz + 0.25), tipLE: V(EX, E.y - E.r * 0.7, wz + 0.15), rootChord: E.len * 0.55, tipChord: E.len * 0.5, thickness: 0.12, camber: 0, up: V(1, 0, 0), stations: [{ t: 0 }, { t: 1 }] }), MAT.paint, cWhite));
+        // The pylon stands on the wing's top surface, from just behind the intake back to the
+        // trailing edge, and leans up into the nacelle.
+        const wingTE = leAt(E.x) - chordAt(E.x), z0 = E.zi - 0.25;
+        const rc = Math.max(0.5, Math.min(E.len * 0.55, z0 - wingTE));
+        const yw = wingY(E.x) + (WG.thickness ?? 0.12) * chordAt(E.x) * 0.3;
+        add("body", part(surface({ rootLE: V(EX, yw, z0), tipLE: V(EX, E.y - E.r * 0.75, z0 - 0.1), rootChord: rc, tipChord: E.len * 0.5, thickness: 0.14, camber: 0, up: V(1, 0, 0), stations: [{ t: 0 }, { t: 1 }] }), MAT.paint, cWhite));
       } else {
         const yP = E.y - 0.02;
         add("body", part(surface({ rootLE: V(side * (halfW(E.zi - E.len * 0.47, yP) - 0.08), yP, E.zi - E.len * 0.29), tipLE: V(side * (E.x - E.r * 0.77), yP, E.zi - E.len * 0.32), rootChord: E.len * 0.55, tipChord: E.len * 0.49, thickness: 0.11, camber: 0, stations: [{ t: 0 }, { t: 1 }] }), MAT.paint, cWhite));
@@ -684,7 +687,7 @@ export function buildJet(ac, kit, S) {
   for (const row of CB.rows) for (const side of [1, -1]) {
     if (row.sides && !row.sides.includes(side)) continue;
     const aft = row.facing === "aft";
-    seat(at(side * SX, LEDGE, row.z, 0, aft ? Math.PI : 0), { width: SW, arms: [aft ? side : -side] });
+    seat(at(side * SX, LEDGE, row.z, 0, aft ? Math.PI : 0), { width: SW, arms: [aft ? side : -side], backLen: CB.backLen ?? 0.66 });
   }
   for (const tz of CB.tables ?? []) for (const side of [1, -1]) {
     add("body", part(pad(0.4, 0.03, 0.56, at(side * (SX + 0.07), LEDGE + 0.67, tz), 0.012), XMAT.wood, cWood, INSIDE));
@@ -724,7 +727,7 @@ export function buildJet(ac, kit, S) {
   // Cockpit: two pilot seats, the panel with three big screens, glareshield, pedestal, wheels
   // (or side-sticks), rudder pedals.
   const FY = LEDGE - (CK.floorDrop ?? 0.03); // cockpit floor (often a step below the cabin's)
-  for (const side of [1, -1]) seat(at(side * CX, FY, PZ - 0.72), { width: CK.seatWidth ?? 0.5, colour: cPilotSeat, trim: C("#3f4246"), rec: 0.2, backLen: 0.68 });
+  for (const side of [1, -1]) seat(at(side * CX, FY, PZ - 0.72), { width: CK.seatWidth ?? 0.5, colour: cPilotSeat, trim: C("#3f4246"), rec: 0.2, backLen: CK.backLen ?? 0.68 });
   const panelW = 2 * (Math.min(halfW(PZ + 0.08, FY + 0.92), halfW(PZ + 0.08, FY + 0.38)) - 0.06), gsW = 2 * (Math.min(halfW(PZ + 0.24, FY + 0.94), halfW(PZ + 0.24, FY + 0.92)) - 0.06);
   add("body", part(box(panelW, 0.54, 0.08, 0, FY + 0.65, PZ + 0.04), MAT.dark, C("#2a2d31"), INSIDE));
   add("body", part(box(gsW, 0.05, 0.28, 0, FY + 0.94, PZ + 0.1), MAT.dark, cBlack, INSIDE));
@@ -856,7 +859,7 @@ export function buildJet(ac, kit, S) {
 
   rig.eye = [CX, FY + 1.16, PZ - 0.79];
   const we = CB.windowSeat;
-  rig.windowEye = [SX - 0.01, LEDGE + 1.14, we];
+  rig.windowEye = [SX - 0.01, Math.min(LEDGE + 1.14, W.yc + 0.12), we]; // eye level with the window, even in a low cabin
   rig.fov = S.fov ?? 80;
   rig.eyePitch = 9;
   // Quality check: nothing inside the cabin may poke out through the skin.

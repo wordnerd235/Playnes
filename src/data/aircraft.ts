@@ -118,7 +118,7 @@ export const AIRCRAFT: AircraftDef[] = [
     unlock: { type: "wings", price: 125 },
     wow: "The Honda Jet's engines sit on top of the wings!",
     vr: 105, vapp: 110, vclimb: 170, vstall: 85, vmo: 270, mmo: 0.72, climbFpm: 3900, rollRate: 32, cruiseAltFt: 30000,
-    shape: { length: 13.0, span: 12.1, fuselageDiameter: 1.6, wing: "low", sweepDeg: 6, tail: "conventional", engines: "over-wing", winglets: true, fixedGear: false },
+    shape: { length: 13.0, span: 12.1, fuselageDiameter: 1.6, wing: "low", sweepDeg: 6, tail: "t-tail", engines: "over-wing", winglets: true, fixedGear: false },
     livery: { body: "#f4f6fa", stripe: "#2b6cb0", accent: "#9fb4cc" },
   },
   {
