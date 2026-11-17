@@ -63,8 +63,11 @@ export interface StepEnv {
   groundHeight: number;
   /** What the wheels roll on (grass slows you down more). Default runway. */
   surface?: "runway" | "grass";
-  /** Real takeoff runs (grown-up "Real controls"): no extra push on the takeoff roll. */
-  realRoll?: boolean;
+  /**
+   * Grown-up "Real controls": no extra push on the takeoff roll, and engines that take their
+   * real time to wind up (a jet about 4 s from idle to full power).
+   */
+  real?: boolean;
 }
 
 /** Derived per-aircraft constants. Speeds are m/s; vr/vapp/vclimb/vstall/vmo are indicated airspeeds. */
@@ -98,6 +101,8 @@ export interface Perf {
   speedbrakes: boolean;
   /** Fighter: forward stick sets a dive angle (full forward = nearly straight down). */
   diveByAngle: boolean;
+  /** Piston, turboprop, jet, fighter or helicopter (how the engines respond). */
+  kind: AircraftDef["kind"];
   /** Has thrust reversers (or reverse pitch props). */
   reversers: boolean;
   /** How strong they are, as a share of full reversers on every engine. */
@@ -198,6 +203,7 @@ export function perfFor(ac: AircraftDef): Perf {
     rollRate: ac.rollRate,
     speedbrakes: ac.kind === "jet" || ac.kind === "fighter",
     diveByAngle: ac.kind === "fighter",
+    kind: ac.kind,
     reversers: (ac.reverser ?? (ac.kind === "jet" || ac.kind === "turboprop" ? 1 : 0)) > 0,
     reverserShare: ac.reverser ?? (ac.kind === "jet" || ac.kind === "turboprop" ? 1 : 0),
     climbMax,
@@ -256,6 +262,18 @@ export function excessAccel(s: FlightState, p: Perf, throttle: number): number {
   return thrustAccel(p, throttle, s.speed, s.alt) * (1 - over) - dragAccel(s, p, turnLoad(s)) - over * SPEEDBRAKE_DECEL;
 }
 
+/**
+ * How fast the engine follows the lever (throttle units per second). Easy: nearly at once.
+ * Real: a piston engine answers in about a second, a turboprop in two, a jet winds up slowly
+ * from idle and faster as it gets going (about 4 s to full power) and winds down in about 2.
+ */
+export function spoolRate(p: Perf, now: number, up: boolean, real: boolean): number {
+  if (!real || p.kind === "piston" || p.kind === "helicopter") return 1.6;
+  if (p.kind === "turboprop") return up ? 0.55 : 0.8;
+  if (p.kind === "fighter") return up ? 0.2 + 0.5 * now : 0.6;
+  return up ? 0.12 + 0.35 * now : 0.5;
+}
+
 /** Extra push on the takeoff roll so a 5-year-old isn't waiting 40 seconds for rotation. */
 export const GROUND_ACCEL_BOOST = 1.3;
 
@@ -285,7 +303,7 @@ function dragFactor(s: FlightState, p: Perf): number {
 /** Advance the flight state by dt seconds. Returns events that happened during the step. */
 export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: number): FlightEvent[] {
   const events: FlightEvent[] = [];
-  s.throttle = approach(s.throttle, clamp(cmd.throttle, 0, 1), dt * 1.6);
+  s.throttle = approach(s.throttle, clamp(cmd.throttle, 0, 1), dt * spoolRate(p, s.throttle, cmd.throttle > s.throttle, !!env.real));
 
   // Thrust falls with altitude and speed; drag grows with air density and speed squared.
   const sigma = densityRatio(s.alt);
@@ -304,7 +322,7 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
     // Ground spoilers dump the lift so the wheel brakes grip; reversers push the air forward.
     const rolling = (env.surface === "grass" ? 0.05 : 0.015) * G + cmd.brake * (0.3 + 0.15 * spoilers) * G;
     const reverser = cmd.reverse && p.reversers && s.speed > 12 ? REVERSER_DECEL * p.reverserShare : 0;
-    const a = thrust * (env.realRoll ? 1 : GROUND_ACCEL_BOOST) - drag - (s.speed > 0.1 ? rolling + reverser : 0);
+    const a = thrust * (env.real ? 1 : GROUND_ACCEL_BOOST) - drag - (s.speed > 0.1 ? rolling + reverser : 0);
     s.speed = Math.max(0, s.speed + a * dt);
     s.bank = approach(s.bank, 0, 20 * dt);
     s.gamma = 0;

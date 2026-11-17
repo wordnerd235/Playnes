@@ -91,7 +91,7 @@ describe("real takeoff roll", () => {
       const s = createState({ lat: 36, lon: -82, alt: 0, heading: 0, onGround: true, speed: 0, gearDown: true, flaps: 1 });
       let t = 0;
       while (s.speed < p.vr && t < 120) {
-        step(s, { targetBank: 0, targetVs: 0, throttle: 1, brake: 0, rotate: false, groundHeading: 0 }, p, { groundHeight: 0, realRoll }, DT);
+        step(s, { targetBank: 0, targetVs: 0, throttle: 1, brake: 0, rotate: false, groundHeading: 0 }, p, { groundHeight: 0, real: realRoll }, DT);
         t += DT;
       }
       return t;
@@ -99,5 +99,24 @@ describe("real takeoff roll", () => {
     const easy = roll(false), real = roll(true);
     expect(real).toBeGreaterThan(easy * 1.15);
     expect(real).toBeLessThan(40);
+  });
+});
+
+describe("real engines", () => {
+  it("a jet takes about 4 s to wind up to full power, the Cessna about a second", () => {
+    const windUp = (id: string) => {
+      const p = perfFor(AIRCRAFT.find((a) => a.id === id)!);
+      const s = createState({ lat: 36, lon: -82, alt: 0, heading: 0, onGround: true, speed: 0, gearDown: true, flaps: 1 });
+      s.throttle = 0;
+      let t = 0;
+      while (s.throttle < 0.95 && t < 20) {
+        step(s, { targetBank: 0, targetVs: 0, throttle: 1, brake: 1, rotate: false, groundHeading: 0 }, p, { groundHeight: 0, real: true }, DT);
+        t += DT;
+      }
+      return t;
+    };
+    expect(windUp("g700")).toBeGreaterThan(3);
+    expect(windUp("g700")).toBeLessThan(5.5);
+    expect(windUp("c172")).toBeLessThan(1);
   });
 });

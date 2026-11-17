@@ -57,9 +57,13 @@ and the model section of `docs/SETUP.md`.
 - **"Real controls"** (grown-up setting, Free Flight only; `REAL_CONTROLS` level in
   `src/sim/assist.ts`, tests in `tests/realControls.test.ts`): the stick sets roll and pitch
   rates; let go and the playne stays banked / keeps its climb (as if trimmed); a steep bank
-  without back pressure lets the nose drop. Easy stays the default. The co-pilot's landing help
+  without back pressure lets the nose drop; no extra push on the takeoff roll; engines take
+  their real time to wind up (`spoolRate`: a jet about 4 s from idle). Easy stays the default. The co-pilot's landing help
   still flies the glide path while the stick is centred (`Guidance.glidePath`).
-- **Not done:** the rest of the audit's list (per-type truth, "real stalls", wind).
+- **Reversers** only where real (`AircraftDef.reverser`): none on the Phenoms, HondaJet and
+  PC-24; a third of the effect on the Falcon 8X (centre engine only).
+- **Not done:** the rest of the audit's list (F-16 automatic flaps, Chinook water landings,
+  "real stalls", wind).
 - The owner has seen the F-16 exterior pictures and the first cockpit; they have **not yet
   reported on the test copy on an iPad or in Google mode**. Ask before assuming it is fine.
 
