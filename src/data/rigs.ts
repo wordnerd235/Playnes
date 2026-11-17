@@ -39,6 +39,30 @@ export const RIGS: Record<string, Rig> = {
     ],
     "fov": 85
   },
+  "phenom100": {
+    "retractDeg": {
+      "gearL": 107.6,
+      "gearR": 107.6,
+      "gearN": 95
+    },
+    "wheelRadius": {
+      "wheelL": 0.26,
+      "wheelR": 0.26,
+      "wheelN": 0.19
+    },
+    "eye": [
+      0.34,
+      2.28,
+      2.91
+    ],
+    "windowEye": [
+      0.24902398459445052,
+      2.3,
+      0.26
+    ],
+    "fov": 80,
+    "eyePitch": 9
+  },
   "phenom300": {
     "retractDeg": {
       "gearL": 105.3,
@@ -155,6 +179,30 @@ export const RIGS: Record<string, Rig> = {
       0.6953384018098888,
       2.955,
       4.36
+    ],
+    "fov": 80,
+    "eyePitch": 9
+  },
+  "falcon8x": {
+    "retractDeg": {
+      "gearL": 93.4,
+      "gearR": 93.4,
+      "gearN": 95
+    },
+    "wheelRadius": {
+      "wheelL": 0.43,
+      "wheelR": 0.43,
+      "wheelN": 0.28
+    },
+    "eye": [
+      0.55,
+      2.565,
+      9.510000000000002
+    ],
+    "windowEye": [
+      0.614948201373764,
+      2.575,
+      6.22
     ],
     "fov": 80,
     "eyePitch": 9

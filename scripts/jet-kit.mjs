@@ -460,16 +460,20 @@ export function buildJet(ac, kit, S) {
     // in front of the fin, its exhaust at the very end of the tailcone.
     const CE = S.centreEngine;
     const top = (z) => FUS(z)[1];
-    const rings = [];
+    const lipTop = CE.top, rings = [];
     for (let i = 0; i <= 10; i++) {
-      const z = lerp(CE.z0, CE.z1, i / 10);
-      const s = Math.sin((i / 10) * Math.PI * 0.5);
-      rings.push(superRing(z, CE.w * (0.3 + 0.7 * s), top(z) + CE.h * s, top(z) - 0.3, 2.2, 32));
+      const t = i / 10, z = lerp(CE.z0, CE.z1, t);
+      const yTop = Math.max(lipTop + (top(CE.z1) - lipTop) * t * t, top(z) + 0.02);
+      rings.push(superRing(z, CE.w * (1 - 0.15 * t), yTop, top(z) - 0.35, 2.2, 32));
     }
-    add("body", part(smooth(loft(rings, { capStart: true, capEnd: false })), XMAT.skin, cWhite));
-    const zf = CE.z0 + 0.02;
-    add("body", part(new THREE.CircleGeometry(1, 28).applyMatrix4(new THREE.Matrix4().makeScale(CE.w * 0.85, CE.h * 0.42, 1)).applyMatrix4(T(0, top(zf) + CE.h * 0.5, zf + 0.01)), MAT.dark, C("#2a2c2f"), { noAO: true }));
-    add("body", part(lathe([[CE.nozzle * 0.8, 0], [CE.nozzle, 0.3], [CE.nozzle * 0.95, 0.5]], 24, new THREE.Matrix4().makeRotationY(Math.PI).premultiply(T(0, centreY(Z_TAIL), Z_TAIL + 0.45))), MAT.metal, C("#7d8288")));
+    add("body", part(smooth(loft(rings, { capStart: false, capEnd: false })), XMAT.skin, cWhite));
+    // The intake opening at the front, and a polished lip round it.
+    const yc = (lipTop + top(CE.z0)) / 2 + 0.04, hh = (lipTop - top(CE.z0)) / 2 - 0.03;
+    add("body", part(new THREE.CircleGeometry(1, 28).applyMatrix4(new THREE.Matrix4().makeScale(CE.w * 0.82, hh, 1)).applyMatrix4(T(0, yc, CE.z0 - 0.005)), MAT.dark, C("#2a2c2f"), { noAO: true }));
+    add("body", part(new THREE.TorusGeometry(1, 0.035, 6, 28).applyMatrix4(new THREE.Matrix4().makeScale(CE.w * 0.86, hh + 0.02, 1)).applyMatrix4(T(0, yc, CE.z0 - 0.01)), MAT.metal, C("#c8ccd1"), { noAO: true }));
+    // The tail engine's exhaust: a short metal nozzle out of the blunt end of the tailcone.
+    add("body", part(lathe([[CE.nozzle * 1.05, 0], [CE.nozzle, 0.25], [CE.nozzle * 0.92, 0.4]], 24, new THREE.Matrix4().makeRotationY(Math.PI).premultiply(T(0, centreY(Z_TAIL), Z_TAIL + 0.1))), MAT.metal, C("#7d8288")));
+    add("body", part(new THREE.CircleGeometry(CE.nozzle * 0.88, 24).applyMatrix4(RY(Math.PI)).applyMatrix4(T(0, centreY(Z_TAIL), Z_TAIL - 0.28)), MAT.dark, C("#26282b"), { noAO: true }));
   }
   if (S.prop) {
     // Turboprop nose: spinner, propeller (spins), the blur disc, exhaust stacks.
@@ -635,7 +639,7 @@ export function buildJet(ac, kit, S) {
   const cabinLen = CK.bulkheadZ - floorEnd, cabinMid = (CK.bulkheadZ + floorEnd) / 2;
   const floorHalf = Math.min(halfW(cabinMid, AISLE - 0.02), halfW(CK.bulkheadZ, AISLE - 0.02), halfW(floorEnd, AISLE - 0.02), halfW(floorEnd, LEDGE)) - LIN;
   // Floors: cockpit, the aisle, and raised side ledges (where the cabin has a dropped aisle).
-  { const fy = LEDGE - (CK.floorDrop ?? 0.03) - 0.02; add("body", part(box(2 * (Math.min(halfW(PZ, fy - 0.02), halfW(CK.bulkheadZ, fy - 0.02)) - 0.08), 0.04, PZ - CK.bulkheadZ, 0, fy, (PZ + CK.bulkheadZ) / 2), XMAT.fabric, cCarpet, INSIDE)); }
+  { const fy = LEDGE - (CK.floorDrop ?? 0.03) - 0.02; add("body", part(box(2 * (Math.min(halfW(PZ, fy - 0.02), halfW(CK.bulkheadZ - 0.05, fy - 0.02)) - 0.1), 0.04, PZ - CK.bulkheadZ, 0, fy, (PZ + CK.bulkheadZ) / 2), XMAT.fabric, cCarpet, INSIDE)); }
   const aisleHalf = S.cabin.aisleHalf ?? 0.38;
   add("body", part(box(2 * aisleHalf, 0.04, cabinLen, 0, AISLE - 0.02, cabinMid), XMAT.fabric, cCarpet, INSIDE));
   if (AISLE < LEDGE - 0.01) for (const side of [1, -1]) {
@@ -687,9 +691,9 @@ export function buildJet(ac, kit, S) {
     add("body", part(cylinderBetween(V(side * (SX - 0.01), LEDGE, tz), V(side * (SX - 0.01), LEDGE + 0.66, tz), 0.018, 10), MAT.metal, cMetal, INSIDE));
   }
   if (CB.divan) {
-    const { z0, z1, side } = CB.divan, x = side * (wallAt((z0 + z1) / 2) - 0.3);
+    const { z0, z1, side } = CB.divan, x = side * (Math.min(wallAt((z0 + z1) / 2), halfW((z0 + z1) / 2, LEDGE + 0.02) - LIN) - 0.36);
     add("body", part(pad(0.55, 0.14, z1 - z0, at(x, LEDGE + 0.36, (z0 + z1) / 2), 0.04), XMAT.leather, cLeather, INSIDE));
-    add("body", part(pad(0.14, 0.5, z1 - z0, at(x + side * 0.22, LEDGE + 0.62, (z0 + z1) / 2, 0, 0), 0.05), XMAT.leather, cLeather, INSIDE));
+    add("body", part(pad(0.14, 0.5, z1 - z0, at(x + side * 0.18, LEDGE + 0.62, (z0 + z1) / 2, 0, 0), 0.05), XMAT.leather, cLeather, INSIDE));
     add("body", part(box(0.5, 0.29, z1 - z0 - 0.04, x, LEDGE + 0.145, (z0 + z1) / 2), MAT.dark, C("#38342f"), INSIDE));
   }
   for (const side of [1, -1]) {
@@ -712,14 +716,15 @@ export function buildJet(ac, kit, S) {
     for (const y of [LEDGE + 0.34, LEDGE + 0.56]) add("body", part(box(0.012, 0.012, 0.52, gx + gw / 2 + 0.005, y, gz), MAT.metal, cMetal, INSIDE));
   }
   for (const side of [1, -1]) {
-    const bx = halfW(CK.bulkheadZ, LEDGE + 0.67) - LIN - 0.1;
-    add("body", part(box(0.16, Math.min(1.0, TOP - LIN - LEDGE - 0.12), 0.06, side * (bx - 0.06), LEDGE + 0.67, CK.bulkheadZ), XMAT.fabric, cSide, INSIDE));
+    const ph = Math.min(1.0, TOP - LIN - LEDGE - 0.12), py = LEDGE + 0.67;
+    const bx = Math.min(...[py - ph / 2, py, py + ph / 2].flatMap((y) => [halfW(CK.bulkheadZ - 0.04, y), halfW(CK.bulkheadZ + 0.04, y)])) - LIN - 0.1;
+    add("body", part(box(0.16, ph, 0.06, side * (bx - 0.06), py, CK.bulkheadZ), XMAT.fabric, cSide, INSIDE));
   }
 
   // Cockpit: two pilot seats, the panel with three big screens, glareshield, pedestal, wheels
   // (or side-sticks), rudder pedals.
   const FY = LEDGE - (CK.floorDrop ?? 0.03); // cockpit floor (often a step below the cabin's)
-  for (const side of [1, -1]) seat(at(side * CX, FY, PZ - 0.72), { width: 0.5, colour: cPilotSeat, trim: C("#3f4246"), rec: 0.2, backLen: 0.68 });
+  for (const side of [1, -1]) seat(at(side * CX, FY, PZ - 0.72), { width: CK.seatWidth ?? 0.5, colour: cPilotSeat, trim: C("#3f4246"), rec: 0.2, backLen: 0.68 });
   const panelW = 2 * (Math.min(halfW(PZ + 0.08, FY + 0.92), halfW(PZ + 0.08, FY + 0.38)) - 0.06), gsW = 2 * (Math.min(halfW(PZ + 0.24, FY + 0.94), halfW(PZ + 0.24, FY + 0.92)) - 0.06);
   add("body", part(box(panelW, 0.54, 0.08, 0, FY + 0.65, PZ + 0.04), MAT.dark, C("#2a2d31"), INSIDE));
   add("body", part(box(gsW, 0.05, 0.28, 0, FY + 0.94, PZ + 0.1), MAT.dark, cBlack, INSIDE));
