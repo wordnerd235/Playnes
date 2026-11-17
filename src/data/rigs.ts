@@ -351,5 +351,21 @@ export const RIGS: Record<string, Rig> = {
       ],
       "halfHeight": 0.105
     }
+  },
+  "ch47": {
+    "retractDeg": {},
+    "wheelRadius": {},
+    "eye": [
+      -0.6,
+      2.19,
+      5.53
+    ],
+    "windowEye": [
+      -0.9899943322946085,
+      1.95,
+      -1.3
+    ],
+    "fov": 80,
+    "eyePitch": 8
   }
 };

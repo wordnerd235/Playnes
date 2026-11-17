@@ -38,9 +38,28 @@ and the model section of `docs/SETUP.md`.
   tables, two forward-facing seats, refreshment centre, aft lavatory wall, dropped aisle.
   Cockpit: three big screens, glareshield, pedestal, control wheels, pilot. `rig.eyePitch`
   tilts the cockpit view down a little so the screens show.
-- **Now detailed:** every playne except the Chinook (the jet kit covers the business jets and the PC-12; the Cessna, F-16 and Phenom 300E are hand-built).
-- **Not done:** the Chinook, and the rest of the audit's list
-  (per-type truth, "Real controls", "real stalls", wind).
+- **Now detailed:** every playne (the jet kit covers the business jets and the PC-12; the
+  Cessna, F-16, Phenom 300E and Chinook are hand-built).
+- **The Chinook** (`scripts/model-ch47.mjs`): measured on side photos (overlay checked; heights
+  taken from the level photos, not the one shot from below, which stretches them). Boxy
+  superellipse sections `[z, half width, top, waist, bottom, top/bottom squareness]` with the
+  waist fixed, so the belly can sweep up into the ramp without bulging the sides. Round bubble
+  windows: square cut in the (station, angle) grid, a square-minus-circle plate on the skin and
+  on the lining, rubber rings, a reveal, a domed glass. Pods are a lofted profile whose inner
+  edge sits between the skin and the lining. Pylons and the roof tunnel follow the roof just
+  under the skin (`roofY`), so they never show inside. Rotor nodes keep their names and hub
+  positions (the game spins them); blades have a real airfoil, twist and the leading edge on
+  the side each rotor turns toward. Cockpit: five screens (attBall/attBall2 live), console,
+  overhead panel, armoured seats, cyclic/collective/pedals, a helmeted pilot in the right-hand
+  seat (helicopter captains sit right; `rig.eye` x is negative). Cabin: red troop seats on tube
+  frames along both walls, frames, floor treadways, closed ramp. The window view sits on the
+  right-hand troop seats looking across the cabin and out of the windows opposite.
+- **"Real controls"** (grown-up setting, Free Flight only; `REAL_CONTROLS` level in
+  `src/sim/assist.ts`, tests in `tests/realControls.test.ts`): the stick sets roll and pitch
+  rates; let go and the playne stays banked / keeps its climb (as if trimmed); a steep bank
+  without back pressure lets the nose drop. Easy stays the default. The co-pilot's landing help
+  still flies the glide path while the stick is centred (`Guidance.glidePath`).
+- **Not done:** the rest of the audit's list (per-type truth, "real stalls", wind).
 - The owner has seen the F-16 exterior pictures and the first cockpit; they have **not yet
   reported on the test copy on an iPad or in Google mode**. Ask before assuming it is fine.
 
@@ -337,6 +356,6 @@ upgrade Cesium casually, and re-run `tools/diag-google.cjs` if you do.
    `node tools/render-planes.cjs <id>` re-renders just one hangar picture (and always the
    "Meet your playne" picture and its tap spots).
 4. Per-type truth from the audit (reversers only where real, F-16 automatic flaps, Chinook
-   water landings), then "Real controls" and "real stalls" as grown-up settings.
+   water landings), then "real stalls" as a grown-up setting. (Done: "Real controls".)
 5. (Done: cartoon-map trees and buildings.)
 6. When the owner is happy: put the test copy's commit in `.stable-ref` and deploy.
