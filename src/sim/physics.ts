@@ -63,6 +63,8 @@ export interface StepEnv {
   groundHeight: number;
   /** What the wheels roll on (grass slows you down more). Default runway. */
   surface?: "runway" | "grass";
+  /** Real takeoff runs (grown-up "Real controls"): no extra push on the takeoff roll. */
+  realRoll?: boolean;
 }
 
 /** Derived per-aircraft constants. Speeds are m/s; vr/vapp/vclimb/vstall/vmo are indicated airspeeds. */
@@ -302,7 +304,7 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
     // Ground spoilers dump the lift so the wheel brakes grip; reversers push the air forward.
     const rolling = (env.surface === "grass" ? 0.05 : 0.015) * G + cmd.brake * (0.3 + 0.15 * spoilers) * G;
     const reverser = cmd.reverse && p.reversers && s.speed > 12 ? REVERSER_DECEL * p.reverserShare : 0;
-    const a = thrust * GROUND_ACCEL_BOOST - drag - (s.speed > 0.1 ? rolling + reverser : 0);
+    const a = thrust * (env.realRoll ? 1 : GROUND_ACCEL_BOOST) - drag - (s.speed > 0.1 ? rolling + reverser : 0);
     s.speed = Math.max(0, s.speed + a * dt);
     s.bank = approach(s.bank, 0, 20 * dt);
     s.gamma = 0;

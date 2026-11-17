@@ -1193,7 +1193,7 @@ export class FlightSession {
     this.flapRelief();
     this.lastCmd = { targetBank: cmd.targetBank, targetVs: cmd.targetVs };
     const wasGround = s.onGround;
-    const events = step(s, cmd, p, { groundHeight: ground, surface: overRunway || !s.onGround ? "runway" : "grass" }, dt);
+    const events = step(s, cmd, p, { groundHeight: ground, surface: overRunway || !s.onGround ? "runway" : "grass", realRoll: !!this.d.realControls }, dt);
 
     for (const e of events) {
       if (e.type === "liftoff") {

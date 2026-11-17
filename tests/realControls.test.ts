@@ -82,3 +82,22 @@ describe("real controls", () => {
     expect(f.s.bank).toBeGreaterThan(40);
   });
 });
+
+describe("real takeoff roll", () => {
+  it("takes longer than the Easy one (no extra push for grown-ups)", () => {
+    const roll = (realRoll: boolean) => {
+      const ac = AIRCRAFT.find((a) => a.id === "c172")!;
+      const p = perfFor(ac);
+      const s = createState({ lat: 36, lon: -82, alt: 0, heading: 0, onGround: true, speed: 0, gearDown: true, flaps: 1 });
+      let t = 0;
+      while (s.speed < p.vr && t < 120) {
+        step(s, { targetBank: 0, targetVs: 0, throttle: 1, brake: 0, rotate: false, groundHeading: 0 }, p, { groundHeight: 0, realRoll }, DT);
+        t += DT;
+      }
+      return t;
+    };
+    const easy = roll(false), real = roll(true);
+    expect(real).toBeGreaterThan(easy * 1.15);
+    expect(real).toBeLessThan(40);
+  });
+});
