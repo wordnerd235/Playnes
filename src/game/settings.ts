@@ -30,6 +30,8 @@ export interface Settings {
   /** Free Flight: real stalls for playnes without fly-by-wire protection (off = the co-pilot
    *  always keeps the wing flying). */
   realStalls: boolean;
+  /** Free Flight: wind (off, light or strong), from a new direction each flight. */
+  wind: "off" | "light" | "strong";
   /** Free Flight: the co-pilot's tips (spoken instructions and flashing hints on the controls). */
   freeTips: boolean;
   /** Puffy clouds and the cruise cloud layer. */
@@ -57,6 +59,7 @@ export const DEFAULT_SETTINGS: Settings = {
   freeLandingHelp: false,
   realControls: false,
   realStalls: false,
+  wind: "off",
   freeTips: false,
   clouds: true,
   perfStats: false,

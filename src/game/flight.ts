@@ -34,6 +34,7 @@ import { LINES, tpl, type Line, type Passenger } from "../data/lines.ts";
 import type { Audio } from "../audio/audio.ts";
 import type { Controls, ControlEvent } from "../input/controls.ts";
 import { computeCommands, createMemory, REAL_CONTROLS, type Guidance } from "../sim/assist.ts";
+import { groundVelocity, gust, pickWind, windCorrection, windVector, type Wind, type WindSetting } from "../sim/wind.ts";
 import {
   alongTrack,
   angleDiff,
@@ -46,6 +47,7 @@ import {
   FT,
   interpolate,
   KT,
+  metersPerDegree,
   NM,
   type LatLon,
 } from "../sim/geo.ts";
@@ -212,6 +214,8 @@ export interface FlightDeps {
   realControls?: boolean;
   /** Free Flight: real stalls (grown-up setting; playnes without fly-by-wire protection). */
   realStalls?: boolean;
+  /** Free Flight wind (grown-up setting). */
+  wind?: WindSetting;
   /** Free Flight: the co-pilot gives tips (spoken instructions, flashing hints on the controls). */
   freeTips?: boolean;
   /** Free Flight: never landed at this airport in Free Flight yet (shows the sky guide line on the way). */
@@ -306,6 +310,9 @@ export class FlightSession {
   private autopilot: { heading: number; alt: number; ias: number } | null = null;
   /** Speedbrakes extended (jets). */
   private speedbrakeOut = false;
+  /** Free Flight wind (null = calm), and the gust roll already applied. */
+  private wind: Wind | null = null;
+  private gustRoll = 0;
   /** Spoilers up (speedbrakes in the air, ground spoilers on the landing roll), 0..1, for the model. */
   private spoilersOut = 0;
   /** Turning lesson: the indicated airspeed the co-pilot holds. */
@@ -885,6 +892,7 @@ export class FlightSession {
     this.d.hud.setHeli(this.heli);
     this.d.hud.setAutoFlaps(this.autoFlaps);
     this.startFreeAt(airportByCode(code));
+    this.wind = pickWind(this.d.wind ?? "off");
     if (resume) this.applySnapshot(resume);
     else void this.say(LINES.freeIntro);
   }
@@ -1184,7 +1192,8 @@ export class FlightSession {
         g.targetSpeed = Math.min(g.targetSpeed ?? Infinity, p.vapp + 5 * KT);
         g.glidePath = true;
         throttle = null;
-        if (Math.abs(roll) < 0.08) g.targetHeading = rwHdg! - clamp(near.x * (dir > 0 ? 0.12 : -0.12), -25, 25);
+        // Pointing a little into any crosswind ("crabbing") so the track runs down the centreline.
+        if (Math.abs(roll) < 0.08) g.targetHeading = rwHdg! - clamp(near.x * (dir > 0 ? 0.12 : -0.12), -25, 25) + windCorrection(this.wind, rwHdg!, s.speed);
       }
     }
 
@@ -1200,6 +1209,7 @@ export class FlightSession {
     const wasGround = s.onGround;
     this.spoilersOut = cmd.spoilers ?? 0;
     const events = step(s, cmd, p, { groundHeight: ground, surface: overRunway || !s.onGround ? "runway" : "grass", real: !!this.d.realControls, realStall: !!this.d.realStalls && !p.protectedEnvelope }, dt);
+    this.blowWind(dt);
 
     for (const e of events) {
       if (e.type === "stall-warning") this.sayOnce(`stallWarn${Math.floor(this.time / 20)}`, LINES.stallWarning);
@@ -1686,6 +1696,35 @@ export class FlightSession {
   /** Fastest indicated airspeed (m/s) allowed with this flap notch out (like a real Vfe). */
   private flapLimit(notch: number): number {
     return this.p.vapp * ([Infinity, 1.7, 1.5, 1.33][notch] ?? Infinity);
+  }
+
+  /**
+   * Free Flight wind: the air (and the playne in it) drifts over the ground; gusts bump it up,
+   * down and a little sideways. On the ground the wheels hold it.
+   */
+  private blowWind(dt: number): void {
+    const s = this.s;
+    if (!this.wind || s.onGround) {
+      this.gustRoll = 0;
+      return;
+    }
+    const v = windVector(this.wind), m = metersPerDegree(s.lat);
+    s.lat += (v.north * dt) / m.lat;
+    s.lon += (v.east * dt) / m.lon;
+    const g = gust(this.wind, this.time);
+    // Bumps fade out close to the ground so the touchdown stays the pilot's.
+    const near = clamp((s.alt - this.groundHeightAt(s)) / 30, 0, 1);
+    s.alt += g.vs * near * dt;
+    s.bank += (g.roll - this.gustRoll) * near;
+    this.gustRoll = g.roll;
+  }
+
+  /** "wind 15 kt from W" for the HUD. */
+  private windText(): string | null {
+    const w = this.wind;
+    if (!w) return null;
+    const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+    return `wind ${Math.round(w.speed / KT)} kt from ${dirs[Math.round(w.fromDeg / 45) % 8]}`;
   }
 
   /**
@@ -2299,7 +2338,8 @@ export class FlightSession {
     const showAgl = !s.onGround && !inCruise && this.phase !== "crashed" && aglFt < 2500;
     this.d.hud.update({
       speedKt: indicated(s.speed, s.alt) / KT,
-      groundKt: s.speed * Math.cos(s.gamma * DEG) / KT,
+      groundKt: groundVelocity(s.heading, s.speed * Math.cos(s.gamma * DEG), s.onGround ? null : this.wind).speed / KT,
+      windText: this.mission.kind === "sandbox" && !this.heli ? this.windText() : null,
       altFt: inCruise ? this.ac.cruiseAltFt + this.cruise.altOffset / FT : altFt,
       aglFt: showAgl ? Math.max(0, aglFt) : null,
       heading: s.heading,

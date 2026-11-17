@@ -27,8 +27,10 @@ export function hasKeyboardAndMouse(): boolean {
 
 export interface HudData {
   speedKt: number;
-  /** Ground speed (true airspeed over the ground, no wind). */
+  /** Speed over the ground (airspeed plus the wind), knots. */
   groundKt: number;
+  /** Free Flight wind, e.g. "wind 15 kt from W" (null = calm). */
+  windText?: string | null;
   altFt: number;
   heading: number;
   bank: number;
@@ -64,6 +66,7 @@ export class Hud {
   root: HTMLElement;
   private speed: HTMLElement;
   private groundSpeed: HTMLElement;
+  private windLine: HTMLElement;
   private alt: HTMLElement;
   private ball: SVGGElement;
   private progressBar: HTMLElement;
@@ -124,9 +127,10 @@ export class Hud {
         <path d="M-30 4 L-10 4 L0 12 L10 4 L30 4" fill="none" stroke="#ffcc00" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`;
     this.ball = left.querySelector(".att-ball") as SVGGElement;
-    const speedBox = el("div", "gauge gauge-speed", `<div class="gauge-k">SPEED</div><div class="gauge-v">0</div><div class="gauge-u">knots</div><div class="gauge-sub">ground 0</div>`);
+    const speedBox = el("div", "gauge gauge-speed", `<div class="gauge-k">SPEED</div><div class="gauge-v">0</div><div class="gauge-u">knots</div><div class="gauge-sub">ground 0</div><div class="gauge-sub gauge-wind" hidden></div>`);
     this.speed = speedBox.querySelector(".gauge-v") as HTMLElement;
     this.groundSpeed = speedBox.querySelector(".gauge-sub") as HTMLElement;
+    this.windLine = speedBox.querySelector(".gauge-wind") as HTMLElement;
     left.append(speedBox);
 
     const center = el("div", "hud-route");
@@ -582,6 +586,9 @@ export class Hud {
     // Only changed values are written (see dom.ts): this runs every frame.
     setText(this.speed, String(Math.round(d.speedKt)));
     setText(this.groundSpeed, `ground ${Math.round(d.groundKt)}`);
+    const wt = d.windText ?? "";
+    setText(this.windLine, wt);
+    if (this.windLine.hidden !== !wt) this.windLine.hidden = !wt;
     setText(this.alt, d.altFt >= 18000 ? `FL${Math.round(d.altFt / 100)}` : String(Math.round(d.altFt / 10) * 10));
     // Progress toward cruising height.
     const frac = Math.max(0, Math.min(1, d.altFt / Math.max(1, d.cruiseAltFt)));

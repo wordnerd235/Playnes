@@ -80,7 +80,14 @@ and the model section of `docs/SETUP.md`.
 - **Gear folds checked:** `GEAR_CHECK=1 node scripts/build-models.mjs` folds every detailed
   model's gear in steps and lists any point with nothing above it (poking out of the wing or the
   body). The kit chooses each fold (inward, down, forward) to hide the wheels.
-- **Not done:** wind.
+- **Wind** (grown-up setting, Free Flight in the playnes; `src/sim/wind.ts`, tests in
+  `tests/wind.test.ts`): off / light (6 to 11 kt) / strong and gusty (14 to 22 kt), mostly
+  westerly, new each flight. The flight model stays in the air (airspeed, heading);
+  `Flight.blowWind` moves the playne over the ground with the wind and adds gusts (fading out in
+  the last 30 m). The HUD shows ground speed with the wind and "wind 15 kt from SW". The
+  co-pilot's landing help crabs into a crosswind. Not on the Chinook yet.
+- **Not done from the audit:** ground effect and bounces on hard landings; per-type quirks (the
+  Cessna's left pull at full power, the PC-12's torque swing, the F-16's aerobraking).
 - The owner has seen the F-16 exterior pictures and the first cockpit; they have **not yet
   reported on the test copy on an iPad or in Google mode**. Ask before assuming it is fine.
 
