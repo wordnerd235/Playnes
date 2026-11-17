@@ -27,6 +27,9 @@ export interface Settings {
   /** Free Flight: real controls. The stick sets roll and pitch rates and the playne stays
    *  where it is put when let go (off = Easy: let go and it levels out). */
   realControls: boolean;
+  /** Free Flight: real stalls for playnes without fly-by-wire protection (off = the co-pilot
+   *  always keeps the wing flying). */
+  realStalls: boolean;
   /** Free Flight: the co-pilot's tips (spoken instructions and flashing hints on the controls). */
   freeTips: boolean;
   /** Puffy clouds and the cruise cloud layer. */
@@ -53,6 +56,7 @@ export const DEFAULT_SETTINGS: Settings = {
   soloCharters: true,
   freeLandingHelp: false,
   realControls: false,
+  realStalls: false,
   freeTips: false,
   clouds: true,
   perfStats: false,

@@ -195,7 +195,8 @@ export function computeCommands(
     // nose comes back up to level is about v / turnRate * (1 - cos(dive angle)).
     const dive = Math.max(0, -s.gamma) * (Math.PI / 180);
     const pullout = (s.speed / (p.gammaRate * (Math.PI / 180))) * (1 - Math.cos(dive));
-    if (g.agl < Math.max(120, pullout * 1.35 + 60) && s.vs < 0.5) {
+    // (Not in a real stall: pulling would keep the wing stalled; the nose has to come down first.)
+    if (g.agl < Math.max(120, pullout * 1.35 + 60) && s.vs < 0.5 && !s.stalled) {
       targetVs = Math.max(targetVs, g.agl < 40 ? 6 : 3);
       mem.terrainWarning = true;
     }

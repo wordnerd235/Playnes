@@ -648,6 +648,7 @@ export class Screens {
     const solo = check("set-solo", s.soloCharters !== false);
     const freeHelp = check("set-freehelp", s.freeLandingHelp === true);
     const realControls = check("set-realcontrols", s.realControls === true);
+    const realStalls = check("set-realstalls", s.realStalls === true);
     const clouds = check("set-clouds", s.clouds !== false);
     const freeTips = check("set-freetips", s.freeTips === true);
     const perf = check("set-perf", s.perfStats === true);
@@ -673,6 +674,7 @@ export class Screens {
       s.soloCharters = solo.checked;
       s.freeLandingHelp = freeHelp.checked;
       s.realControls = realControls.checked;
+      s.realStalls = realStalls.checked;
       s.clouds = clouds.checked;
       s.freeTips = freeTips.checked;
       s.perfStats = perf.checked;
@@ -764,6 +766,7 @@ export class Screens {
             h("label.check", {}, [autoSpeed, "Free Flight: co-pilot holds the speed (off = the lever is a real throttle)"]),
             h("label.check", {}, [freeTips, "Free Flight: co-pilot tips: spoken how-to tips and flashing hints on the controls (off = a quiet co-pilot; landings, rewards and fun facts are still announced)"]),
             h("label.check", {}, [realControls, "Free Flight: real controls. The stick rolls and pitches the playne and it stays where you put it: banked, climbing or diving (off = Easy: let go and it flies level)"]),
+            h("label.check", {}, [realStalls, "Free Flight: real stalls. Fly too slowly and the wing stalls: the nose drops and you lose height until you push forward and add power (fly-by-wire jets protect themselves, like the real ones: the F-16, Praetor 600, Falcon 8X, Gulfstreams and Global 8000)"]),
             h("label.check", {}, [freeHelp, "Free Flight: co-pilot helps land and take off: lines up, holds the glide path, flares, keeps the takeoff straight (off = you fly it; the brakes still stop you after touchdown)"]),
             h("label.check", {}, [solo, "Charters to an airport you've landed at before are solo: no rings, tips or co-pilot help (off = the co-pilot always helps)"]),
             field("Volume", volume),

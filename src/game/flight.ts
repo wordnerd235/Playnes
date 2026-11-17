@@ -210,6 +210,8 @@ export interface FlightDeps {
   freeHelp?: boolean;
   /** Free Flight: real controls (the stick sets roll and pitch rates; grown-up setting). */
   realControls?: boolean;
+  /** Free Flight: real stalls (grown-up setting; playnes without fly-by-wire protection). */
+  realStalls?: boolean;
   /** Free Flight: the co-pilot gives tips (spoken instructions, flashing hints on the controls). */
   freeTips?: boolean;
   /** Free Flight: never landed at this airport in Free Flight yet (shows the sky guide line on the way). */
@@ -1197,9 +1199,15 @@ export class FlightSession {
     this.lastCmd = { targetBank: cmd.targetBank, targetVs: cmd.targetVs };
     const wasGround = s.onGround;
     this.spoilersOut = cmd.spoilers ?? 0;
-    const events = step(s, cmd, p, { groundHeight: ground, surface: overRunway || !s.onGround ? "runway" : "grass", real: !!this.d.realControls }, dt);
+    const events = step(s, cmd, p, { groundHeight: ground, surface: overRunway || !s.onGround ? "runway" : "grass", real: !!this.d.realControls, realStall: !!this.d.realStalls && !p.protectedEnvelope }, dt);
 
     for (const e of events) {
+      if (e.type === "stall-warning") this.sayOnce(`stallWarn${Math.floor(this.time / 20)}`, LINES.stallWarning);
+      if (e.type === "stall") {
+        void this.say(LINES.stall, true);
+        this.d.hud.toast("STALL!", "big");
+      }
+      if (e.type === "stall-recovered") void this.say(LINES.stallRecovered, true);
       if (e.type === "liftoff") {
         this.liftoffAt = this.time;
         this.freeFrom = overRunway && near ? near.r.airport : null;

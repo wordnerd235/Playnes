@@ -58,6 +58,8 @@ export interface AircraftDef {
    * turboprops (reverse pitch) have them.
    */
   reverser?: number;
+  /** Fly-by-wire with envelope protection (it won't let the wing stall). */
+  flyByWire?: boolean;
   shape: AircraftShape;
   livery: Livery;
 }
@@ -192,6 +194,7 @@ export const AIRCRAFT: AircraftDef[] = [
     unlock: { type: "wings", price: 325 },
     wow: "The Praetor six hundred has smart computer controls that smooth out bumpy air.",
     vr: 115, vapp: 120, vclimb: 190, vstall: 92, vmo: 320, mmo: 0.83, climbFpm: 3900, rollRate: 28, cruiseAltFt: 43000,
+    flyByWire: true,
     shape: { length: 20.7, span: 21.5, fuselageDiameter: 2.2, wing: "low", sweepDeg: 22, tail: "t-tail", engines: "rear-twin", winglets: true, fixedGear: false },
     livery: { body: "#fdfdfd", stripe: "#13294b", accent: "#d0d6de" },
   },
@@ -225,6 +228,7 @@ export const AIRCRAFT: AircraftDef[] = [
     wow: "The Falcon eight X has three engines! Can you count them?",
     vr: 120, vapp: 110, vclimb: 190, vstall: 90, vmo: 370, mmo: 0.9, climbFpm: 3800, rollRate: 26, cruiseAltFt: 43000,
     reverser: 1 / 3,
+    flyByWire: true,
     shape: { length: 24.5, span: 26.3, fuselageDiameter: 2.5, wing: "low", sweepDeg: 30, tail: "cruciform", engines: "rear-tri", winglets: true, fixedGear: false },
     livery: { body: "#fbfbfb", stripe: "#111111", accent: "#b8963e" },
   },
@@ -241,6 +245,7 @@ export const AIRCRAFT: AircraftDef[] = [
     unlock: { type: "wings", price: 550 },
     wow: "Gulfstream jets have giant oval windows, so everyone gets a great view.",
     vr: 130, vapp: 125, vclimb: 200, vstall: 100, vmo: 340, mmo: 0.925, climbFpm: 4000, rollRate: 25, cruiseAltFt: 45000,
+    flyByWire: true,
     shape: { length: 30.4, span: 30.4, fuselageDiameter: 2.9, wing: "low", sweepDeg: 33, tail: "t-tail", engines: "rear-twin", winglets: true, fixedGear: false },
     livery: { body: "#fbfbfb", stripe: "#6b1f2a", accent: "#c9b27c" },
   },
@@ -257,6 +262,7 @@ export const AIRCRAFT: AircraftDef[] = [
     unlock: { type: "wings", price: 650 },
     wow: "The G seven hundred can fly from here all the way to Japan without stopping!",
     vr: 135, vapp: 130, vclimb: 200, vstall: 102, vmo: 340, mmo: 0.935, climbFpm: 4000, rollRate: 25, cruiseAltFt: 45000,
+    flyByWire: true,
     shape: { length: 33.5, span: 31.4, fuselageDiameter: 3.0, wing: "low", sweepDeg: 34, tail: "t-tail", engines: "rear-twin", winglets: true, fixedGear: false },
     livery: { body: "#fcfcfc", stripe: "#0f2a4a", accent: "#7d8ea3" },
   },
@@ -273,6 +279,7 @@ export const AIRCRAFT: AircraftDef[] = [
     unlock: { type: "wings", price: 750 },
     wow: "The Global eight thousand is the fastest business jet in the world!",
     vr: 135, vapp: 128, vclimb: 200, vstall: 102, vmo: 340, mmo: 0.94, climbFpm: 4000, rollRate: 25, cruiseAltFt: 45000,
+    flyByWire: true,
     shape: { length: 33.8, span: 31.7, fuselageDiameter: 3.0, wing: "low", sweepDeg: 35, tail: "t-tail", engines: "rear-twin", winglets: true, fixedGear: false },
     livery: { body: "#fafafa", stripe: "#a8102a", accent: "#2f2f2f" },
   },
@@ -290,6 +297,7 @@ export const AIRCRAFT: AircraftDef[] = [
     unlock: { type: "wings", price: 900 },
     wow: "The F sixteen can fly faster than sound and climb straight up like a rocket!",
     vr: 150, vapp: 150, vclimb: 350, vstall: 115, vmo: 800, mmo: 2.0, climbFpm: 40000, rollRate: 180, cruiseAltFt: 40000,
+    flyByWire: true,
     shape: { length: 15.0, span: 9.96, fuselageDiameter: 1.35, wing: "mid", sweepDeg: 40, tail: "conventional", engines: "fighter", winglets: false, fixedGear: false },
     livery: { body: "#9aa4ae", stripe: "#5c6772", accent: "#1f6fd1" },
   },

@@ -33,6 +33,8 @@ export interface FlightState {
   onGround: boolean;
   /** Load factor ("g"): 1 in level flight, 2 in a 60-degree banked turn, more when pulling up. */
   load?: number;
+  /** "Real stalls": the wing has stalled (too slow for the lift it's asked for). */
+  stalled?: boolean;
 }
 
 export interface Commands {
@@ -56,7 +58,10 @@ export interface Commands {
 export type FlightEvent =
   | { type: "liftoff" }
   | { type: "touchdown"; sinkFpm: number }
-  | { type: "stall-protect" };
+  | { type: "stall-protect" }
+  | { type: "stall-warning" }
+  | { type: "stall" }
+  | { type: "stall-recovered" };
 
 export interface StepEnv {
   /** Ellipsoid height of the ground under the aircraft, meters. */
@@ -68,6 +73,11 @@ export interface StepEnv {
    * real time to wind up (a jet about 4 s from idle to full power).
    */
   real?: boolean;
+  /**
+   * Grown-up "real stalls" (playnes without fly-by-wire protection): too slow and the wing
+   * stalls: the nose drops and height is lost until the pilot lowers the nose and adds power.
+   */
+  realStall?: boolean;
 }
 
 /** Derived per-aircraft constants. Speeds are m/s; vr/vapp/vclimb/vstall/vmo are indicated airspeeds. */
@@ -101,6 +111,8 @@ export interface Perf {
   speedbrakes: boolean;
   /** Fighter: forward stick sets a dive angle (full forward = nearly straight down). */
   diveByAngle: boolean;
+  /** Fly-by-wire with envelope protection: it won't stall even with "real stalls" on. */
+  protectedEnvelope: boolean;
   /** Piston, turboprop, jet, fighter or helicopter (how the engines respond). */
   kind: AircraftDef["kind"];
   /** Has thrust reversers (or reverse pitch props). */
@@ -204,6 +216,7 @@ export function perfFor(ac: AircraftDef): Perf {
     speedbrakes: ac.kind === "jet" || ac.kind === "fighter",
     diveByAngle: ac.kind === "fighter",
     kind: ac.kind,
+    protectedEnvelope: !!ac.flyByWire,
     reversers: (ac.reverser ?? (ac.kind === "jet" || ac.kind === "turboprop" ? 1 : 0)) > 0,
     reverserShare: ac.reverser ?? (ac.kind === "jet" || ac.kind === "turboprop" ? 1 : 0),
     climbMax,
@@ -363,21 +376,47 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
     // ...and turning raises it: a wing pulling n g stalls at sqrt(n) times the speed.
     const vsTurn = vsEff * Math.sqrt(nTurn);
     const lowSpeed = clamp((vsTurn * 1.2 - ias) / (vsEff * 0.12), 0, 1);
-    if (lowSpeed > 0) {
-      targetVs = Math.min(targetVs, -lowSpeed * 7);
-      if (lowSpeed > 0.9) events.push({ type: "stall-protect" });
+    let stallGamma: number | null = null;
+    let stallDrag = 0;
+    if (!env.realStall) {
+      s.stalled = false;
+      if (lowSpeed > 0) {
+        targetVs = Math.min(targetVs, -lowSpeed * 7);
+        if (lowSpeed > 0.9) events.push({ type: "stall-protect" });
+      }
+    } else {
+      // Real stalls: nothing stops the pilot slowing down; below the stall speed the wing lets
+      // go. The nose drops (one wing first) and the playne sinks. Still pulling back keeps it
+      // stalled, sinking fast; lowering the nose lets the speed build and the wing fly again.
+      const pulling = cmd.targetVs > 0.5;
+      if (!s.stalled && ias < vsTurn) {
+        s.stalled = true;
+        s.bank += s.bank >= 0 ? 12 : -12;
+        events.push({ type: "stall" });
+      } else if (!s.stalled && ias < vsTurn * 1.1) events.push({ type: "stall-warning" });
+      if (s.stalled) {
+        if (ias > vsTurn * (pulling ? 1.35 : 1.2)) {
+          s.stalled = false;
+          events.push({ type: "stall-recovered" });
+        } else {
+          stallGamma = pulling ? -Math.asin(clamp(14 / Math.max(s.speed, 1), 0, 0.9)) / DEG : -22;
+          // Held stalled, the wing at a huge angle is mostly drag: the speed stays near the stall.
+          if (pulling) stallDrag = Math.max(0, ias - vsTurn * 0.97) * 3;
+        }
+      }
     }
     // Still too fast with the speedbrakes out: make the dive shallower (never a climb).
     if (over > 0.6 && targetVs < 0) targetVs *= 1 - (over - 0.6) / 0.4;
     const vsAvail = Math.max(s.speed, 1);
-    const targetGamma = Math.asin(clamp(targetVs / vsAvail, -p.maxPathSin, p.maxPathSin)) / DEG;
+    let targetGamma = Math.asin(clamp(targetVs / vsAvail, -p.maxPathSin, p.maxPathSin)) / DEG;
+    if (stallGamma !== null) targetGamma = Math.min(targetGamma, stallGamma);
     // How fast the nose can come up or go down is limited by g: pulling harder than the limit
     // isn't possible (g = turn part + speed x pitch rate / 9.81), and it tightens with speed.
     const vRef = Math.max(s.speed, 20);
     const upRate = Math.min(p.gammaRate, (Math.max(0.3, p.gLimit - nTurn) * G) / vRef / DEG);
     // Pushing over is limited by negative g. (The fighter's dive is flown the way pilots do
     // it, rolling in and pulling, so it gets its positive-g rate both ways.)
-    const downRate = p.diveByAngle ? upRate : Math.min(p.gammaRate, ((1 + p.gNeg) * G) / vRef / DEG);
+    const downRate = stallGamma !== null ? 14 : p.diveByAngle ? upRate : Math.min(p.gammaRate, ((1 + p.gNeg) * G) / vRef / DEG);
     const gammaBefore = s.gamma;
     s.gamma = approach(s.gamma, targetGamma, (targetGamma > s.gamma ? upRate : downRate) * dt);
     const pull = dt > 0 ? (vRef * (s.gamma - gammaBefore) * DEG) / dt / G : 0;
@@ -385,7 +424,7 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
     // Eased over about a quarter of a second (g builds as the nose moves; it doesn't jump).
     s.load = (s.load ?? 1) + (nNow - (s.load ?? 1)) * Math.min(1, dt * 4);
 
-    const a = thrust - drag - G * Math.sin(s.gamma * DEG);
+    const a = thrust - drag - G * Math.sin(s.gamma * DEG) - stallDrag;
     s.speed = Math.max((vsEff * 0.8) / Math.sqrt(sigma), s.speed + a * dt);
     s.vs = s.speed * Math.sin(s.gamma * DEG);
     s.alt += s.vs * dt;

@@ -120,3 +120,50 @@ describe("real engines", () => {
     expect(windUp("c172")).toBeLessThan(1);
   });
 });
+
+describe("real stalls", () => {
+  const slowDown = (realStall: boolean) => {
+    const ac = AIRCRAFT.find((a) => a.id === "c172")!;
+    const p = perfFor(ac);
+    const s = createState({ lat: 36, lon: -82, alt: 1500, heading: 0, onGround: false, speed: p.vclimb, gearDown: true, flaps: 0 });
+    const events: string[] = [];
+    let minGamma = 0;
+    // Power off, and keep pulling back to hold the height.
+    for (let t = 0; t < 40; t += DT) {
+      for (const e of step(s, { targetBank: 0, targetVs: 2, throttle: 0, brake: 0, rotate: false, groundHeading: null }, p, { groundHeight: 0, realStall }, DT)) events.push(e.type);
+      minGamma = Math.min(minGamma, s.gamma);
+    }
+    return { s, p, events, minGamma };
+  };
+
+  it("with the setting on, pulling back at idle stalls the wing: the nose drops and it sinks", () => {
+    const { s, events, minGamma } = slowDown(true);
+    expect(events).toContain("stall-warning");
+    expect(events).toContain("stall");
+    expect(s.stalled).toBe(true);
+    expect(minGamma).toBeLessThan(-8);
+  });
+
+  it("lowering the nose and adding power recovers", () => {
+    const { s, p, events } = slowDown(true);
+    const start = s.alt;
+    for (let t = 0; t < 15 && s.stalled; t += DT) for (const e of step(s, { targetBank: 0, targetVs: -2, throttle: 1, brake: 0, rotate: false, groundHeading: null }, p, { groundHeight: 0, realStall: true }, DT)) events.push(e.type);
+    expect(s.stalled).toBe(false);
+    expect(events).toContain("stall-recovered");
+    expect(start - s.alt).toBeGreaterThan(10); // it cost some height
+  });
+
+  it("off (the default), the co-pilot never lets it stall", () => {
+    const { s, events, minGamma } = slowDown(false);
+    expect(events).not.toContain("stall");
+    expect(s.stalled).toBeFalsy();
+    expect(minGamma).toBeGreaterThan(-12);
+  });
+
+  it("the fly-by-wire jets protect themselves", () => {
+    expect(perfFor(AIRCRAFT.find((a) => a.id === "g700")!).protectedEnvelope).toBe(true);
+    expect(perfFor(AIRCRAFT.find((a) => a.id === "f16")!).protectedEnvelope).toBe(true);
+    expect(perfFor(AIRCRAFT.find((a) => a.id === "c172")!).protectedEnvelope).toBe(false);
+    expect(perfFor(AIRCRAFT.find((a) => a.id === "phenom300")!).protectedEnvelope).toBe(false);
+  });
+});

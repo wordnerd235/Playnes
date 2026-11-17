@@ -67,7 +67,20 @@ and the model section of `docs/SETUP.md`.
 - **Chinook water landings:** gently (under 600 fpm and 25 kt) it sets down and floats; harder
   it bounces back up (or crashes, with crashes on). Cartoon world only (Google mode has no
   water map, so water there is just ground).
-- **Not done:** the rest of the audit's list ("real stalls", wind).
+- **"Real stalls"** (grown-up setting, Free Flight; `StepEnv.realStall`, `FlightState.stalled`):
+  below the stall speed (raised by flaps up and by turning) the wing lets go: a wing drops, the
+  nose falls and it sinks; held back it stays stalled near the stall speed, sinking about 14 m/s;
+  nose down to 1.2 x the stall speed recovers. Warning, "STALL!" and recovery lines. Fly-by-wire
+  types (`AircraftDef.flyByWire`: F-16, Praetor 600, Falcon 8X, G650ER, G700, Global 8000) stay
+  protected. Ground Buddy doesn't pull while stalled.
+- **Speedbrakes you can see:** `wingSpoilers()` in the kit (spoiler panels ahead of the flaps,
+  node `spoilerL/R`, raised 45 degrees by `PlaneView` with the speedbrakes and as ground
+  spoilers on the landing roll); the HondaJet's are tail-cone petals (`speedbrake: "tail"`,
+  nodes `brakeLU/RU`), as on the real one.
+- **Gear folds checked:** `GEAR_CHECK=1 node scripts/build-models.mjs` folds every detailed
+  model's gear in steps and lists any point with nothing above it (poking out of the wing or the
+  body). The kit chooses each fold (inward, down, forward) to hide the wheels.
+- **Not done:** wind.
 - The owner has seen the F-16 exterior pictures and the first cockpit; they have **not yet
   reported on the test copy on an iPad or in Google mode**. Ask before assuming it is fine.
 

@@ -450,6 +450,24 @@
   "speak": "Nice and gentle. We landed!"
  },
  {
+  "id": "93602a3f",
+  "who": "copilot",
+  "text": "Too slow! We're close to a stall.",
+  "speak": "Too slow! We're close to a stall."
+ },
+ {
+  "id": "cc1c9ab0",
+  "who": "copilot",
+  "text": "Stall! Push the nose down and add power!",
+  "speak": "Stall! Push the nose down and add power!"
+ },
+ {
+  "id": "8af3dfa7",
+  "who": "copilot",
+  "text": "Nice recovery! The wing is flying again.",
+  "speak": "Nice recovery! The wing is flying again."
+ },
+ {
   "id": "12475cb9",
   "who": "copilot",
   "text": "Too fast for the water! Come down slowly and gently.",
