@@ -38,7 +38,8 @@ and the model section of `docs/SETUP.md`.
   tables, two forward-facing seats, refreshment centre, aft lavatory wall, dropped aisle.
   Cockpit: three big screens, glareshield, pedestal, control wheels, pilot. `rig.eyePitch`
   tilts the cockpit view down a little so the screens show.
-- **Not done:** the other twelve aircraft, and the rest of the audit's list
+- **Now detailed:** every playne except the Chinook (the jet kit covers the business jets and the PC-12; the Cessna, F-16 and Phenom 300E are hand-built).
+- **Not done:** the Chinook, and the rest of the audit's list
   (per-type truth, "Real controls", "real stalls", wind).
 - The owner has seen the F-16 exterior pictures and the first cockpit; they have **not yet
   reported on the test copy on an iPad or in Google mode**. Ask before assuming it is fine.
@@ -212,6 +213,8 @@ scripts/build-models.mjs phenom300`); the hand-built Phenom stays the live model
 | HondaJet | published dimensions + photos | over-wing engines; T-tail (data corrected); low cabin |
 | Global 8000 | Bombardier side drawing | the drawing's 8.2 m height confirms the scale |
 | PC-12 NGX | side photo | turboprop: `prop` (five blades, blur disc), rear cargo door |
+| G650ER | side photo | big oval windows, side-sticks, twin wheels |
+| G700 | built from the G650ER spec | cabin 3.07 m longer, ten windows a side, bigger wing and engines |
 
 **Keeping them light:** window frames are rings between the window outline and its cut-out
 (sampled in the same directions), not split-up flat patches; the windshield's cut-out hugs the

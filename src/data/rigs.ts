@@ -255,6 +255,54 @@ export const RIGS: Record<string, Rig> = {
     "fov": 80,
     "eyePitch": 9
   },
+  "g650er": {
+    "retractDeg": {
+      "gearL": 93.4,
+      "gearR": 93.4,
+      "gearN": 95
+    },
+    "wheelRadius": {
+      "wheelL": 0.5,
+      "wheelR": 0.5,
+      "wheelN": 0.3
+    },
+    "eye": [
+      0.58,
+      3.4699999999999998,
+      11.059999999999999
+    ],
+    "windowEye": [
+      0.6519454932075072,
+      3.33,
+      7.9
+    ],
+    "fov": 80,
+    "eyePitch": 9
+  },
+  "g700": {
+    "retractDeg": {
+      "gearL": 93.4,
+      "gearR": 93.4,
+      "gearN": 95
+    },
+    "wheelRadius": {
+      "wheelL": 0.5,
+      "wheelR": 0.5,
+      "wheelN": 0.3
+    },
+    "eye": [
+      0.58,
+      3.4699999999999998,
+      14.129999999999999
+    ],
+    "windowEye": [
+      0.652465350364236,
+      3.33,
+      10.6
+    ],
+    "fov": 80,
+    "eyePitch": 9
+  },
   "global8000": {
     "retractDeg": {
       "gearL": 93.4,
