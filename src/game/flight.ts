@@ -304,6 +304,8 @@ export class FlightSession {
   private autopilot: { heading: number; alt: number; ias: number } | null = null;
   /** Speedbrakes extended (jets). */
   private speedbrakeOut = false;
+  /** Spoilers up (speedbrakes in the air, ground spoilers on the landing roll), 0..1, for the model. */
+  private spoilersOut = 0;
   /** Turning lesson: the indicated airspeed the co-pilot holds. */
   private lessonIas = 0;
   /** Free Flight: airport the current trip took off from. */
@@ -1194,6 +1196,7 @@ export class FlightSession {
     this.flapRelief();
     this.lastCmd = { targetBank: cmd.targetBank, targetVs: cmd.targetVs };
     const wasGround = s.onGround;
+    this.spoilersOut = cmd.spoilers ?? 0;
     const events = step(s, cmd, p, { groundHeight: ground, surface: overRunway || !s.onGround ? "runway" : "grass", real: !!this.d.realControls }, dt);
 
     for (const e of events) {
@@ -1992,6 +1995,7 @@ export class FlightSession {
       cmd.reverse = s.speed > 40 * KT;
     }
     this.lastCmd = { targetBank: cmd.targetBank, targetVs: cmd.targetVs };
+    this.spoilersOut = cmd.spoilers ?? 0;
     const events = step(s, cmd, p, { groundHeight: ground }, dt);
 
     for (const e of events) {
@@ -2209,7 +2213,7 @@ export class FlightSession {
     const pitchCmd = s.onGround ? (s.pitch > 1 ? 1 : c.pitch) : clamp((this.lastCmd.targetVs - s.vs) / 4, -1, 1);
     const yaw = s.onGround ? c.roll : rollCmd * 0.2;
     const ground = this.phase === "cruise" || this.phase === "toCruise" ? null : this.groundHeightAt(s);
-    this.view.update(s, dt, { roll: rollCmd, pitch: pitchCmd, yaw, brake: this.speedbrakeOut ? 1 : 0 }, ground);
+    this.view.update(s, dt, { roll: rollCmd, pitch: pitchCmd, yaw, brake: Math.max(this.speedbrakeOut ? 1 : 0, this.spoilersOut) }, ground);
     this.viewPlaced = true;
   }
 

@@ -22,6 +22,7 @@
 //   pilot canopy             hidden when the camera is inside (rig.eye, rig.windowEye)
 
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { wingSpoilers } from "./jet-kit.mjs";
 
 export function buildPhenom300(ac, kit) {
   const { THREE, V, C, T, RX, RY, RZ, lerp, MAT, MATERIALS, loft, smooth, surface, controlSurface, lathe, cylinderBetween, registration, REGISTRATION, part, curve, asNode } = kit;
@@ -388,6 +389,8 @@ export function buildPhenom300(ac, kit) {
     add("body", part(new THREE.SphereGeometry(0.04, 10, 8).applyMatrix4(T(side * (XT + 0.05), wingY(XT) + 0.05, leAt(XT) - 0.05)), side > 0 ? MAT.navRed : MAT.navGreen, C("#ffffff"), { noAO: true }));
     add("strobe", part(new THREE.SphereGeometry(0.035, 10, 8).applyMatrix4(T(side * (XT + 0.06), wingY(XT) + 0.12, leAt(XT) - 0.75)), MAT.white, C("#ffffff"), { noAO: true }));
   }
+  // Speedbrakes (the multi-function spoilers), on top of the wings ahead of the flaps.
+  for (const side of [1, -1]) nodes[side > 0 ? "spoilerL" : "spoilerR"] = wingSpoilers(kit, { side, wingY, chordAt, leAt, thickness: 0.12, x0: FLAP[0] + 0.25, x1: FLAP[0] + 3.0, c0: FCUT - 0.17, c1: FCUT - 0.025, panels: 2, mat: XMAT.skin, colour: cWing.clone().multiplyScalar(0.97) });
   // Wing-to-body fairing under the cabin.
   {
     const superRing = (z, hw, top, bot, e, n = 56) => {

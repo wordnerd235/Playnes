@@ -26,6 +26,39 @@
 
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
+/**
+ * Speedbrake panels on top of a wing, just ahead of the flap: `panels` segments on one hinge
+ * line along their front edge, as one node (hinge about local X; positive = trailing edge up).
+ */
+export function wingSpoilers(kit, o) {
+  const { V, part, asNode, sheet } = kit;
+  const half = (u) => 5 * o.thickness * (0.2969 * Math.sqrt(u) - 0.126 * u - 0.3516 * u * u + 0.2843 * u ** 3 - 0.1036 * u ** 4);
+  const top = (x, c) => {
+    const ch = o.chordAt(x);
+    return V(o.side * x, o.wingY(x) + (0.02 * 4 * c * (1 - c) + half(c)) * ch + 0.006, o.leAt(x) - c * ch);
+  };
+  const parts = [];
+  for (let k = 0; k < o.panels; k++) {
+    const xa = o.x0 + ((o.x1 - o.x0) * k) / o.panels + 0.015, xb = o.x0 + ((o.x1 - o.x0) * (k + 1)) / o.panels - 0.015;
+    const rowsT = [], rowsB = [];
+    for (let i = 0; i <= 4; i++) {
+      const x = xa + ((xb - xa) * i) / 4, rt = [], rb = [];
+      for (let j = 0; j <= 3; j++) {
+        const p = top(x, o.c0 + ((o.c1 - o.c0) * j) / 3);
+        rt.push(p);
+        rb.push(p.clone().add(V(0, -0.012, 0)));
+      }
+      rowsT.push(rt);
+      rowsB.push(rb);
+    }
+    parts.push(part(sheet(rowsT), o.mat, o.colour), part(sheet(rowsB), o.mat, o.colour.clone().multiplyScalar(0.75))); // the underside shows grey when raised
+  }
+  const A = top(o.x0, o.c0), B = top(o.x1, o.c0);
+  const xAxis = B.clone().sub(A).normalize();
+  if (xAxis.x < 0) xAxis.negate();
+  return asNode(parts, A, xAxis, V(0, 1, 0), { moving: true });
+}
+
 export function buildJet(ac, kit, S) {
   const { THREE, V, C, T, RY, RZ, lerp, MAT, MATERIALS, loft, smooth, surface, controlSurface, lathe, cylinderBetween, registration, REGISTRATION, part, curve, asNode, mergeVertices } = kit;
   const DEG = Math.PI / 180;
@@ -414,6 +447,31 @@ export function buildJet(ac, kit, S) {
     }
     add("body", part(new THREE.SphereGeometry(0.04, 10, 8).applyMatrix4(T(side * lightX, lightY, leAt(XT) - 0.05)), side > 0 ? MAT.navRed : MAT.navGreen, C("#ffffff"), { noAO: true }));
     add("strobe", part(new THREE.SphereGeometry(0.035, 10, 8).applyMatrix4(T(side * (lightX + 0.01), lightY + 0.07, leAt(XT) - Math.min(0.75, chordAt(XT) * 0.8))), MAT.white, C("#ffffff"), { noAO: true }));
+  }
+  // Speedbrakes: spoiler panels on the wings ahead of the flaps (most jets), or petals on the
+  // tail cone (the HondaJet's are there, which keeps them quiet).
+  if (S.speedbrake !== "tail") {
+    const fs = FLAP[1] - FLAP[0];
+    for (const side of [1, -1]) nodes[side > 0 ? "spoilerL" : "spoilerR"] = wingSpoilers(kit, { side, wingY, chordAt, leAt, thickness: WG.thickness ?? 0.12, x0: FLAP[0] + fs * 0.06, x1: FLAP[0] + fs * 0.8, c0: FCUT - 0.17, c1: FCUT - 0.025, panels: XT > 10 ? 3 : 2, mat: XMAT.skin, colour: cWing.clone().multiplyScalar(0.97) });
+  } else {
+    // Petals on the sides of the tail cone, hinged at their front edge, opening outward.
+    const zf = Z_TAIL + (S.tailBrake?.front ?? 1.45), zr = Z_TAIL + (S.tailBrake?.back ?? 0.75);
+    for (const side of [1, -1]) {
+      const outer = [], inner = [];
+      for (let i = 0; i <= 4; i++) {
+        const z = zf + ((zr - zf) * i) / 4, [, top, bot] = FUS(z), yc = (top + bot) / 2, h = Math.min(0.17, (top - bot) * 0.3);
+        const ro = [], ri = [];
+        for (let j = 0; j <= 3; j++) {
+          const y = yc - h + (2 * h * j) / 3, x = halfW(z, y);
+          ro.push(V(side * (x + 0.005), y, z));
+          ri.push(V(side * (x - 0.007), y, z));
+        }
+        outer.push(ro);
+        inner.push(ri);
+      }
+      const yc = (FUS(zf)[1] + FUS(zf)[2]) / 2;
+      nodes[side > 0 ? "brakeLU" : "brakeRU"] = asNode([part(kit.sheet(outer), XMAT.skin, cWhite), part(kit.sheet(inner), XMAT.skin, cWhite)], V(side * halfW(zf, yc), yc, zf), V(0, -side, 0), V(0, 0, 1), { moving: true });
+    }
   }
   const superRing = (z, hw, top, bot, e, n = 56) => {
     const yc = (top + bot) / 2, hh = (top - bot) / 2, r = [];

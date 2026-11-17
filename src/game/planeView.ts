@@ -67,7 +67,7 @@ export class PlaneView {
     scene.primitives.add(this.model);
     this.world.exclude.push(this.model);
     this.model.readyEvent.addEventListener(() => {
-      for (const n of ["gear", "prop", "flapL", "flapR", "ailL", "ailR", "elevL", "elevR", "rudder", "beacon", "strobe", "rotorF", "rotorR", "gearL", "gearR", "gearN", "wheelL", "wheelR", "wheelN", "gearDoors", "brakeLU", "brakeLD", "brakeRU", "brakeRD", "burner", "pilot", "canopy", "needleIas", "needleAlt", "attBall", "attBall2", "propDisc"]) {
+      for (const n of ["gear", "prop", "flapL", "flapR", "ailL", "ailR", "elevL", "elevR", "rudder", "beacon", "strobe", "rotorF", "rotorR", "gearL", "gearR", "gearN", "wheelL", "wheelR", "wheelN", "gearDoors", "brakeLU", "brakeLD", "brakeRU", "brakeRD", "spoilerL", "spoilerR", "burner", "pilot", "canopy", "needleIas", "needleAlt", "attBall", "attBall2", "propDisc"]) {
         try {
           const node = this.model!.getNode(n) ?? null;
           this.nodes[n] = node;
@@ -307,6 +307,7 @@ export class PlaneView {
     if (dt === 0) this.brakeT = clamp(input.brake ?? 0, 0, 1);
     for (const side of ["L", "R"]) {
       this.hinge(`brake${side}U`, this.brakeT * 50);
+      this.hinge(`spoiler${side}`, this.brakeT * 45); // jets: spoiler panels rise from the wing
       this.hinge(`brake${side}D`, -this.brakeT * 50);
     }
     // Afterburner: lights at full power, flickering a little.

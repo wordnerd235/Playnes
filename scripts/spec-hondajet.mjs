@@ -29,5 +29,6 @@ export const HONDAJET = {
   stripe: { y: 1.32, riseFrom: 0.0, rise: 0.06, z0: 6.4, z1: -4.5, width: 0.06 },
   antennas: [[2.2, 0.15], [-1.0, 0.13]],
   pitot: [6.0, 1.25],
+  speedbrake: "tail", // petals on the tail cone
   gear: { mainX: 1.35, pivotY: 0.72, mainR: 0.25, mainW: 0.16, noseZ: 5.2, noseR: 0.19, noseW: 0.12, nosePivotY: 0.9 },
 };
