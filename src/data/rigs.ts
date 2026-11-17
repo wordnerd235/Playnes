@@ -135,6 +135,30 @@ export const RIGS: Record<string, Rig> = {
     "fov": 80,
     "eyePitch": 9
   },
+  "challenger3500": {
+    "retractDeg": {
+      "gearL": 101.5,
+      "gearR": 101.5,
+      "gearN": 95
+    },
+    "wheelRadius": {
+      "wheelL": 0.42,
+      "wheelR": 0.42,
+      "wheelN": 0.26
+    },
+    "eye": [
+      0.52,
+      2.945,
+      7.430000000000001
+    ],
+    "windowEye": [
+      0.6953384018098888,
+      2.955,
+      4.36
+    ],
+    "fov": 80,
+    "eyePitch": 9
+  },
   "f16": {
     "retractDeg": {
       "gearL": 123.5,

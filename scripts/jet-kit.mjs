@@ -720,7 +720,7 @@ export function buildJet(ac, kit, S) {
   // (or side-sticks), rudder pedals.
   const FY = LEDGE - (CK.floorDrop ?? 0.03); // cockpit floor (often a step below the cabin's)
   for (const side of [1, -1]) seat(at(side * CX, FY, PZ - 0.72), { width: 0.5, colour: cPilotSeat, trim: C("#3f4246"), rec: 0.2, backLen: 0.68 });
-  const panelW = 2 * (halfW(PZ, FY + 0.65) - 0.06), gsW = 2 * (halfW(PZ + 0.1, FY + 0.94) - 0.07);
+  const panelW = 2 * (Math.min(halfW(PZ + 0.08, FY + 0.92), halfW(PZ + 0.08, FY + 0.38)) - 0.06), gsW = 2 * (Math.min(halfW(PZ + 0.24, FY + 0.94), halfW(PZ + 0.24, FY + 0.92)) - 0.06);
   add("body", part(box(panelW, 0.54, 0.08, 0, FY + 0.65, PZ + 0.04), MAT.dark, C("#2a2d31"), INSIDE));
   add("body", part(box(gsW, 0.05, 0.28, 0, FY + 0.94, PZ + 0.1), MAT.dark, cBlack, INSIDE));
   const D0 = PZ - 0.008;
