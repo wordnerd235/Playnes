@@ -56,9 +56,33 @@ export const RIGS: Record<string, Rig> = {
       2.91
     ],
     "windowEye": [
-      0.24902398459445052,
+      0.24898860381327415,
       2.3,
       0.26
+    ],
+    "fov": 80,
+    "eyePitch": 9
+  },
+  "pc12": {
+    "retractDeg": {
+      "gearL": 107.3,
+      "gearR": 107.3,
+      "gearN": 95
+    },
+    "wheelRadius": {
+      "wheelL": 0.3,
+      "wheelR": 0.3,
+      "wheelN": 0.18
+    },
+    "eye": [
+      0.33,
+      2.4299999999999997,
+      0.6599999999999999
+    ],
+    "windowEye": [
+      0.3024429492390702,
+      2.35,
+      -0.85
     ],
     "fov": 80,
     "eyePitch": 9
@@ -227,6 +251,30 @@ export const RIGS: Record<string, Rig> = {
       0.614948201373764,
       2.575,
       6.22
+    ],
+    "fov": 80,
+    "eyePitch": 9
+  },
+  "global8000": {
+    "retractDeg": {
+      "gearL": 93.4,
+      "gearR": 93.4,
+      "gearN": 95
+    },
+    "wheelRadius": {
+      "wheelL": 0.5,
+      "wheelR": 0.5,
+      "wheelN": 0.33
+    },
+    "eye": [
+      0.6,
+      4.01,
+      14.91
+    ],
+    "windowEye": [
+      0.903068583629404,
+      3.93,
+      11.05
     ],
     "fov": 80,
     "eyePitch": 9

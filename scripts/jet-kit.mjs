@@ -27,7 +27,7 @@
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
 export function buildJet(ac, kit, S) {
-  const { THREE, V, C, T, RY, RZ, lerp, MAT, MATERIALS, loft, smooth, surface, controlSurface, lathe, cylinderBetween, registration, REGISTRATION, part, curve, asNode } = kit;
+  const { THREE, V, C, T, RY, RZ, lerp, MAT, MATERIALS, loft, smooth, surface, controlSurface, lathe, cylinderBetween, registration, REGISTRATION, part, curve, asNode, mergeVertices } = kit;
   const DEG = Math.PI / 180;
 
   const X0 = MATERIALS.length;
@@ -46,7 +46,14 @@ export function buildJet(ac, kit, S) {
   ];
 
   const nodes = {};
-  const add = (node, pt) => (nodes[node] ??= { parts: [] }).parts.push(pt);
+  // KIT_STATS=<id>: print how many vertices each section of that model uses, then stop.
+  let SECTION = "skin";
+  const STATS = {};
+  const add = (node, pt) => {
+    STATS[SECTION] = (STATS[SECTION] ?? 0) + pt.geo.attributes.position.count;
+    if (process.env.KIT_STATS === ac.id && pt.geo.attributes.position.count > 3000) console.log("  big part", SECTION, node, pt.geo.attributes.position.count, new Error().stack.split("\n")[2].trim());
+    (nodes[node] ??= { parts: [] }).parts.push(pt);
+  };
   const rig = { retractDeg: {}, wheelRadius: {} };
   const INSIDE = { aoStrength: 0.4 };
 
@@ -93,7 +100,8 @@ export function buildJet(ac, kit, S) {
   const RV = S.rv ?? HW * 1.047; // metres per radian (true-size rounded corners)
   const M = 0.04;
   const WIN = [];
-  const addWin = (z0, z1, t0, t1, r, kind) => WIN.push({ z0, z1, t0: Math.min(t0, t1), t1: Math.max(t0, t1), r, kind });
+  const snap = (t) => Math.round(t / 0.004) * 0.004; // windows at nearly the same height share grid columns
+  const addWin = (z0, z1, t0, t1, r, kind) => WIN.push({ z0, z1, t0: snap(Math.min(t0, t1)), t1: snap(Math.max(t0, t1)), r, kind });
   const W = S.windows;
   const cabinWin = (zc, side) => addWin(zc - W.w / 2, zc + W.w / 2, thForY(zc, W.yc - W.h / 2, side), thForY(zc, W.yc + W.h / 2, side), W.r, "cabin");
   for (const z of W.left) cabinWin(z, 1);
@@ -106,17 +114,24 @@ export function buildJet(ac, kit, S) {
       const lower = WS.lower.map(([z, y]) => [z, thForY(z, y, side)]);
       return [[WS.z1 - 0.005, c], [WS.lower[0][0], c], ...lower];
     };
-    WIN.push({ z0: WS.lower[0][0], z1: WS.z1, t0: 18 * DEG, t1: 162 * DEG, r: 0, kind: "windshield", polys: [pane(1), pane(-1)] });
+    // The cut-out hugs the two panes (a wider one only adds skin to cut and patch).
+    const polys = [pane(1), pane(-1)], ths = polys.flat().map((p) => p[1]);
+    WIN.push({ z0: WS.lower[0][0], z1: WS.z1, t0: Math.min(...ths) - 0.02, t1: Math.max(...ths) + 0.02, r: 0, kind: "windshield", polys });
   }
   const MT = M / RV;
   const inCut = (z, th) => WIN.some((w) => z > w.z0 - M && z < w.z1 + M && th > w.t0 - MT && th < w.t1 + MT);
 
   const zRows = (() => {
     const nose = [];
-    const zs = S.noseRows ?? [0, 0.02, 0.05, 0.1, 0.16, 0.24, 0.34, 0.45, 0.58, 0.72, 0.88, 1.05, 1.22];
+    // Fine rows over the whole nose (to behind the windshield), where the shape changes fastest.
+    const zs = S.noseRows ?? (() => {
+      const r = [0, 0.02, 0.05, 0.1, 0.16];
+      for (let d = 0.24; d < Z_NOSE - S.windshield.lower[0][0] + 0.5; d += 0.08) r.push(+d.toFixed(3));
+      return r;
+    })();
     for (const d of zs) nose.push(Z_NOSE - d);
     const s = [...nose];
-    const zStart = Z_NOSE - zs[zs.length - 1] - 0.16, cabin = S.rowStep ?? 0.14, ends = S.rowStepEnds ?? 0.11;
+    const zStart = Z_NOSE - zs[zs.length - 1] - 0.16, cabin = S.rowStep ?? 0.28, ends = S.rowStepEnds ?? 0.11; // the cabin is a straight tube: rows there only carry shading
     for (let z = zStart; z > Z_TAIL; z -= z > S.lining.z1 - 0.6 && z < S.lining.z0 ? cabin : ends) s.push(z);
     s.push(Z_TAIL);
     const edges = WIN.flatMap((w) => [w.z0 - M, w.z1 + M]);
@@ -251,25 +266,66 @@ export function buildJet(ac, kit, S) {
   };
   const LIN = 0.065;
   const out = (m) => radial(m), inn = (m) => radial(m).negate();
+  /**
+   * Window frames as light rings: sample the window's rounded outline and its rectangular
+   * cut-out in the same directions from the window's centre (with the rectangle's corners
+   * among them), so a frame is one strip between the two (about 90 vertices, where a split-up
+   * flat patch took thousands).
+   */
+  const ndirs = (hz, hv) => {
+    const a = [];
+    for (let k = 0; k < 40; k++) a.push((k / 40) * Math.PI * 2);
+    for (const [sz, sv] of [[1, 1], [-1, 1], [-1, -1], [1, -1]]) a.push((Math.atan2(sv * hv, sz * hz) + Math.PI * 2) % (Math.PI * 2));
+    return [...new Set(a.map((x) => +x.toFixed(6)))].sort((p, q) => p - q);
+  };
+  const rrAt = (zc, vc, hz, hv, r, a) => {
+    const dx = Math.cos(a), dy = Math.sin(a);
+    r = Math.min(r, hz - 1e-4, hv - 1e-4);
+    const sdf = (x, y) => { const qx = Math.abs(x) - (hz - r), qy = Math.abs(y) - (hv - r); return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r; };
+    let lo = 0, hi = Math.hypot(hz, hv) * 1.5;
+    for (let k = 0; k < 32; k++) { const m = (lo + hi) / 2; if (sdf(dx * m, dy * m) < 0) lo = m; else hi = m; }
+    return new THREE.Vector2(zc + dx * lo, vc + dy * lo);
+  };
+  const toSkin = (pts, inset) => pts.map((q) => ringPt(q.x, q.y / RV, inset));
+  const strip = (inner, outer, innerInset, outerInset, want) => {
+    let g = loft([toSkin(inner, innerInset), toSkin(outer, outerInset)], { capStart: false, capEnd: false });
+    g.deleteAttribute("normal");
+    if (g.attributes.uv) g.deleteAttribute("uv");
+    if (!g.index) g = mergeVertices(g, 1e-6);
+    return orient(g, want);
+  };
+  const fan = (pts, inset, want) => {
+    const c = pts.reduce((m, q) => m.add(q), new THREE.Vector2()).multiplyScalar(1 / pts.length);
+    const P = toSkin([c, ...pts], inset), pos = [], idx = [];
+    for (const p of P) pos.push(p.x, p.y, p.z);
+    for (let i = 1; i <= pts.length; i++) idx.push(0, i, (i % pts.length) + 1);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    return orient(g, want);
+  };
 
   add("body", part(lattice(0, Z_NOSE, Z_TAIL, false, true), XMAT.skin, skinColor));
   for (const w of WIN) {
     const v0 = w.t0 * RV, v1 = w.t1 * RV;
-    const frame = new THREE.Shape(densRect(w.z0 - M, w.z1 + M, v0 - M, v1 + M));
+    const frame = new THREE.Shape(densRect(w.z0 - M, w.z1 + M, v0 - M, v1 + M, 0.08));
     if (w.polys) {
-      for (const poly of w.polys) frame.holes.push(new THREE.Path(polyPts(poly)));
-      add("body", part(onSkin(frame, 0, out, 0.07), XMAT.skin, skinColor));
-      add("body", part(onSkin(frame, 0.03, inn, 0.07), XMAT.fabric, cCock, INSIDE));
+      for (const poly of w.polys) frame.holes.push(new THREE.Path(polyPts(poly, 0.05)));
+      add("body", part(onSkin(frame, 0, out, 0.17), XMAT.skin, skinColor));
+      add("body", part(onSkin(frame, 0.03, inn, 0.17), XMAT.fabric, cCock, INSIDE));
       for (const poly of w.polys) {
-        add("canopy", part(onSkin(new THREE.Shape(polyPts(poly)), 0.01, out, 0.09), XMAT.glass, C("#ffffff"), { noAO: true, noOcclude: true }));
+        add("canopy", part(onSkin(new THREE.Shape(polyPts(poly, 0.05)), 0.01, out, 0.17), XMAT.glass, C("#ffffff"), { noAO: true, noOcclude: true }));
         const P3 = polyPts(poly, 0.05).map((q) => ringPt(q.x, q.y / RV, -0.004));
         for (let i = 0; i < P3.length; i++) add("body", part(cylinderBetween(P3[i], P3[(i + 1) % P3.length], 0.012, 6), MAT.dark, cBlack, { noAO: true, noOcclude: true }));
       }
       continue;
     }
-    frame.holes.push(new THREE.Path(roundRect(w.z0, w.z1, v0, v1, w.r)));
-    add("body", part(onSkin(frame, 0, out), XMAT.skin, skinColor));
-    add("canopy", part(onSkin(new THREE.Shape(roundRect(w.z0, w.z1, v0, v1, w.r)), 0.012, out), XMAT.glass, C("#ffffff"), { noAO: true, noOcclude: true }));
+    {
+      const zc = (w.z0 + w.z1) / 2, vc = (v0 + v1) / 2, hz = (w.z1 - w.z0) / 2, hv = (v1 - v0) / 2, dirs = ndirs(hz + M, hv + M);
+      const inner = dirs.map((a) => rrAt(zc, vc, hz, hv, w.r, a)), rect = dirs.map((a) => rrAt(zc, vc, hz + M, hv + M, 0, a));
+      add("body", part(strip(inner, rect, 0, 0, out), XMAT.skin, skinColor));
+      add("canopy", part(fan(inner, 0.012, out), XMAT.glass, C("#ffffff"), { noAO: true, noOcclude: true }));
+    }
     if (w.kind !== "cabin") {
       const ring = new THREE.Shape(roundRect(w.z0 - 0.018, w.z1 + 0.018, v0 - 0.018, v1 + 0.018, w.r + 0.018));
       ring.holes.push(new THREE.Path(roundRect(w.z0, w.z1, v0, v1, w.r)));
@@ -277,6 +333,7 @@ export function buildJet(ac, kit, S) {
     }
   }
 
+  SECTION = "lining";
   // ---- the cabin lining, with enlarged window surrounds and reveals
   const Z_LIN0 = S.lining.z0, Z_LIN1 = S.lining.z1;
   const cockpitZ = S.cockpit.bulkheadZ;
@@ -294,14 +351,12 @@ export function buildJet(ac, kit, S) {
     const v0 = w.t0 * RV, v1 = w.t1 * RV, zc = (w.z0 + w.z1) / 2, vc = (v0 + v1) / 2;
     const grow = (half) => half + Math.min(half * 0.12, M - 0.012);
     const hz = grow((w.z1 - w.z0) / 2), hv = grow((v1 - v0) / 2);
-    const big = roundRect(zc - hz, zc + hz, vc - hv, vc + hv, w.r + (hz - (w.z1 - w.z0) / 2));
-    const surround = new THREE.Shape(densRect(w.z0 - M, w.z1 + M, v0 - M, v1 + M));
-    surround.holes.push(new THREE.Path(big));
-    add("body", part(onSkin(surround, LIN, inn), XMAT.fabric, w.kind === "cabin" ? cSide : cCock, INSIDE));
-    const small = roundRect(w.z0, w.z1, v0, v1, w.r);
-    const ringAt = (pts, inset) => pts.map((q) => ringPt(q.x, q.y / RV, inset));
-    const rev = loft([ringAt(small, 0.004), ringAt(big, LIN)], { capStart: false, capEnd: false });
-    add("body", part(rev, XMAT.fabric, w.kind === "cabin" ? C("#f1ede5") : cCock, INSIDE));
+    const h0z = (w.z1 - w.z0) / 2, h0v = (v1 - v0) / 2, dirs = ndirs(h0z + M, h0v + M);
+    const big = dirs.map((a) => rrAt(zc, vc, hz, hv, w.r + (hz - h0z), a));
+    const small = dirs.map((a) => rrAt(zc, vc, h0z, h0v, w.r, a));
+    const rect = dirs.map((a) => rrAt(zc, vc, h0z + M, h0v + M, 0, a));
+    add("body", part(strip(big, rect, LIN, LIN, inn), XMAT.fabric, w.kind === "cabin" ? cSide : cCock, INSIDE));
+    add("body", part(strip(small, big, 0.004, LIN, (m) => V(m.x, m.y - centreY(m.z), 0).normalize().negate()), XMAT.fabric, w.kind === "cabin" ? C("#f1ede5") : cCock, INSIDE));
   }
   const crossSection = (z, inset, yMin) => {
     const pts = [];
@@ -316,13 +371,15 @@ export function buildJet(ac, kit, S) {
   {
     // Lavatory (or baggage) wall at the back of the cabin, with its door.
     const zL = S.cabin.lavZ, dh = Math.min(1.27, TOP - LIN - LEDGE - 0.25);
-    add("body", part(flatAt(crossSection(zL, LIN - 0.01, LEDGE), zL), XMAT.wood, (p) => (Math.abs(p.x) < 0.3 && p.y < LEDGE + dh ? cWood : cSide), INSIDE));
-    add("body", part(new THREE.BoxGeometry(0.6, dh, 0.02).applyMatrix4(T(0, LEDGE + dh / 2, zL + 0.012)), XMAT.wood, cWood, INSIDE));
-    for (const x of [0.3, -0.3]) add("body", part(new THREE.BoxGeometry(0.012, dh, 0.012).applyMatrix4(T(x, LEDGE + dh / 2, zL + 0.024)), MAT.metal, cMetal, INSIDE));
-    add("body", part(new THREE.BoxGeometry(0.6, 0.012, 0.012).applyMatrix4(T(0, LEDGE + dh, zL + 0.024)), MAT.metal, cMetal, INSIDE));
-    add("body", part(new THREE.BoxGeometry(0.03, 0.12, 0.03).applyMatrix4(T(-0.22, LEDGE + 0.72, zL + 0.035)), MAT.metal, cMetal, INSIDE));
+    const dw = Math.min(0.6, 2 * (Math.min(halfW(zL, LEDGE + 0.02), halfW(zL + 0.03, LEDGE + 0.02)) - LIN) - 0.12); // door width (narrow at a tapering wall)
+    add("body", part(flatAt(crossSection(zL, LIN - 0.01, LEDGE), zL), XMAT.wood, (p) => (Math.abs(p.x) < dw / 2 && p.y < LEDGE + dh ? cWood : cSide), INSIDE));
+    add("body", part(new THREE.BoxGeometry(dw, dh, 0.02).applyMatrix4(T(0, LEDGE + dh / 2, zL + 0.012)), XMAT.wood, cWood, INSIDE));
+    for (const x of [dw / 2, -dw / 2]) add("body", part(new THREE.BoxGeometry(0.012, dh, 0.012).applyMatrix4(T(x, LEDGE + dh / 2, zL + 0.024)), MAT.metal, cMetal, INSIDE));
+    add("body", part(new THREE.BoxGeometry(dw, 0.012, 0.012).applyMatrix4(T(0, LEDGE + dh, zL + 0.024)), MAT.metal, cMetal, INSIDE));
+    add("body", part(new THREE.BoxGeometry(0.03, 0.12, 0.03).applyMatrix4(T(-dw / 2 + 0.08, LEDGE + 0.72, zL + 0.035)), MAT.metal, cMetal, INSIDE));
   }
 
+  SECTION = "wings";
   // ---------------------------------------------------------------- wings
   const WG = S.wing;
   const DIH = WG.dihedral * DEG, SWEEP = WG.sweep * DEG, XT = WG.span;
@@ -368,6 +425,7 @@ export function buildJet(ac, kit, S) {
   };
   if (S.fairing) add("body", part(smooth(loft(S.fairing.keys.map(([z, hw, bot]) => superRing(z, hw, S.fairing.top, bot, S.fairing.e ?? 2.0)))), XMAT.skin, cWhite));
 
+  SECTION = "tail";
   // ---------------------------------------------------------------- tail
   const F = S.fin;
   const fin = { rootLE: V(0, ...F.rootLE), tipLE: V(0, ...F.tipLE), rootChord: F.rootChord, tipChord: F.tipChord };
@@ -427,6 +485,7 @@ export function buildJet(ac, kit, S) {
   add("beacon", part(new THREE.SphereGeometry(0.04, 10, 8).applyMatrix4(T(0, FUS(bz)[2] - 0.02 - nodes.beacon.translation[1], bz - nodes.beacon.translation[2])), MAT.navRed, C("#ffffff"), { noAO: true }));
   add("body", part(new THREE.SphereGeometry(0.035, 8, 6).applyMatrix4(T(0, centreY(Z_TAIL + 0.05), Z_TAIL - 0.02)), MAT.white, C("#ffffff"), { noAO: true }));
 
+  SECTION = "engines";
   // ---------------------------------------------------------------- engines
   const nacelleProfile = (r, len) => [[r * 0.64, 0], [r * 0.69, len * 0.02], [r * 0.85, len * 0.16], [r * 0.96, len * 0.4], [r, len * 0.68], [r * 0.99, len * 0.86], [r * 0.92, len * 0.96], [r * 0.85, len * 0.99], [r * 0.78, len]];
   const nacelle = (EX, EY, ZI, LEN, R) => {
@@ -501,6 +560,7 @@ export function buildJet(ac, kit, S) {
     }
   }
 
+  SECTION = "markings";
   // ---------------------------------------------------------------- markings
   const R = S.registration;
   if (R.on === "nacelle") {
@@ -520,10 +580,13 @@ export function buildJet(ac, kit, S) {
   }
   const ribbon = (side, zFrom, zTo, lo, hi, colour) => {
     const pos = [], idx = [];
-    const n = Math.ceil((zFrom - zTo) / 0.08);
+    // Sample on the skin's own rows (plus a few between them), so the ribbon follows the same
+    // flat facets and never dips under them where the nose curves (that showed as blotches).
+    const zs = [zFrom, ...zRows.filter((z) => z < zFrom && z > zTo), zTo];
+    const n = zs.length - 1;
     for (let i = 0; i <= n; i++) {
-      const z = lerp(zFrom, zTo, i / n);
-      for (const y of [lo(z), hi(z)]) { const p = ringPt(z, thForY(z, y, side), -0.0025); pos.push(p.x, p.y, p.z); }
+      const z = zs[i];
+      for (const y of [lo(z), hi(z)]) { const p = ringPt(z, thForY(z, y, side), -0.006); pos.push(p.x, p.y, p.z); }
       if (i) idx.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i);
     }
     const g = new THREE.BufferGeometry();
@@ -532,7 +595,7 @@ export function buildJet(ac, kit, S) {
     add("body", part(orient(g, out), XMAT.skin, colour, { noOcclude: true }));
   };
   if (S.stripe) {
-    const SP = S.stripe;
+    const SP = { ...S.stripe, z0: Math.min(S.stripe.z0, Z_NOSE - 0.6) }; // never on the sharp tip of the nose
     const base = (z) => SP.y + Math.max(0, SP.riseFrom - z) * SP.rise;
     const taper = (z) => Math.min(1, Math.max(0, (SP.z0 - z) / 0.7));
     const tailTaper = (z) => (SP.taperTo === undefined ? 1 : Math.min(1, Math.max(0, (z - SP.z1) / 0.7)));
@@ -560,6 +623,7 @@ export function buildJet(ac, kit, S) {
   for (const [z, h] of S.antennas ?? []) add("body", part(new THREE.BoxGeometry(0.012, h, 0.12).applyMatrix4(new THREE.Matrix4().makeRotationX(-0.35)).applyMatrix4(T(0, FUS(z)[1] + h / 2 - 0.02, z)), MAT.dark, C("#2b2d30")));
   if (S.pitot) for (const side of [1, -1]) { const [z, y] = S.pitot; add("body", part(cylinderBetween(V(side * halfW(z, y), y, z), V(side * (halfW(z, y) + 0.09), y, z + 0.12), 0.01, 6), MAT.metal, cMetal)); }
 
+  SECTION = "gear";
   // ---------------------------------------------------------------- landing gear
   const tyre = (Rr, w) => {
     const prof = [[Rr * 0.55, -w / 2], [Rr * 0.86, -w / 2], [Rr * 0.97, -w * 0.36], [Rr, -w * 0.15], [Rr, w * 0.15], [Rr * 0.97, w * 0.36], [Rr * 0.86, w / 2], [Rr * 0.55, w / 2]];
@@ -630,6 +694,7 @@ export function buildJet(ac, kit, S) {
     nodes.gearDoors = { parts: doors, moving: true };
   }
 
+  SECTION = "cabin";
   // ---------------------------------------------------------------- inside
   const box = (w, h, d, x, y, z, rx = 0, ry = 0) => new THREE.BoxGeometry(w, h, d).applyMatrix4(new THREE.Matrix4().compose(V(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, 0)), V(1, 1, 1)));
   const pad = (w, h, d, m, r = 0.03) => new RoundedBoxGeometry(w, h, d, 2, Math.min(r, w / 2.2, h / 2.2, d / 2.2)).applyMatrix4(m);
@@ -637,13 +702,16 @@ export function buildJet(ac, kit, S) {
 
   const CK = S.cockpit, PZ = CK.panelZ, CX = CK.seatX;
   // The cabin floor runs from the cockpit bulkhead back until the belly starts to rise into it.
+  // ...and while the hull is still wide enough at floor level for the aisle.
+  const aisleHalf = S.cabin.aisleHalf ?? 0.38;
+  const wide = (z) => halfW(z, AISLE - 0.04) - LIN > aisleHalf + 0.05;
   let floorEnd = S.cabin.lavZ;
-  while (floorEnd > Z_LIN1 + 0.05 && FUS(floorEnd - 0.05)[2] < AISLE - 0.22) floorEnd -= 0.05;
+  while (!wide(floorEnd) && floorEnd < CK.bulkheadZ - 1) floorEnd += 0.05;
+  while (floorEnd > Z_LIN1 + 0.05 && FUS(floorEnd - 0.05)[2] < AISLE - 0.22 && wide(floorEnd - 0.05)) floorEnd -= 0.05;
   const cabinLen = CK.bulkheadZ - floorEnd, cabinMid = (CK.bulkheadZ + floorEnd) / 2;
   const floorHalf = Math.min(halfW(cabinMid, AISLE - 0.02), halfW(CK.bulkheadZ, AISLE - 0.02), halfW(floorEnd, AISLE - 0.02), halfW(floorEnd, LEDGE)) - LIN;
   // Floors: cockpit, the aisle, and raised side ledges (where the cabin has a dropped aisle).
   { const fy = LEDGE - (CK.floorDrop ?? 0.03) - 0.02; add("body", part(box(2 * (Math.min(halfW(PZ, fy - 0.02), halfW(CK.bulkheadZ - 0.05, fy - 0.02)) - 0.1), 0.04, PZ - CK.bulkheadZ, 0, fy, (PZ + CK.bulkheadZ) / 2), XMAT.fabric, cCarpet, INSIDE)); }
-  const aisleHalf = S.cabin.aisleHalf ?? 0.38;
   add("body", part(box(2 * aisleHalf, 0.04, cabinLen, 0, AISLE - 0.02, cabinMid), XMAT.fabric, cCarpet, INSIDE));
   if (AISLE < LEDGE - 0.01) for (const side of [1, -1]) {
     const w = floorHalf - aisleHalf;
@@ -700,7 +768,12 @@ export function buildJet(ac, kit, S) {
     add("body", part(box(0.5, 0.29, z1 - z0 - 0.04, x, LEDGE + 0.145, (z0 + z1) / 2), MAT.dark, C("#38342f"), INSIDE));
   }
   for (const side of [1, -1]) {
-    const z0 = Z_LIN1 + 0.68, z1 = (side > 0 ? D.z0 : CB.galleyZ - 0.32) - 0.1;
+    // The shelf runs along the cabin wall, stopping at the door (left) and the galley (right),
+    // wherever they are (the PC-12's door is at the back).
+    const stop = side > 0 ? [D.z0 - 0.1, D.z1 + 0.1] : [CB.galleyZ - 0.32, CB.galleyZ + 0.32];
+    const aft = (side > 0 ? D.z1 : CB.galleyZ) < cabinMid;
+    const z0 = aft ? stop[1] : Math.max(Z_LIN1 + 0.68, floorEnd + 0.2), z1 = aft ? CK.bulkheadZ - 0.3 : stop[0];
+    if (z1 - z0 < 0.3) continue;
     const wallX = wallAt(cabinMid);
     add("body", part(pad(0.13, 0.045, z1 - z0, at(side * (wallX - 0.05), LEDGE + 0.645, (z0 + z1) / 2), 0.015), XMAT.wood, cWood, INSIDE));
     add("body", part(box(0.01, 0.06, z1 - z0 - 0.02, side * (wallX - 0.115), LEDGE + 0.6, (z0 + z1) / 2), XMAT.wood, C("#4a2e1a"), INSIDE));
@@ -724,6 +797,7 @@ export function buildJet(ac, kit, S) {
     add("body", part(box(0.16, ph, 0.06, side * (bx - 0.06), py, CK.bulkheadZ), XMAT.fabric, cSide, INSIDE));
   }
 
+  SECTION = "cockpit";
   // Cockpit: two pilot seats, the panel with three big screens, glareshield, pedestal, wheels
   // (or side-sticks), rudder pedals.
   const FY = LEDGE - (CK.floorDrop ?? 0.03); // cockpit floor (often a step below the cabin's)
@@ -827,6 +901,7 @@ export function buildJet(ac, kit, S) {
     for (const s of [-1, 1]) add("body", part(box(0.08, 0.14, 0.02, x + s * 0.09, FY + 0.09, PZ - 0.04, -0.5), MAT.metal, C("#5c6066"), INSIDE));
   }
 
+  SECTION = "pilot";
   // The pilot, in the left seat.
   {
     const pp = [];
@@ -862,6 +937,7 @@ export function buildJet(ac, kit, S) {
   rig.windowEye = [SX - 0.01, Math.min(LEDGE + 1.14, W.yc + 0.12), we]; // eye level with the window, even in a low cabin
   rig.fov = S.fov ?? 80;
   rig.eyePitch = 9;
+  if (process.env.KIT_STATS === ac.id) { console.log(ac.id, JSON.stringify(STATS), "rows", zRows.length, "cols", thCols.length); process.exit(0); }
   // Quality check: nothing inside the cabin may poke out through the skin.
   {
     const bad = [];

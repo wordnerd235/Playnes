@@ -176,6 +176,51 @@ front of it, so those get an `eyeOffset` toward the camera of about the footprin
 And Cesium only lets a billboard be anchored at its bottom, centre or top (its `pixelOffset`
 stays in pixels even when the size is in metres), which is why the frames are laid out that way.
 
+## The jet kit (scripts/jet-kit.mjs)
+
+Every business jet after the Phenom 300E is built by one shared builder from a measured spec
+(`scripts/spec-<id>.mjs`, registered in `KIT` in `build-models.mjs`). A spec gives the fuselage
+cross-sections, floor height, windows, cockpit windows and windshield outline, cabin layout
+(rows facing forward or aft, tables, a divan, galley, lavatory wall, the window-seat station),
+door and exits, wing (sweep, dihedral, chords, flaps, ailerons, winglet), wing-body fairing,
+fin, dorsal, strakes, tailplane (T-tail, cruciform or low: decided by its height), engines
+(rear-mounted on pylons, `mount: "wing"` for the HondaJet, `centreEngine` for the Falcon 8X's
+S-duct third engine, `prop` for a nose propeller), registration (on a nacelle or the
+fuselage), cheatline, antennas, pitot, gear (single or twin wheels), and optional cockpit
+details (`sidestick`, `extraScreens`, `floorDrop`, `seatWidth`, `backLen`).
+`spec-phenom300.mjs` rebuilds the Phenom through the kit as a check (`KIT_CHECK=1 node
+scripts/build-models.mjs phenom300`); the hand-built Phenom stays the live model.
+
+**How each jet was checked** (do the same for any new one):
+1. Measure a side-on photo on a pixel grid (`$S/grid.py`-style), scaled by the published
+   length (or by a height when the photo is a wide-angle shot that stretches lengthways).
+2. Build, render a near-flat side view (`eye=±100,y,0&at=0,y,0&fov=10`), and overlay its
+   outline on the photo. Fix what doesn't line up (this found a backwards fin, a fin half a
+   metre too tall, a too-thin tailcone, a backwards intake, a too-low nose).
+3. The build prints any interior part that pokes through the skin; fix them all.
+4. Render the pilot's view, the cabin and the window seat; then in the game at phone size:
+   from behind, in the cockpit and at the window (the window seat must face a window).
+
+| Jet | Measured from | Notes |
+|---|---|---|
+| PC-24 | side photo | blunt tailcone; cockpit floor a step below the cabin |
+| Praetor 600 | side photo | side-sticks; twin nose wheels |
+| Citation Latitude | side photo (by height) | cruciform tail (data corrected) |
+| Challenger 3500 | wide-angle side photo | nose rises steeply (the first try gave a slot windshield) |
+| Phenom 100 | side photo | small cockpit seats |
+| Falcon 8X | side photo | S-duct third engine, twin main wheels, divan |
+| HondaJet | published dimensions + photos | over-wing engines; T-tail (data corrected); low cabin |
+| Global 8000 | Bombardier side drawing | the drawing's 8.2 m height confirms the scale |
+| PC-12 NGX | side photo | turboprop: `prop` (five blades, blur disc), rear cargo door |
+
+**Keeping them light:** window frames are rings between the window outline and its cut-out
+(sampled in the same directions), not split-up flat patches; the windshield's cut-out hugs the
+panes; rows along the straight cabin tube are 28 cm apart (nose rows 8 cm, so the cheatline
+follows the curve without blotches); window edges at nearly the same height share grid
+columns. `KIT_STATS=<id> node scripts/build-models.mjs <id>` prints the vertex count of each
+section (and any single part over 3,000) and stops. The kit jets now range from 33,000
+(Phenom 100) to 88,000 vertices (Global 8000); the first Global was 204,000 and 11 MB.
+
 ## Ground handling and suspension (test copy)
 
 - **Shock absorbers** (`PlaneView.update`): on the ground a sudden step in the ground height

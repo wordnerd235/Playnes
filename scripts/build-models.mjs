@@ -31,6 +31,8 @@ import { CHALLENGER3500 } from "./spec-challenger3500.mjs";
 import { PHENOM100 } from "./spec-phenom100.mjs";
 import { FALCON8X } from "./spec-falcon8x.mjs";
 import { HONDAJET } from "./spec-hondajet.mjs";
+import { GLOBAL8000 } from "./spec-global8000.mjs";
+import { PC12 } from "./spec-pc12.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = join(root, "public", "models");
@@ -1156,7 +1158,7 @@ function writeGlb(nodes, file, extraMaterials = []) {
 const kit = { THREE, V, C, M, T, RX, RY, RZ, S, chain, lerp, MAT, MATERIALS, loft, smooth, surface, controlSurface, lathe, cylinderBetween, registration, REGISTRATION, part, faceted, sheet, curve, asNode, mergeGeometries, mergeVertices };
 const DETAILED = { f16: buildF16, c172: buildC172, phenom300: buildPhenom300 };
 // Jets built by the shared kit (scripts/jet-kit.mjs) from a measured spec.
-const KIT = { pc24: PC24, praetor600: PRAETOR600, latitude: LATITUDE, challenger3500: CHALLENGER3500, phenom100: PHENOM100, falcon8x: FALCON8X, hondajet: HONDAJET };
+const KIT = { pc24: PC24, praetor600: PRAETOR600, latitude: LATITUDE, challenger3500: CHALLENGER3500, phenom100: PHENOM100, falcon8x: FALCON8X, hondajet: HONDAJET, global8000: GLOBAL8000, pc12: PC12 };
 for (const [id, spec] of Object.entries(KIT)) DETAILED[id] = (ac, k) => buildJet(ac, k, spec);
 // KIT_CHECK=1: build the Phenom 300E through the kit instead (to check the kit against it).
 if (process.env.KIT_CHECK) DETAILED.phenom300 = (ac, k) => buildJet(ac, k, PHENOM300);
