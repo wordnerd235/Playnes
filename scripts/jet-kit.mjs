@@ -433,6 +433,27 @@ export function buildJet(ac, kit, S) {
       nodes[name] = { parts: [part(cs.geo, MAT.paint, cWing)], translation: cs.translation, rotation: cs.rotation };
     };
     mk(FLAP, FCUT, side > 0 ? "flapL" : "flapR");
+    if (S.slats) {
+      // Leading-edge slats: the front of the wing droops forward with the flaps (lets the wing
+      // fly slower on approach). A strip of the airfoil's nose, hinged along its top edge.
+      const t = WG.thickness ?? 0.12, U = 0.13;
+      const half = (u) => 5 * t * (0.2969 * Math.sqrt(u) - 0.126 * u - 0.3516 * u * u + 0.2843 * u ** 3 - 0.1036 * u ** 4);
+      const x0 = S.slats.from * XT, x1 = S.slats.to * XT;
+      const us = [U, 0.08, 0.045, 0.02, 0.006, 0, 0.006, 0.02, 0.045, 0.08, U];
+      const rows = [];
+      for (let i = 0; i <= 8; i++) {
+        const x = x0 + ((x1 - x0) * i) / 8, c = chordAt(x);
+        rows.push(us.map((u, j) => {
+          const up = j < 5 ? 1 : j > 5 ? -1 : 0;
+          return V(side * x, wingY(x) + (0.02 * 4 * u * (1 - u) + up * half(u)) * c * 1.02 + (up === 0 ? 0 : up * 0.002), leAt(x) - u * c + 0.004);
+        }));
+      }
+      const hinge0 = V(side * x0, wingY(x0) + half(U) * chordAt(x0), leAt(x0) - U * chordAt(x0));
+      const hinge1 = V(side * x1, wingY(x1) + half(U) * chordAt(x1), leAt(x1) - U * chordAt(x1));
+      const ax = hinge1.clone().sub(hinge0).normalize();
+      if (ax.x < 0) ax.negate();
+      nodes[side > 0 ? "slatL" : "slatR"] = asNode([part(kit.sheet(rows), XMAT.skin, cWing)], hinge0, ax, V(0, 1, 0), { moving: true });
+    }
     mk(AIL, ACUT, side > 0 ? "ailL" : "ailR");
     const WL = WG.winglet;
     let lightY = wingY(XT) + 0.05, lightX = XT + 0.05;

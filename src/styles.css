@@ -619,7 +619,8 @@ svg { display: block; }
 
 /* Chinook slide buttons (hold to slide sideways), where the flap lever is on playnes. */
 .heli-slide { display: none; flex-direction: column; justify-content: center; gap: 12px; }
-.hud.heli .heli-slide { display: flex; }
+.hud.heli .heli-slide, .hud.rudder .heli-slide { display: flex; }
+.hud.rudder .slide-btn span { font-size: 0.74em; letter-spacing: -0.01em; }
 .slide-btn { width: 78px; height: 78px; border-radius: 22px; border: 4px solid rgba(255,255,255,.85); background: var(--glass); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-weight: 900; touch-action: none; -webkit-user-select: none; user-select: none; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
 .slide-btn b { font-size: 26px; line-height: 1; }
 .slide-btn span { font-size: 12px; letter-spacing: .04em; }

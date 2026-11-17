@@ -53,6 +53,10 @@ export interface Commands {
   spoilers?: number;
   /** Thrust reversers (on the ground, playnes that have them). */
   reverse?: boolean;
+  /** Rudder, -1 (yaw left) .. 1 (yaw right): "realistic details" only. */
+  rudder?: number;
+  /** F-16 after touchdown: hold the nose high so the air slows it ("aerobraking"). */
+  aerobrake?: boolean;
 }
 
 export type FlightEvent =
@@ -61,7 +65,9 @@ export type FlightEvent =
   | { type: "stall-protect" }
   | { type: "stall-warning" }
   | { type: "stall" }
-  | { type: "stall-recovered" };
+  | { type: "stall-recovered" }
+  | { type: "stick-pusher" }
+  | { type: "bounce"; sinkFpm: number };
 
 export interface StepEnv {
   /** Ellipsoid height of the ground under the aircraft, meters. */
@@ -78,6 +84,12 @@ export interface StepEnv {
    * stalls: the nose drops and height is lost until the pilot lowers the nose and adds power.
    */
   realStall?: boolean;
+  /**
+   * Grown-up "realistic details": rudder and sideslip, the propeller's swing at full power,
+   * ground effect (the float just above the runway), bounces on hard landings, the F-16's
+   * aerobraking and full roll rate.
+   */
+  realism?: boolean;
 }
 
 /** Derived per-aircraft constants. Speeds are m/s; vr/vapp/vclimb/vstall/vmo are indicated airspeeds. */
@@ -113,6 +125,12 @@ export interface Perf {
   diveByAngle: boolean;
   /** Fly-by-wire with envelope protection: it won't stall even with "real stalls" on. */
   protectedEnvelope: boolean;
+  /** A stick pusher shoves the nose down just before the stall (the PC-12). */
+  stickPusher: boolean;
+  /** Wingspan, m (ground effect works within about half of it). */
+  span: number;
+  /** Propeller swing at full power, degrees a second of yaw to the left (0 = jets). */
+  propSwing: number;
   /** Piston, turboprop, jet, fighter or helicopter (how the engines respond). */
   kind: AircraftDef["kind"];
   /** Has thrust reversers (or reverse pitch props). */
@@ -217,6 +235,9 @@ export function perfFor(ac: AircraftDef): Perf {
     diveByAngle: ac.kind === "fighter",
     kind: ac.kind,
     protectedEnvelope: !!ac.flyByWire,
+    stickPusher: ac.id === "pc12",
+    span: ac.shape.span,
+    propSwing: ac.kind === "piston" ? 1.5 : ac.kind === "turboprop" ? 2.5 : 0,
     reversers: (ac.reverser ?? (ac.kind === "jet" || ac.kind === "turboprop" ? 1 : 0)) > 0,
     reverserShare: ac.reverser ?? (ac.kind === "jet" || ac.kind === "turboprop" ? 1 : 0),
     climbMax,
@@ -335,7 +356,9 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
     // Ground spoilers dump the lift so the wheel brakes grip; reversers push the air forward.
     const rolling = (env.surface === "grass" ? 0.05 : 0.015) * G + cmd.brake * (0.3 + 0.15 * spoilers) * G;
     const reverser = cmd.reverse && p.reversers && s.speed > 12 ? REVERSER_DECEL * p.reverserShare : 0;
-    const a = thrust * (env.real ? 1 : GROUND_ACCEL_BOOST) - drag - (s.speed > 0.1 ? rolling + reverser : 0);
+    // F-16 aerobraking: nose held high after touchdown, the whole underside braking on the air.
+    const aero = env.realism && cmd.aerobrake && p.kind === "fighter" && s.speed > 25 ? 0.13 * G * clamp(s.pitch / 13, 0, 1) * clamp(s.speed / p.vapp, 0, 1.2) ** 2 : 0;
+    const a = thrust * (env.real ? 1 : GROUND_ACCEL_BOOST) - drag - aero - (s.speed > 0.1 ? rolling + reverser : 0);
     s.speed = Math.max(0, s.speed + a * dt);
     s.bank = approach(s.bank, 0, 20 * dt);
     s.gamma = 0;
@@ -349,14 +372,24 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
       const rate = (cmd.targetBank / 30) * 8 * clamp(s.speed / 8, 0, 1);
       s.heading = wrap360(s.heading + rate * dt);
     }
+    if (env.realism) {
+      // The rudder pedals steer too; and at full power on the takeoff roll a propeller pulls
+      // the nose to the left until the rudder gets enough air (the PC-12's swing is strong).
+      const rollRate = clamp(cmd.rudder ?? 0, -1, 1) * 10 * clamp(s.speed / 8, 0, 1);
+      const swing = p.propSwing * 1.2 * s.throttle * clamp(s.speed / 10, 0, 1) * clamp(1 - s.speed / (p.vr * 1.2), 0, 1);
+      s.heading = wrap360(s.heading + (rollRate - swing) * dt);
+    }
 
     // Rotation: pulling back once near rotation speed raises the nose; enough nose-up + speed = liftoff.
-    if (cmd.rotate && s.speed >= p.vr * 0.95) {
+    const aerobraking = env.realism && cmd.aerobrake && p.kind === "fighter" && s.speed > 25;
+    if (aerobraking) {
+      s.pitch = approach(s.pitch, 13, 4 * dt);
+    } else if (cmd.rotate && s.speed >= p.vr * 0.95) {
       s.pitch = approach(s.pitch, 9, 3.5 * dt);
     } else {
       s.pitch = approach(s.pitch, 0, 3 * dt);
     }
-    if (s.pitch >= 6 && s.speed >= p.vr) {
+    if (s.pitch >= 6 && s.speed >= p.vr && !aerobraking) {
       s.onGround = false;
       s.gamma = 2;
       events.push({ type: "liftoff" });
@@ -365,7 +398,9 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
     // Roll toward the commanded bank at the aircraft's roll rate.
     // No steeper than the g limit allows in a level turn (g = 1 / cos(bank)).
     const bankMax = Math.min(85, Math.acos(1 / p.gLimit) / DEG);
-    s.bank = approach(s.bank, clamp(cmd.targetBank, -bankMax, bankMax), p.rollRate * dt);
+    // (The real F-16 rolls at 240 degrees a second; Easy keeps it at 180.)
+    const rollRate = env.realism && p.kind === "fighter" ? Math.max(p.rollRate, 240) : p.rollRate;
+    s.bank = approach(s.bank, clamp(cmd.targetBank, -bankMax, bankMax), rollRate * dt);
     const nTurn = 1 / Math.cos(s.bank * DEG);
 
     // Envelope protection: never let the wing stall. Short of airspeed, the nose comes down
@@ -389,7 +424,11 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
       // go. The nose drops (one wing first) and the playne sinks. Still pulling back keeps it
       // stalled, sinking fast; lowering the nose lets the speed build and the wing fly again.
       const pulling = cmd.targetVs > 0.5;
-      if (!s.stalled && ias < vsTurn) {
+      if (p.stickPusher && !s.stalled && ias < vsTurn * 1.04) {
+        // The stick pusher shoves the nose down before the wing can stall.
+        stallGamma = Math.min(s.gamma, 0) - 6;
+        events.push({ type: "stick-pusher" });
+      } else if (!s.stalled && ias < vsTurn) {
         s.stalled = true;
         s.bank += s.bank >= 0 ? 12 : -12;
         events.push({ type: "stall" });
@@ -410,6 +449,11 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
     const vsAvail = Math.max(s.speed, 1);
     let targetGamma = Math.asin(clamp(targetVs / vsAvail, -p.maxPathSin, p.maxPathSin)) / DEG;
     if (stallGamma !== null) targetGamma = Math.min(targetGamma, stallGamma);
+    // Ground effect: within about half a wingspan of the ground the air cushions the wing. The
+    // sink eases, and extra speed makes it float along above the runway until it bleeds off.
+    const agl = s.alt - env.groundHeight;
+    const ge = env.realism && targetGamma < 0.5 ? clamp(1 - agl / (p.span * 0.5), 0, 1) ** 2 : 0;
+    if (ge > 0) targetGamma = Math.min(0.3, targetGamma + ge * (1.2 + 6 * clamp((ias - p.vapp) / (p.vapp * 0.25), 0, 1)));
     // How fast the nose can come up or go down is limited by g: pulling harder than the limit
     // isn't possible (g = turn part + speed x pitch rate / 9.81), and it tightens with speed.
     const vRef = Math.max(s.speed, 20);
@@ -424,7 +468,7 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
     // Eased over about a quarter of a second (g builds as the nose moves; it doesn't jump).
     s.load = (s.load ?? 1) + (nNow - (s.load ?? 1)) * Math.min(1, dt * 4);
 
-    const a = thrust - drag - G * Math.sin(s.gamma * DEG) - stallDrag;
+    const a = thrust - drag * (1 - 0.3 * ge) - G * Math.sin(s.gamma * DEG) - stallDrag;
     s.speed = Math.max((vsEff * 0.8) / Math.sqrt(sigma), s.speed + a * dt);
     s.vs = s.speed * Math.sin(s.gamma * DEG);
     s.alt += s.vs * dt;
@@ -432,6 +476,14 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
     // Coordinated turn.
     const turnRate = (G * Math.tan(s.bank * DEG)) / Math.max(s.speed, 20) / DEG;
     s.heading = wrap360(s.heading + turnRate * dt);
+    if (env.realism) {
+      // Rudder yaws the nose (a slow, skidding turn that also rolls the playne a little the same
+      // way); at full power and low speed a propeller yaws it left unless the rudder holds it.
+      const rud = clamp(cmd.rudder ?? 0, -1, 1);
+      const swing = p.propSwing * s.throttle * clamp((p.vclimb * 1.3 - ias) / (p.vclimb * 0.6), 0, 1);
+      s.heading = wrap360(s.heading + (rud * 5 - swing) * dt);
+      s.bank += rud * 4 * dt;
+    }
 
     // Nose attitude = flight path + angle of attack (more at low speed, less with flaps).
     const alpha = clamp(5 * (p.vapp / Math.max(ias, 1)) ** 2 - s.flaps * 0.8, -1, 14);
@@ -440,11 +492,20 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
     if (s.alt <= env.groundHeight) {
       const sinkFpm = Math.max(0, -s.vs) / FT_PER_MIN;
       s.alt = env.groundHeight;
-      s.onGround = true;
-      s.vs = 0;
-      s.gamma = 0;
-      s.load = 1;
-      events.push({ type: "touchdown", sinkFpm });
+      if (env.realism && sinkFpm > 450 && sinkFpm < 1500) {
+        // A hard arrival: the gear's springs throw it back into the air.
+        const up = Math.min(2.5, (sinkFpm * FT_PER_MIN) * 0.3);
+        s.vs = up;
+        s.gamma = Math.asin(clamp(up / Math.max(s.speed, 1), 0, 0.3)) / DEG;
+        s.alt += 0.05;
+        events.push({ type: "bounce", sinkFpm });
+      } else {
+        s.onGround = true;
+        s.vs = 0;
+        s.gamma = 0;
+        s.load = 1;
+        events.push({ type: "touchdown", sinkFpm });
+      }
     }
   }
 

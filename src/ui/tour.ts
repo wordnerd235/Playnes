@@ -15,6 +15,7 @@ export const PLANE_KEYS: [string, string][] = [
   ["F / V", "Flaps down / up one notch"],
   ["G", "Wheels up / down"],
   ["B", "Speedbrakes"],
+  ["Q / E", "Rudder left / right (with \"realistic details\" on)"],
   ["C", "Change camera"],
   ["R or T", "Radio"],
   ["P or Esc", "Pause"],

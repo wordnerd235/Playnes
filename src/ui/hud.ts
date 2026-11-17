@@ -495,6 +495,16 @@ export class Hud {
     this.root.classList.toggle("autoflaps", on);
   }
 
+  /** "Realistic details" in a playne: the side buttons work the rudder. */
+  setRudder(on: boolean): void {
+    this.root.classList.toggle("rudder", on);
+    for (const b of this.root.querySelectorAll(".slide-btn")) {
+      const span = b.querySelector("span");
+      if (span) span.textContent = on ? "Rudder" : "Slide";
+      b.setAttribute("aria-label", `${on ? "Rudder" : "Slide"} ${b.classList.contains("left") ? "left" : "right"}`);
+    }
+  }
+
   setHeli(on: boolean): void {
     this.root.classList.toggle("heli", on);
     const notches = this.lever.querySelectorAll(".lever-notches span");

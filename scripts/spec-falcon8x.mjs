@@ -38,5 +38,6 @@ export const FALCON8X = {
   stripe: { y: 2.0, riseFrom: -1.0, rise: 0.03, z0: 12.4, z1: -8.0, width: 0.06 },
   antennas: [[8.0, 0.24], [3.0, 0.2]],
   pitot: [12.2, 1.95],
+  slats: { from: 0.3, to: 0.95 }, // leading-edge slats
   gear: { mainX: 2.35, pivotY: 1.3, mainR: 0.43, mainW: 0.26, mainDual: true, legR: 0.08, noseZ: 9.83, noseR: 0.28, noseW: 0.17, noseDual: true, nosePivotY: 1.6 },
 };

@@ -468,6 +468,24 @@
   "speak": "Nice recovery! The wing is flying again."
  },
  {
+  "id": "f1a640da",
+  "who": "copilot",
+  "text": "Boing! That was a bit hard. Ease it down gently.",
+  "speak": "Boing! That was a bit hard. Ease it down gently."
+ },
+ {
+  "id": "ae39af99",
+  "who": "copilot",
+  "text": "The stick pusher shoved the nose down to stop a stall!",
+  "speak": "The stick pusher shoved the nose down to stop a stall!"
+ },
+ {
+  "id": "ad57a12e",
+  "who": "copilot",
+  "text": "Hold the stick back to keep the nose up. The air slows us down, like real F-16 pilots do!",
+  "speak": "Hold the stick back to keep the nose up. The air slows us down, like real F-16 pilots do!"
+ },
+ {
   "id": "12475cb9",
   "who": "copilot",
   "text": "Too fast for the water! Come down slowly and gently.",

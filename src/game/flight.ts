@@ -216,6 +216,8 @@ export interface FlightDeps {
   realStalls?: boolean;
   /** Free Flight wind (grown-up setting). */
   wind?: WindSetting;
+  /** Free Flight: realistic details (grown-up setting). */
+  realism?: boolean;
   /** Free Flight: the co-pilot gives tips (spoken instructions, flashing hints on the controls). */
   freeTips?: boolean;
   /** Free Flight: never landed at this airport in Free Flight yet (shows the sky guide line on the way). */
@@ -891,6 +893,7 @@ export class FlightSession {
     this.d.hud.setSandbox(true);
     this.d.hud.setHeli(this.heli);
     this.d.hud.setAutoFlaps(this.autoFlaps);
+    this.d.hud.setRudder(!!this.d.realism && !this.heli);
     this.startFreeAt(airportByCode(code));
     this.wind = pickWind(this.d.wind ?? "off");
     if (resume) this.applySnapshot(resume);
@@ -1198,6 +1201,11 @@ export class FlightSession {
     }
 
     const cmd = computeCommands(level, { roll, pitch, throttle, brake }, g, s, p, this.mem, dt);
+    if (this.d.realism) {
+      cmd.rudder = c.slide;
+      // F-16: after touchdown, stick back at idle holds the nose up to brake on the air.
+      cmd.aerobrake = this.ac.kind === "fighter" && s.onGround && c.pitch > 0.3 && c.throttle < 0.3 && this.time - this.liftoffAt > 8;
+    }
     // Turning back from the edge: a firm banked turn (the gentle helper is far too slow at speed).
     if (edgeErr !== null) {
       const maxBank = this.ac.kind === "fighter" ? 75 : 60;
@@ -1208,11 +1216,19 @@ export class FlightSession {
     this.lastCmd = { targetBank: cmd.targetBank, targetVs: cmd.targetVs };
     const wasGround = s.onGround;
     this.spoilersOut = cmd.spoilers ?? 0;
-    const events = step(s, cmd, p, { groundHeight: ground, surface: overRunway || !s.onGround ? "runway" : "grass", real: !!this.d.realControls, realStall: !!this.d.realStalls && !p.protectedEnvelope }, dt);
+    const events = step(s, cmd, p, { groundHeight: ground, surface: overRunway || !s.onGround ? "runway" : "grass", real: !!this.d.realControls, realStall: !!this.d.realStalls && !p.protectedEnvelope, realism: !!this.d.realism }, dt);
     this.blowWind(dt);
 
     for (const e of events) {
-      if (e.type === "stall-warning") this.sayOnce(`stallWarn${Math.floor(this.time / 20)}`, LINES.stallWarning);
+      if (e.type === "stall-warning") {
+        this.sayOnce(`stallWarn${Math.floor(this.time / 20)}`, LINES.stallWarning);
+        this.view.shake = Math.max(this.view.shake, 0.25); // the stick shaker
+      }
+      if (e.type === "stick-pusher") this.sayOnce(`pusher${Math.floor(this.time / 20)}`, LINES.stickPusher);
+      if (e.type === "bounce") {
+        this.d.audio.sfx("thunk");
+        this.sayOnce(`bounce${Math.floor(this.time / 10)}`, LINES.bounce);
+      }
       if (e.type === "stall") {
         void this.say(LINES.stall, true);
         this.d.hud.toast("STALL!", "big");
@@ -1229,7 +1245,10 @@ export class FlightSession {
           this.hudPrompt("gear");
         }
       }
-      if (e.type === "touchdown") this.onFreeTouchdown(e.sinkFpm, overRunway, near);
+      if (e.type === "touchdown") {
+        this.onFreeTouchdown(e.sinkFpm, overRunway, near);
+        if (this.d.realism && this.ac.kind === "fighter" && this.time - this.liftoffAt > 8) this.sayOnce("aerobrakeTip", LINES.aerobrake);
+      }
     }
     if (!wasGround && !s.onGround) this.airborneTime += dt;
     // Well clear of the field after taking off from it: back to the normal checks.
@@ -1313,7 +1332,8 @@ export class FlightSession {
     if (edgeErr !== null) turn = clamp(edgeErr / 20, -1, 1);
     const wasGround = s.onGround;
     const slide = ap || edgeErr !== null ? 0 : c.slide;
-    const events = stepHeli(s, { collective, fwd, turn, slide }, CHINOOK_PERF, { groundHeight: ground, cushion: !crashes }, dt);
+    const events = stepHeli(s, { collective, fwd, turn, slide }, CHINOOK_PERF, { groundHeight: ground, cushion: !crashes, taxi: !!this.d.realism }, dt);
+    this.blowWind(dt);
     for (const e of events) {
       if (e.type === "liftoff") {
         const near = this.airportWithin(2000);
@@ -2258,7 +2278,7 @@ export class FlightSession {
     const c = this.d.controls.state;
     const rollCmd = clamp((this.lastCmd.targetBank - s.bank) / 12, -1, 1);
     const pitchCmd = s.onGround ? (s.pitch > 1 ? 1 : c.pitch) : clamp((this.lastCmd.targetVs - s.vs) / 4, -1, 1);
-    const yaw = s.onGround ? c.roll : rollCmd * 0.2;
+    const yaw = (s.onGround ? c.roll : rollCmd * 0.2) + (this.d.realism && !this.heli && this.mission.kind === "sandbox" ? c.slide : 0);
     const ground = this.phase === "cruise" || this.phase === "toCruise" ? null : this.groundHeightAt(s);
     this.view.update(s, dt, { roll: rollCmd, pitch: pitchCmd, yaw, brake: Math.max(this.speedbrakeOut ? 1 : 0, this.spoilersOut) }, ground);
     this.viewPlaced = true;
@@ -2339,7 +2359,7 @@ export class FlightSession {
     this.d.hud.update({
       speedKt: indicated(s.speed, s.alt) / KT,
       groundKt: groundVelocity(s.heading, s.speed * Math.cos(s.gamma * DEG), s.onGround ? null : this.wind).speed / KT,
-      windText: this.mission.kind === "sandbox" && !this.heli ? this.windText() : null,
+      windText: this.mission.kind === "sandbox" ? this.windText() : null,
       altFt: inCruise ? this.ac.cruiseAltFt + this.cruise.altOffset / FT : altFt,
       aglFt: showAgl ? Math.max(0, aglFt) : null,
       heading: s.heading,

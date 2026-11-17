@@ -37,5 +37,6 @@ export const GLOBAL8000 = {
   stripe: { y: 2.9, riseFrom: -2.0, rise: 0.05, z0: 19.0, z1: -12.0, width: 0.1 },
   antennas: [[13.0, 0.3], [6.0, 0.25], [-3.0, 0.22]],
   pitot: [18.8, 2.7],
+  slats: { from: 0.18, to: 0.95 }, // leading-edge slats
   gear: { mainX: 2.6, pivotY: 1.75, mainR: 0.5, mainW: 0.32, mainDual: true, legR: 0.1, noseZ: 16.74, noseR: 0.33, noseW: 0.2, noseDual: true, nosePivotY: 2.0 },
 };

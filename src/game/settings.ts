@@ -32,6 +32,9 @@ export interface Settings {
   realStalls: boolean;
   /** Free Flight: wind (off, light or strong), from a new direction each flight. */
   wind: "off" | "light" | "strong";
+  /** Free Flight: realistic details (rudder, propeller swing, ground effect, bounces, F-16
+   *  aerobraking, Chinook taxiing). */
+  realism: boolean;
   /** Free Flight: the co-pilot's tips (spoken instructions and flashing hints on the controls). */
   freeTips: boolean;
   /** Puffy clouds and the cruise cloud layer. */
@@ -60,6 +63,7 @@ export const DEFAULT_SETTINGS: Settings = {
   realControls: false,
   realStalls: false,
   wind: "off",
+  realism: false,
   freeTips: false,
   clouds: true,
   perfStats: false,

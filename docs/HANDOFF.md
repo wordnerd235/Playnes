@@ -86,8 +86,17 @@ and the model section of `docs/SETUP.md`.
   `Flight.blowWind` moves the playne over the ground with the wind and adds gusts (fading out in
   the last 30 m). The HUD shows ground speed with the wind and "wind 15 kt from SW". The
   co-pilot's landing help crabs into a crosswind. Not on the Chinook yet.
-- **Not done from the audit:** ground effect and bounces on hard landings; per-type quirks (the
-  Cessna's left pull at full power, the PC-12's torque swing, the F-16's aerobraking).
+- **"Realistic details"** (grown-up setting, Free Flight; `StepEnv.realism`, tests in
+  `tests/realism.test.ts`): rudder (`Commands.rudder` from `controls.state.slide`: on-screen
+  Rudder buttons, Q / E, a controller's right stick) yaws and gently rolls; propellers pull left
+  at full power (`Perf.propSwing`; strongest for the PC-12 on the takeoff run); ground effect
+  within half a wingspan (the sink eases, extra speed floats it); bounces on arrivals between
+  450 and 1,500 fpm; the F-16 rolls at 240 deg/s and aerobrakes (stick back at idle after
+  touchdown: nose 13 degrees up, air braking); the Chinook taxis on its wheels (`HeliEnv.taxi`).
+  With "real stalls", the PC-12's stick pusher shoves the nose down instead of stalling
+  (`Perf.stickPusher`), and the stall warning shakes the view. Wind now blows the Chinook too.
+  Slats on the Falcon 8X and Global 8000 (`slatL/R`, droop with the flaps) are on whatever the
+  setting.
 - The owner has seen the F-16 exterior pictures and the first cockpit; they have **not yet
   reported on the test copy on an iPad or in Google mode**. Ask before assuming it is fine.
 

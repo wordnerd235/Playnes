@@ -14,7 +14,8 @@ export interface ControlState {
   brake: number;
   /** True once the player has touched the throttle since it was last reset. */
   throttleTouched: boolean;
-  /** Helicopter slide: -1 = slide left, +1 = slide right (slide buttons, Q / E keys). */
+  /** Helicopter slide, or playne rudder with "realistic details": -1 = left, +1 = right
+   *  (the on-screen buttons, Q / E keys, a controller's right stick). */
   slide: number;
 }
 
@@ -158,6 +159,8 @@ export class Controls {
       if (!pad) continue;
       const dz = (v: number) => (Math.abs(v) < 0.12 ? 0 : v);
       roll += dz(pad.axes[0] ?? 0);
+      // Right stick sideways: rudder (playnes, with "realistic details") or slide (helicopter).
+      this.state.slide = clamp(this.state.slide + dz(pad.axes[2] ?? 0), -1, 1);
       pitch += dz(pad.axes[1] ?? 0); // stick back (positive y) = pull back
       const rt = pad.buttons[7]?.value ?? 0;
       const lt = pad.buttons[6]?.value ?? 0;

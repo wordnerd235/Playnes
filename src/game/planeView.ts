@@ -67,7 +67,7 @@ export class PlaneView {
     scene.primitives.add(this.model);
     this.world.exclude.push(this.model);
     this.model.readyEvent.addEventListener(() => {
-      for (const n of ["gear", "prop", "flapL", "flapR", "ailL", "ailR", "elevL", "elevR", "rudder", "beacon", "strobe", "rotorF", "rotorR", "gearL", "gearR", "gearN", "wheelL", "wheelR", "wheelN", "gearDoors", "brakeLU", "brakeLD", "brakeRU", "brakeRD", "spoilerL", "spoilerR", "burner", "pilot", "canopy", "needleIas", "needleAlt", "attBall", "attBall2", "propDisc"]) {
+      for (const n of ["gear", "prop", "flapL", "flapR", "ailL", "ailR", "elevL", "elevR", "rudder", "beacon", "strobe", "rotorF", "rotorR", "gearL", "gearR", "gearN", "wheelL", "wheelR", "wheelN", "gearDoors", "brakeLU", "brakeLD", "brakeRU", "brakeRD", "spoilerL", "spoilerR", "slatL", "slatR", "burner", "pilot", "canopy", "needleIas", "needleAlt", "attBall", "attBall2", "propDisc"]) {
         try {
           const node = this.model!.getNode(n) ?? null;
           this.nodes[n] = node;
@@ -168,6 +168,9 @@ export class PlaneView {
     this.rud += (clamp(input.yaw, -1, 1) * 20 - this.rud) * k;
     const n = this.nodes;
     this.hinge("flapL", -this.flapDeg);
+    // Leading-edge slats (Falcon 8X, Global 8000) droop with the flaps.
+    this.hinge("slatL", this.flapDeg * 0.6);
+    this.hinge("slatR", this.flapDeg * 0.6);
     this.hinge("flapR", -this.flapDeg);
     // Flaperons (no separate flaps, e.g. the F-16): the ailerons droop together as flaps.
     const droop = n.flapL ? 0 : this.flapDeg * 0.55;

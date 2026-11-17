@@ -62,6 +62,8 @@ export interface HeliEnv {
   groundHeight: number;
   /** Co-pilot softens the last few metres of a descent. */
   cushion: boolean;
+  /** "Realistic details": stick forward on the ground taxis on the wheels. */
+  taxi?: boolean;
 }
 
 export type HeliEvent = { type: "liftoff" } | { type: "touchdown"; sinkFpm: number; speedKt: number };
@@ -89,7 +91,11 @@ export function stepHeli(s: FlightState, inp: HeliInput, perf: HeliPerf, env: He
 
   if (s.onGround) {
     // Sitting on the wheels: speed drains away; lever up lifts off.
-    vel.fwd = Math.sign(vel.fwd) * Math.max(0, Math.abs(vel.fwd) - 6 * dt);
+    if (env.taxi && Math.abs(fwd) > 0.05 && wantVs <= 0.3) {
+      // Taxiing on the wheels: up to a fast walk forward (12 kt), slowly backward.
+      const want = fwd > 0 ? fwd * 6 : fwd * 1.5;
+      vel.fwd += clamp(want - vel.fwd, -2 * dt, 1.2 * dt);
+    } else vel.fwd = Math.sign(vel.fwd) * Math.max(0, Math.abs(vel.fwd) - 6 * dt);
     vel.side = Math.sign(vel.side) * Math.max(0, Math.abs(vel.side) - 6 * dt);
     s.heading = (s.heading + turn * perf.hoverYawRate * 0.5 * dt + 360) % 360;
     s.bank = 0;
