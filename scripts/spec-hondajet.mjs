@@ -20,7 +20,8 @@ export const HONDAJET = {
   cabin: { lavZ: -0.75, rows: [{ z: 2.05, facing: "aft" }, { z: 0.85 }], tables: [1.45], galleyZ: 2.75, windowSeat: 1.2, aisleHalf: 0.34, backLen: 0.5 }, // low cabin: shorter seat backs
   door: { z0: 2.4, z1: 3.02, y0: 0.82, y1: 2.2 },
   wing: { dihedral: 4, sweep: 6, span: 6.06, y0: 0.62, rootChord: 2.2, tipChord: 0.85, le0: 1.75, flap: [0.85, 3.6], aileron: [3.75, 5.5], thickness: 0.13, winglet: { out: 0.12, height: 0.6, back: 0.5, tipChord: 0.35 } },
-  fairing: { top: 0.85, keys: [[1.95, 0.02, 0.7], [1.75, 0.2, 0.62], [1.4, 0.45, 0.55], [0.6, 0.55, 0.52], [-0.2, 0.5, 0.55], [-0.6, 0.3, 0.62], [-0.85, 0.02, 0.7]] },
+  // A long keel fairing (checked from below against photos), not a pod under the wing.
+  fairing: { top: 0.85, e: 2.3, keys: [[4.6, 0.02, 0.7], [4.0, 0.25, 0.66], [3.0, 0.38, 0.62], [2.0, 0.48, 0.56], [1.0, 0.52, 0.53], [0.0, 0.5, 0.55], [-0.8, 0.4, 0.64, 0.9], [-1.6, 0.26, 0.82, 1.0], [-2.4, 0.1, 0.98, 1.12], [-2.8, 0.02, 1.08, 1.2]] },
   fin: { rootLE: [2.3, -3.3], tipLE: [4.3, -5.0], rootChord: 2.3, tipChord: 1.1 },
   dorsal: { z0: -2.2, z1: -3.3, ze: -3.7, width: 0.14 },
   tailplane: { y: 4.33, rootLE: -5.05, root: 1.15, tipX: 2.4, tipLE: -5.95, tip: 0.6 },

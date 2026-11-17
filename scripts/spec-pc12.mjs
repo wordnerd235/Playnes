@@ -20,7 +20,8 @@ export const PC12 = {
   cabin: { lavZ: -3.5, rows: [{ z: 0.05, facing: "aft" }, { z: -1.15 }, { z: -2.25 }], tables: [-0.55], galleyZ: -2.95, windowSeat: -0.85, aisleHalf: 0.32, seatWidth: 0.46, backLen: 0.58 },
   door: { z0: -3.35, z1: -2.55, y0: 1.0, y1: 2.7 },
   wing: { dihedral: 5, sweep: 2, span: 7.6, y0: 0.9, rootChord: 2.6, tipChord: 1.15, le0: 1.6, flap: [0.9, 4.8], aileron: [5.0, 7.2], thickness: 0.14, winglet: { out: 0.15, height: 0.75, back: 0.6, tipChord: 0.4 } },
-  fairing: { top: 1.1, keys: [[1.8, 0.02, 0.95], [1.5, 0.3, 0.82], [1.0, 0.55, 0.75], [0.0, 0.62, 0.73], [-0.8, 0.5, 0.78], [-1.3, 0.25, 0.86], [-1.6, 0.02, 0.95]] },
+  // A long keel fairing (checked from below against photos), not a pod under the wing.
+  fairing: { top: 1.1, e: 2.3, keys: [[2.6, 0.02, 1.02], [2.0, 0.3, 0.92], [1.2, 0.5, 0.84], [0.3, 0.58, 0.8], [-0.6, 0.55, 0.81], [-1.5, 0.42, 0.88], [-2.5, 0.26, 1.02, 1.25], [-3.5, 0.1, 1.22, 1.4], [-4.0, 0.02, 1.32, 1.48]] },
   fin: { rootLE: [3.05, -5.45], tipLE: [4.12, -6.8], rootChord: 2.35, tipChord: 1.5 },
   dorsal: { z0: -4.6, z1: -5.45, ze: -5.85, width: 0.14 },
   strakes: { z0: -6.2, z1: -7.0 },

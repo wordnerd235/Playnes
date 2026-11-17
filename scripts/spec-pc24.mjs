@@ -21,7 +21,8 @@ export const PC24 = {
   door: { z0: 3.95, z1: 4.68, y0: 1.25, y1: 2.78 },
   exits: [{ side: -1, z0: 1.07, z1: 1.55, y0: 1.95, y1: 2.55 }], // over the right wing
   wing: { dihedral: 3, sweep: 12, span: 8.45, y0: 0.95, rootChord: 3.0, tipChord: 1.1, le0: 2.5, flap: [1.0, 5.4], aileron: [5.6, 7.9], thickness: 0.13, winglet: null },
-  fairing: { top: 1.2, keys: [[3.3, 0.02, 0.95], [3.1, 0.15, 0.9], [2.8, 0.4, 0.8], [2.3, 0.55, 0.74], [1.5, 0.62, 0.71], [0.5, 0.62, 0.71], [-0.3, 0.58, 0.74], [-0.9, 0.45, 0.8], [-1.4, 0.25, 0.88], [-1.7, 0.02, 0.95]] },
+  // A long keel fairing (checked from below against photos), not a pod under the wing.
+  fairing: { top: 1.2, e: 2.3, keys: [[6.7, 0.02, 0.86], [6.0, 0.3, 0.82], [4.8, 0.45, 0.78], [3.4, 0.56, 0.74], [2.2, 0.62, 0.71], [0.8, 0.64, 0.7], [-0.4, 0.6, 0.72], [-1.4, 0.48, 0.8], [-2.4, 0.3, 1.05, 1.4], [-3.2, 0.12, 1.36, 1.6], [-3.6, 0.02, 1.5, 1.7]] },
   fin: { rootLE: [2.9, -3.45], tipLE: [5.2, -5.45], rootChord: 3.05, tipChord: 1.3 },
   dorsal: { z0: -2.4, z1: -3.6, ze: -4.0, width: 0.15 },
   tailplane: { y: 5.22, rootLE: -5.65, root: 1.45, tipX: 3.1, tipLE: -7.35, tip: 0.72 },

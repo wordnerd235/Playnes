@@ -20,7 +20,8 @@ export const PHENOM100 = {
   door: { z0: 2.0, z1: 2.62, y0: 0.98, y1: 2.5 },
   exits: [{ side: -1, z0: 0.7, z1: 1.14, y0: 1.83, y1: 2.52 }],
   wing: { dihedral: 5, sweep: 10, span: 6.0, y0: 0.72, rootChord: 2.25, tipChord: 0.9, le0: 1.05, flap: [0.5, 3.3], aileron: [3.45, 5.3], thickness: 0.13, winglet: null },
-  fairing: { top: 0.95, keys: [[1.55, 0.02, 0.78], [1.35, 0.2, 0.7], [1.0, 0.42, 0.62], [0.3, 0.5, 0.6], [-0.5, 0.48, 0.62], [-1.0, 0.32, 0.7], [-1.35, 0.02, 0.8]] },
+  // A long keel fairing (checked from below against photos), not a pod under the wing.
+  fairing: { top: 0.95, e: 2.3, keys: [[4.2, 0.02, 0.88], [3.7, 0.25, 0.84], [2.8, 0.36, 0.8], [1.6, 0.46, 0.73], [0.6, 0.52, 0.69], [-0.3, 0.5, 0.7], [-0.9, 0.44, 0.78, 1.12], [-1.6, 0.3, 1.12, 1.4], [-2.2, 0.14, 1.42, 1.62], [-2.6, 0.02, 1.58, 1.72]] },
   fin: { rootLE: [2.72, -1.66], tipLE: [4.3, -3.66], rootChord: 2.45, tipChord: 0.96 },
   dorsal: { z0: -0.9, z1: -1.9, ze: -2.3, width: 0.14 },
   strakes: { z0: -3.0, z1: -3.6 },
