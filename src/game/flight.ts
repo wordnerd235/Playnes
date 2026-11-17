@@ -879,6 +879,7 @@ export class FlightSession {
     this.d.hud.show("FREE", "—");
     this.d.hud.setSandbox(true);
     this.d.hud.setHeli(this.heli);
+    this.d.hud.setAutoFlaps(this.autoFlaps);
     this.startFreeAt(airportByCode(code));
     if (resume) this.applySnapshot(resume);
     else void this.say(LINES.freeIntro);
@@ -1609,6 +1610,7 @@ export class FlightSession {
         break;
       case "flaps-up":
         // Like a real flap lever: one notch up at a time, any time.
+        if (this.autoFlaps) return;
         if (this.s.flaps > 0) this.s.flaps--;
         break;
       case "speedbrake":
@@ -1618,7 +1620,7 @@ export class FlightSession {
         break;
       case "flaps":
         // One notch down, unless we're faster than that notch allows (real flaps have a speed limit).
-        if (this.s.flaps >= 3) return;
+        if (this.autoFlaps || this.s.flaps >= 3) return;
         if (!this.s.onGround && indicated(this.s.speed, this.s.alt) > this.flapLimit(this.s.flaps + 1)) {
           void this.say(LINES.tooFastFlaps, true);
           this.d.hud.flash("flaps");
@@ -1666,9 +1668,24 @@ export class FlightSession {
     return this.p.vapp * ([Infinity, 1.7, 1.5, 1.33][notch] ?? Infinity);
   }
 
+  /**
+   * The F-16 has no flap lever: its flight computer droops the flaperons by itself with the
+   * wheels down at landing and takeoff speeds, and brings them up as it speeds up or the
+   * wheels come up.
+   */
+  private get autoFlaps(): boolean {
+    return this.ac.kind === "fighter";
+  }
+
+  private autoFlapStep(): void {
+    const s = this.s;
+    s.flaps = s.gearDown && indicated(s.speed, s.alt) < 240 * KT ? 3 : 0;
+  }
+
   /** Flaps out while going much too fast: bring them up a notch (flap load relief). */
   private flapRelief(): void {
     const s = this.s;
+    if (this.autoFlaps) return this.autoFlapStep();
     if (s.onGround || s.flaps === 0) return;
     if (indicated(s.speed, s.alt) > this.flapLimit(s.flaps) * 1.08) {
       s.flaps--;

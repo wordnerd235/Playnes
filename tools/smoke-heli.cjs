@@ -79,7 +79,7 @@ const path = require("path");
     await page.evaluate(() => document.querySelector(".tour [data-t=next]").click());
     await page.waitForTimeout(250);
   }
-  check(steps.length === 6 && /lever/.test(steps[1]) && /stick/.test(steps[2]) && /sideways/.test(steps[3]), `Chinook tour: ${steps.length} steps (lift lever, stick, slide, landing)`);
+  check((steps.length === 6 || steps.length === 7) && /lever/.test(steps[1]) && /stick/.test(steps[2]) && /sideways/.test(steps[3]), `Chinook tour: ${steps.length} steps (lift lever, stick, slide, landing; plus the keys on a computer)`);
   check(await page.evaluate(() => window.playnes.progress.heliTourDone === true), "tour remembered");
   const hud = await page.evaluate(() => ({
     heli: document.querySelector(".hud").classList.contains("heli"),

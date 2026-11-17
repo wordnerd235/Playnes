@@ -486,6 +486,11 @@ export class Hud {
     b.setAttribute("aria-disabled", on ? "false" : "true");
   }
 
+  /** Flaps that work by themselves (the F-16): no flap lever. */
+  setAutoFlaps(on: boolean): void {
+    this.root.classList.toggle("autoflaps", on);
+  }
+
   setHeli(on: boolean): void {
     this.root.classList.toggle("heli", on);
     const notches = this.lever.querySelectorAll(".lever-notches span");

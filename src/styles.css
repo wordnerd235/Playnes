@@ -588,6 +588,8 @@ svg { display: block; }
 
 /* Helicopter (Chinook): no flaps, wheels or brakes; a HOVER mark in the middle of the lever. */
 .hud.heli #hud-flaps, .hud.heli #hud-gear, .hud.heli #hud-brake { display: none !important; }
+/* The F-16's flaps work by themselves (no lever in a real one). */
+.hud.autoflaps #hud-flaps { display: none !important; }
 
 /* Radio altimeter under HEIGHT: above the ground right below. */
 .alt-agl { margin-top: 4px; padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, .16); font-size: 12px; font-weight: 800; white-space: nowrap; text-align: center; }
