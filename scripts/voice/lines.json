@@ -450,10 +450,16 @@
   "speak": "Nice and gentle. We landed!"
  },
  {
-  "id": "225fb15d",
+  "id": "12475cb9",
   "who": "copilot",
-  "text": "We can't land on water! Let's stay up.",
-  "speak": "We can't land on water! Let's stay up."
+  "text": "Too fast for the water! Come down slowly and gently.",
+  "speak": "Too fast for the water! Come down slowly and gently."
+ },
+ {
+  "id": "d0450d92",
+  "who": "copilot",
+  "text": "Splash! The Chinook can float on water, like a boat. Lift the lever to fly again!",
+  "speak": "Splash! The Chinook can float on water, like a boat. Lift the lever to fly again!"
  },
  {
   "id": "b55179f0",
