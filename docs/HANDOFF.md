@@ -62,8 +62,12 @@ and the model section of `docs/SETUP.md`.
   still flies the glide path while the stick is centred (`Guidance.glidePath`).
 - **Reversers** only where real (`AircraftDef.reverser`): none on the Phenoms, HondaJet and
   PC-24; a third of the effect on the Falcon 8X (centre engine only).
-- **Not done:** the rest of the audit's list (F-16 automatic flaps, Chinook water landings,
-  "real stalls", wind).
+- **F-16 automatic flaps:** no flap lever (`hud.setAutoFlaps`); the flaperons droop with the
+  wheels down below 240 kt (`Flight.autoFlapStep`).
+- **Chinook water landings:** gently (under 600 fpm and 25 kt) it sets down and floats; harder
+  it bounces back up (or crashes, with crashes on). Cartoon world only (Google mode has no
+  water map, so water there is just ground).
+- **Not done:** the rest of the audit's list ("real stalls", wind).
 - The owner has seen the F-16 exterior pictures and the first cockpit; they have **not yet
   reported on the test copy on an iPad or in Google mode**. Ask before assuming it is fine.
 

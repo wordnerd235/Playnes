@@ -144,7 +144,8 @@ const path = require("path");
   await page.waitForFunction(() => window.playnes.flight.s.speed / 0.5144 > 80, null, { timeout: 240000 });
   check(true, "stick forward: flying forward (80+ kt)");
   await set({ lever: 0.5, roll: 1 });
-  await page.waitForTimeout(6000);
+  // Wait on the game, not the clock (a slow headless renderer runs fewer frames a second).
+  await page.waitForFunction((h0) => Math.abs(((window.playnes.flight.s.heading - h0 + 540) % 360) - 180) > 20, startHdg, { timeout: 90000 }).catch(() => {});
   st = await F();
   check(Math.abs(((st.hdg - startHdg + 540) % 360) - 180) > 20, `turns with the stick (heading ${startHdg.toFixed(0)} -> ${st.hdg.toFixed(0)})`);
   await shot("4-turning");

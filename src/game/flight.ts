@@ -1351,8 +1351,17 @@ export class FlightSession {
     };
     const water = this.d.world.cartoon?.landAt(s.lat, s.lon) === 1;
     if (water) {
-      if (crashes) this.crash();
-      else bounce(LINES.heliWater);
+      // A real Chinook can set down on calm water and float (its bottom is sealed like a
+      // boat's): gently and slowly, that is.
+      if (crashes && (sink > 500 || speedKt > 20)) this.crash();
+      else if (sink > 600 || speedKt > 25) bounce(LINES.heliWater);
+      else {
+        this.d.audio.sfx("whoosh");
+        this.d.hud.toast("Splash!", "big");
+        void this.say(LINES.heliFloat, true);
+        this.freeFrom = null;
+        this.airborneTime = 0;
+      }
       return;
     }
     if (crashes && (sink > 900 || speedKt > 45)) {
