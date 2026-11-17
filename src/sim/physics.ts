@@ -98,6 +98,8 @@ export interface Perf {
   diveByAngle: boolean;
   /** Has thrust reversers (or reverse pitch props). */
   reversers: boolean;
+  /** How strong they are, as a share of full reversers on every engine. */
+  reverserShare: number;
   climbMax: number;
   descentMax: number;
   gammaRate: number;
@@ -194,7 +196,8 @@ export function perfFor(ac: AircraftDef): Perf {
     rollRate: ac.rollRate,
     speedbrakes: ac.kind === "jet" || ac.kind === "fighter",
     diveByAngle: ac.kind === "fighter",
-    reversers: ac.kind === "jet" || ac.kind === "turboprop",
+    reversers: (ac.reverser ?? (ac.kind === "jet" || ac.kind === "turboprop" ? 1 : 0)) > 0,
+    reverserShare: ac.reverser ?? (ac.kind === "jet" || ac.kind === "turboprop" ? 1 : 0),
     climbMax,
     // Fast descents (jets use their speedbrakes for these).
     descentMax: ({ piston: 2000, turboprop: 4000, jet: 6000, fighter: 80000, helicopter: 1800 } as const)[ac.kind] * FT_PER_MIN,
@@ -298,7 +301,7 @@ export function step(s: FlightState, cmd: Commands, p: Perf, env: StepEnv, dt: n
   if (s.onGround) {
     // Ground spoilers dump the lift so the wheel brakes grip; reversers push the air forward.
     const rolling = (env.surface === "grass" ? 0.05 : 0.015) * G + cmd.brake * (0.3 + 0.15 * spoilers) * G;
-    const reverser = cmd.reverse && p.reversers && s.speed > 12 ? REVERSER_DECEL : 0;
+    const reverser = cmd.reverse && p.reversers && s.speed > 12 ? REVERSER_DECEL * p.reverserShare : 0;
     const a = thrust * GROUND_ACCEL_BOOST - drag - (s.speed > 0.1 ? rolling + reverser : 0);
     s.speed = Math.max(0, s.speed + a * dt);
     s.bank = approach(s.bank, 0, 20 * dt);

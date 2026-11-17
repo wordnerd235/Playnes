@@ -52,6 +52,12 @@ export interface AircraftDef {
   climbFpm: number;
   rollRate: number;
   cruiseAltFt: number;
+  /**
+   * Thrust reversers, as a share of the full effect: 0 = none (the Phenoms, HondaJet and PC-24
+   * stop on their brakes alone); the Falcon 8X has one, on its centre engine. Default: jets and
+   * turboprops (reverse pitch) have them.
+   */
+  reverser?: number;
   shape: AircraftShape;
   livery: Livery;
 }
@@ -86,6 +92,7 @@ export const AIRCRAFT: AircraftDef[] = [
     unlock: { type: "graduation" },
     wow: "This is your very first jet! It flies more than three times faster than the Skyhawk.",
     vr: 100, vapp: 105, vclimb: 160, vstall: 82, vmo: 275, mmo: 0.7, climbFpm: 3000, rollRate: 30, cruiseAltFt: 30000,
+    reverser: 0,
     shape: { length: 12.8, span: 12.3, fuselageDiameter: 1.7, wing: "low", sweepDeg: 10, tail: "t-tail", engines: "rear-twin", winglets: false, fixedGear: false },
     livery: { body: "#fbfbfb", stripe: "#1c2f5e", accent: "#8aa6c8" },
   },
@@ -118,6 +125,7 @@ export const AIRCRAFT: AircraftDef[] = [
     unlock: { type: "wings", price: 125 },
     wow: "The Honda Jet's engines sit on top of the wings!",
     vr: 105, vapp: 110, vclimb: 170, vstall: 85, vmo: 270, mmo: 0.72, climbFpm: 3900, rollRate: 32, cruiseAltFt: 30000,
+    reverser: 0,
     shape: { length: 13.0, span: 12.1, fuselageDiameter: 1.6, wing: "low", sweepDeg: 6, tail: "t-tail", engines: "over-wing", winglets: true, fixedGear: false },
     livery: { body: "#f4f6fa", stripe: "#2b6cb0", accent: "#9fb4cc" },
   },
@@ -134,6 +142,7 @@ export const AIRCRAFT: AircraftDef[] = [
     unlock: { type: "wings", price: 175 },
     wow: "The Phenom three hundred is the best-selling light jet in the whole world.",
     vr: 105, vapp: 110, vclimb: 180, vstall: 88, vmo: 320, mmo: 0.8, climbFpm: 3900, rollRate: 30, cruiseAltFt: 33000,
+    reverser: 0,
     shape: { length: 15.6, span: 15.9, fuselageDiameter: 1.8, wing: "low", sweepDeg: 27, tail: "t-tail", engines: "rear-twin", winglets: true, fixedGear: false },
     livery: { body: "#fcfcfa", stripe: "#a9822e", accent: "#3a3a3a" },
   },
@@ -150,6 +159,7 @@ export const AIRCRAFT: AircraftDef[] = [
     unlock: { type: "wings", price: 225 },
     wow: "The P C twenty-four is a jet that can land on grass and dirt runways!",
     vr: 100, vapp: 105, vclimb: 175, vstall: 85, vmo: 290, mmo: 0.74, climbFpm: 3700, rollRate: 30, cruiseAltFt: 30000,
+    reverser: 0,
     shape: { length: 16.9, span: 17.0, fuselageDiameter: 1.9, wing: "low", sweepDeg: 12, tail: "t-tail", engines: "rear-twin", winglets: false, fixedGear: false },
     livery: { body: "#fafafa", stripe: "#c41e3a", accent: "#2d2d2d" },
   },
@@ -214,6 +224,7 @@ export const AIRCRAFT: AircraftDef[] = [
     unlock: { type: "wings", price: 450 },
     wow: "The Falcon eight X has three engines! Can you count them?",
     vr: 120, vapp: 110, vclimb: 190, vstall: 90, vmo: 370, mmo: 0.9, climbFpm: 3800, rollRate: 26, cruiseAltFt: 43000,
+    reverser: 1 / 3,
     shape: { length: 24.5, span: 26.3, fuselageDiameter: 2.5, wing: "low", sweepDeg: 30, tail: "cruciform", engines: "rear-tri", winglets: true, fixedGear: false },
     livery: { body: "#fbfbfb", stripe: "#111111", accent: "#b8963e" },
   },
