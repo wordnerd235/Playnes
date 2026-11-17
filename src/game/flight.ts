@@ -33,7 +33,7 @@ import { inRegion, REGION } from "../data/region.ts";
 import { LINES, tpl, type Line, type Passenger } from "../data/lines.ts";
 import type { Audio } from "../audio/audio.ts";
 import type { Controls, ControlEvent } from "../input/controls.ts";
-import { computeCommands, createMemory, type Guidance } from "../sim/assist.ts";
+import { computeCommands, createMemory, REAL_CONTROLS, type Guidance } from "../sim/assist.ts";
 import {
   alongTrack,
   angleDiff,
@@ -208,6 +208,8 @@ export interface FlightDeps {
   solo?: boolean;
   /** Free Flight: co-pilot helps with landings and takeoffs (glide path, flare, centreline, speedbrakes). */
   freeHelp?: boolean;
+  /** Free Flight: real controls (the stick sets roll and pitch rates; grown-up setting). */
+  realControls?: boolean;
   /** Free Flight: the co-pilot gives tips (spoken instructions, flashing hints on the controls). */
   freeTips?: boolean;
   /** Free Flight: never landed at this airport in Free Flight yet (shows the sky guide line on the way). */
@@ -1121,7 +1123,7 @@ export class FlightSession {
     };
     let roll = c.roll;
     let pitch = c.pitch;
-    let level = Math.max(2, this.d.assistLevel);
+    let level = this.d.realControls ? REAL_CONTROLS : Math.max(2, this.d.assistLevel);
 
     // Edge of the map: the co-pilot takes the controls and turns firmly back toward the middle.
     const edgeErr = this.edgeTurn();
@@ -1175,6 +1177,7 @@ export class FlightSession {
         const wantAlt = runwayHeight(near.r, dir > 0 ? 0 : near.r.length) + Math.max(0, -sTd) * Math.tan(GLIDE);
         g.targetVs = -s.speed * Math.tan(GLIDE) + clamp((wantAlt - s.alt) * 0.15, -4, 3);
         g.targetSpeed = Math.min(g.targetSpeed ?? Infinity, p.vapp + 5 * KT);
+        g.glidePath = true;
         throttle = null;
         if (Math.abs(roll) < 0.08) g.targetHeading = rwHdg! - clamp(near.x * (dir > 0 ? 0.12 : -0.12), -25, 25);
       }

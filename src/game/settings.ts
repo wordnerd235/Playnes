@@ -24,6 +24,9 @@ export interface Settings {
   /** Free Flight: the co-pilot lines up, holds the glide path, flares and keeps the takeoff
    *  roll straight (off = you fly it all; autobrakes still stop you after touchdown). */
   freeLandingHelp: boolean;
+  /** Free Flight: real controls. The stick sets roll and pitch rates and the playne stays
+   *  where it is put when let go (off = Easy: let go and it levels out). */
+  realControls: boolean;
   /** Free Flight: the co-pilot's tips (spoken instructions and flashing hints on the controls). */
   freeTips: boolean;
   /** Puffy clouds and the cruise cloud layer. */
@@ -49,6 +52,7 @@ export const DEFAULT_SETTINGS: Settings = {
   freeAutoSpeed: false,
   soloCharters: true,
   freeLandingHelp: false,
+  realControls: false,
   freeTips: false,
   clouds: true,
   perfStats: false,

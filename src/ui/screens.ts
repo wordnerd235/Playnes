@@ -647,6 +647,7 @@ export class Screens {
     const autoSpeed = check("set-autospeed", s.freeAutoSpeed);
     const solo = check("set-solo", s.soloCharters !== false);
     const freeHelp = check("set-freehelp", s.freeLandingHelp === true);
+    const realControls = check("set-realcontrols", s.realControls === true);
     const clouds = check("set-clouds", s.clouds !== false);
     const freeTips = check("set-freetips", s.freeTips === true);
     const perf = check("set-perf", s.perfStats === true);
@@ -671,6 +672,7 @@ export class Screens {
       s.freeAutoSpeed = autoSpeed.checked;
       s.soloCharters = solo.checked;
       s.freeLandingHelp = freeHelp.checked;
+      s.realControls = realControls.checked;
       s.clouds = clouds.checked;
       s.freeTips = freeTips.checked;
       s.perfStats = perf.checked;
@@ -761,6 +763,7 @@ export class Screens {
             h("label.check", {}, [crashes, "Free Flight: allow crashes (off = the co-pilot always saves the playne)"]),
             h("label.check", {}, [autoSpeed, "Free Flight: co-pilot holds the speed (off = the lever is a real throttle)"]),
             h("label.check", {}, [freeTips, "Free Flight: co-pilot tips: spoken how-to tips and flashing hints on the controls (off = a quiet co-pilot; landings, rewards and fun facts are still announced)"]),
+            h("label.check", {}, [realControls, "Free Flight: real controls. The stick rolls and pitches the playne and it stays where you put it: banked, climbing or diving (off = Easy: let go and it flies level)"]),
             h("label.check", {}, [freeHelp, "Free Flight: co-pilot helps land and take off: lines up, holds the glide path, flares, keeps the takeoff straight (off = you fly it; the brakes still stop you after touchdown)"]),
             h("label.check", {}, [solo, "Charters to an airport you've landed at before are solo: no rings, tips or co-pilot help (off = the co-pilot always helps)"]),
             field("Volume", volume),
