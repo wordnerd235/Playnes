@@ -22,7 +22,9 @@ export const CHALLENGER3500 = {
   cabin: { lavZ: -0.6, rows: [{ z: 5.5, facing: "aft" }, { z: 4.51 }, { z: 3.25, facing: "aft" }, { z: 2.08 }], tables: [5.0, 2.66], galleyZ: 6.5, windowSeat: 4.36, aisleHalf: 0.45, seatWidth: 0.52 },
   door: { z0: 6.03, z1: 6.93, y0: 1.44, y1: 3.5 },
   wing: { dihedral: 2.5, sweep: 26, span: 9.9, y0: 1.2, rootChord: 5.0, tipChord: 1.25, le0: 3.6, flap: [1.4, 6.0], aileron: [6.2, 9.2], thickness: 0.12, winglet: { out: 0.35, height: 1.25, back: 1.05, tipChord: 0.45 } },
-  fairing: { top: 1.55, keys: [[4.6, 0.02, 1.32], [4.2, 0.35, 1.1], [3.4, 0.7, 0.98], [2.2, 0.92, 0.92], [0.6, 1.0, 0.9], [-1.0, 0.95, 0.92], [-2.2, 0.7, 1.02], [-3.0, 0.35, 1.2], [-3.5, 0.02, 1.4]] },
+  // Belly fairing checked from below: it starts well ahead of the wing and its tail end follows the
+  // fuselage's upswept belly into the tail cone (it used to hang below it).
+  fairing: { top: 1.55, e: 2.3, keys: [[6.6, 0.02, 1.3], [5.6, 0.45, 1.12], [4.4, 0.72, 0.99], [3.0, 0.9, 0.93], [1.4, 0.98, 0.9], [-0.2, 0.96, 0.91], [-1.3, 0.82, 1.0, 1.7], [-2.2, 0.58, 1.38, 2.05], [-3.0, 0.3, 1.86, 2.3], [-3.6, 0.02, 2.2, 2.45]] },
   fin: { rootLE: [3.78, -3.62], tipLE: [5.9, -5.65], rootChord: 3.65, tipChord: 1.85 },
   dorsal: { z0: -2.4, z1: -3.8, ze: -4.3, width: 0.2 },
   tailplane: { y: 5.92, rootLE: -6.0, root: 2.2, tipX: 3.55, tipLE: -9.0, tip: 0.85 },

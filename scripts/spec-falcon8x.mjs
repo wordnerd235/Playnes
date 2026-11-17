@@ -29,7 +29,9 @@ export const FALCON8X = {
   },
   door: { z0: 8.7, z1: 9.54, y0: 1.3, y1: 3.07 },
   wing: { dihedral: 3, sweep: 34, span: 12.3, y0: 1.05, rootChord: 6.2, tipChord: 1.4, le0: 5.0, flap: [1.6, 7.2], aileron: [7.4, 11.0], thickness: 0.11, winglet: { out: 0.3, height: 1.3, back: 1.1, tipChord: 0.5 } },
-  fairing: { top: 1.3, keys: [[5.6, 0.02, 1.15], [5.1, 0.4, 0.95], [4.0, 0.8, 0.82], [2.5, 1.05, 0.76], [0.8, 1.12, 0.74], [-1.0, 1.05, 0.78], [-2.3, 0.75, 0.9], [-3.2, 0.35, 1.1], [-3.7, 0.02, 1.3]] },
+  // Belly fairing checked from below: it starts well ahead of the wing and its tail end follows the
+  // fuselage's upswept belly into the tail cone (it used to hang below it).
+  fairing: { top: 1.3, e: 2.3, keys: [[8.0, 0.02, 1.09], [7.0, 0.45, 0.98], [5.6, 0.8, 0.86], [4.0, 1.0, 0.79], [2.2, 1.1, 0.75], [0.4, 1.08, 0.76], [-1.2, 0.95, 0.82], [-2.4, 0.7, 1.0, 1.45], [-3.3, 0.4, 1.3, 1.65], [-4.2, 0.12, 1.58, 1.82], [-4.6, 0.02, 1.66, 1.9]] },
   fin: { rootLE: [4.25, -5.0], tipLE: [7.15, -7.35], rootChord: 3.4, tipChord: 1.55 },
   tailplane: { y: 4.3, rootX: 0.35, rootLE: -5.7, root: 2.6, tipX: 4.1, tipLE: -10.85, tip: 0.9, tipDy: 0.15 },
   engines: [{ x: 1.7, y: 2.73, zi: -2.65, len: 3.3, r: 0.58 }],

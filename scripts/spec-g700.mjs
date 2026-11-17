@@ -22,6 +22,8 @@ G.cabin = {
 };
 G.door = { ...G650ER.door, z0: G650ER.door.z0 + D, z1: G650ER.door.z1 + D };
 G.wing = { ...G650ER.wing, span: 14.9, rootChord: 6.6, le0: 6.5, flap: [1.8, 9.0], aileron: [9.3, 13.4] };
+// Its bigger wing root has a longer belly fairing (it runs further forward).
+G.fairing = { ...G650ER.fairing, keys: [[9.1, 0.02, 1.81], [8.3, 0.6, 1.55], [7.1, 1.0, 1.32], [5.5, 1.25, 1.18], [3.4, 1.35, 1.11], [1.3, 1.35, 1.11], [-0.4, 1.2, 1.15], [-1.8, 0.95, 1.3, 2.0], [-3.0, 0.6, 1.72, 2.3], [-4.0, 0.25, 2.18, 2.55], [-4.6, 0.02, 2.36, 2.7]] };
 G.tailplane = { ...G650ER.tailplane, y: 7.48 };
 G.fin = { ...G650ER.fin, tipLE: [7.33, -7.95] };
 G.engines = [{ ...G650ER.engines[0], r: 0.82, len: 4.8, x: 2.05 }];

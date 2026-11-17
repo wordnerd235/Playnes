@@ -332,6 +332,13 @@ section (and any single part over 3,000) and stops. The kit jets now range from 
 - **Joining differently shaped sections:** where a round section (the Cessna's cowling) meets
   a boxy one (its cabin), blend the last stretch of one into the other's exact cross-section;
   butting them together left a gap with sky showing through underneath.
+- **One side photo is not enough.** A side-on overlay checks lengths and the top and bottom
+  lines, but not the underside: the owner spotted the Latitude's belly (a short pod under the
+  wing) from memory of photos. Every kit jet then got a second check against photos from below
+  and at low three-quarter angles: belly fairings are long keels from behind the nose wheel into
+  the tail cone, and where the belly sweeps up their tail end must follow it (fairing keys take an
+  optional top: `[z, half width, bottom, top]`). Check the gear's track and wheelbase against the
+  maker's figures too (the Latitude's were 0.45 m off).
 - **Check in the game, from behind, at phone size, not just in the preview tool.** The owner
   found the Cessna's square cabin frame not meeting the round tailcone, seen from the default
   chase view; the preview's soft lighting hid it. `tailRing()` now blends the tailcone's first
