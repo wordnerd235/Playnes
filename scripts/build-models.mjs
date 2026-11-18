@@ -1089,8 +1089,31 @@ const KIT = { pc24: PC24, praetor600: PRAETOR600, latitude: LATITUDE, challenger
 // SPEC_PATCH (dev, for photo-fitting experiments): JSON [[path, op, value], ...] applied to the
 // kit specs before building, e.g. [["latitude.wing.le0", "+", 0.2], ["latitude.fus.*.2", "+", 0.05]]
 // (op "=" sets, "+" adds, "*" scales; "*" in a path means every element; "a|b" changes both).
+// "<id>.@nose" / "<id>.@tail" with op "+" stretch the nose (ahead of the constant cabin) or the
+// tail (behind it) by v metres, moving everything in that part of the spec smoothly with it.
+function stretchSpec(S, part, d) {
+  const rows = S.fus, maxW = Math.max(...rows.map((r) => r[1]));
+  const full = rows.filter((r) => r[1] >= maxW * 0.97);
+  const zc = part === "nose" ? Math.max(...full.map((r) => r[0])) : Math.min(...full.map((r) => r[0]));
+  const zEnd = part === "nose" ? rows[0][0] : rows[rows.length - 1][0];
+  const L = Math.abs(zEnd - zc), k = (L + d) / L;
+  const f = (z) => (part === "nose" ? (z > zc ? zc + (z - zc) * k : z) : (z < zc ? zc + (z - zc) * k : z));
+  for (const r of rows) r[0] = f(r[0]);
+  const zf = (o, key) => { if (o && typeof o[key] === "number") o[key] = f(o[key]); };
+  if (S.windshield) { zf(S.windshield, "z1"); for (const q of S.windshield.lower || []) q[0] = f(q[0]); }
+  for (const w of S.cockpitWindows || []) { zf(w, "z0"); zf(w, "z1"); }
+  if (S.pitot) S.pitot[0] = f(S.pitot[0]);
+  zf(S.stripe, "z0"); zf(S.stripe, "z1"); zf(S.gear, "noseZ"); zf(S.registration, "z");
+  for (const a of S.antennas || []) a[0] = f(a[0]);
+  if (S.fairing) for (const kk of S.fairing.keys) kk[0] = f(kk[0]);
+  if (S.fin) { S.fin.rootLE[1] = f(S.fin.rootLE[1]); S.fin.tipLE[1] = f(S.fin.tipLE[1]); }
+  if (S.tailplane) { zf(S.tailplane, "rootLE"); zf(S.tailplane, "tipLE"); }
+  for (const key of ["dorsal", "strakes"]) if (S[key]) for (const kk of ["z0", "z1", "ze"]) zf(S[key], kk);
+  for (const e of S.engines || []) if (e.mount !== "wing") zf(e, "zi");
+}
 if (process.env.SPEC_PATCH) {
   for (const [pp, op, v] of JSON.parse(process.env.SPEC_PATCH)) for (const p of pp.split("|")) {
+    if (p.includes(".@")) { const [id, part] = p.split(".@"); stretchSpec(KIT[id], part, v); continue; }
     const keys = p.split(".");
     const apply = (o, i) => {
       if (o == null) return;
