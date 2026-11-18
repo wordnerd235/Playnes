@@ -35,4 +35,7 @@ export const G650ER = {
   antennas: [[9.5, 0.28], [4.0, 0.22], [-2.5, 0.2]],
   pitot: [13.6, 2.4],
   gear: { mainX: 2.2, pivotY: 1.65, mainR: 0.5, mainW: 0.3, mainDual: true, legR: 0.09, noseZ: 12.76, noseR: 0.3, noseW: 0.18, noseDual: true, nosePivotY: 1.9 },
+  // Corrections from fitting the model to five photos (see docs/HANDOFF.md): a little more span
+  // (to the published 30.36 m), a deeper belly, the fin further forward, the main gear forward.
+  photoFit: [["wing.span", "+", 0.3], ["fus.*.3", "+", -0.06], ["gear.mainZ", "=", 0.3], ["fin.rootLE.1", "+", 0.45]],
 };

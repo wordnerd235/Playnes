@@ -21,7 +21,7 @@ G.cabin = {
   tables: [11.47, 8.05, 3.75], divan: { z0: 4.9, z1: 6.6, side: -1 }, galleyZ: G650ER.cabin.galleyZ + D, windowSeat: 10.6,
 };
 G.door = { ...G650ER.door, z0: G650ER.door.z0 + D, z1: G650ER.door.z1 + D };
-G.wing = { ...G650ER.wing, span: 14.9, rootChord: 6.6, le0: 6.5, flap: [1.8, 9.0], aileron: [9.3, 13.4] };
+G.wing = { ...G650ER.wing, span: 15.07, rootChord: 6.6, le0: 6.5, flap: [1.8, 9.0], aileron: [9.3, 13.4] };
 // Its bigger wing root has a longer belly fairing (it runs further forward).
 G.fairing = { ...G650ER.fairing, keys: [[9.1, 0.02, 1.81], [8.3, 0.6, 1.55], [7.1, 1.0, 1.32], [5.5, 1.25, 1.18], [3.4, 1.35, 1.11], [1.3, 1.35, 1.11], [-0.4, 1.2, 1.15], [-1.8, 0.95, 1.3, 2.0], [-3.0, 0.6, 1.72, 2.3], [-4.0, 0.25, 2.18, 2.55], [-4.6, 0.02, 2.36, 2.7]] };
 G.tailplane = { ...G650ER.tailplane, y: 7.48 };
@@ -31,4 +31,6 @@ G.stripe = { ...G650ER.stripe, z0: G650ER.stripe.z0 + D };
 G.antennas = [[12.5, 0.28], [5.0, 0.22], [-2.5, 0.2]];
 G.pitot = [G650ER.pitot[0] + D, G650ER.pitot[1]];
 G.gear = { ...G650ER.gear, noseZ: G650ER.gear.noseZ + D };
+// The G650ER's photo corrections carry over (same fuselage and tail), except its wing span.
+G.photoFit = G650ER.photoFit.filter(([path]) => path !== "wing.span");
 export const G700 = G;

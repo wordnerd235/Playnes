@@ -257,9 +257,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "g650er": {
     "retractDeg": {
-      "gearL": 90.2,
-      "gearR": 90.2,
-      "gearN": 110
+      "gearL": 91.7,
+      "gearR": 91.7,
+      "gearN": 107.5
     },
     "wheelRadius": {
       "wheelL": 0.5,
@@ -272,7 +272,7 @@ export const RIGS: Record<string, Rig> = {
       11.059999999999999
     ],
     "windowEye": [
-      0.6519454932075072,
+      0.6867224495540026,
       3.33,
       7.9
     ],
@@ -281,9 +281,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "g700": {
     "retractDeg": {
-      "gearL": 91.7,
-      "gearR": 91.7,
-      "gearN": 110
+      "gearL": 94.1,
+      "gearR": 94.1,
+      "gearN": 107.5
     },
     "wheelRadius": {
       "wheelL": 0.5,
@@ -296,7 +296,7 @@ export const RIGS: Record<string, Rig> = {
       14.129999999999999
     ],
     "windowEye": [
-      0.652465350364236,
+      0.6871939053102835,
       3.33,
       10.6
     ],
