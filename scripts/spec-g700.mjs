@@ -25,12 +25,12 @@ G.wing = { ...G650ER.wing, span: 15.07, rootChord: 6.6, le0: 6.5, flap: [1.8, 9.
 // Its bigger wing root has a longer belly fairing (it runs further forward).
 G.fairing = { ...G650ER.fairing, keys: [[9.1, 0.02, 1.81], [8.3, 0.6, 1.55], [7.1, 1.0, 1.32], [5.5, 1.25, 1.18], [3.4, 1.35, 1.11], [1.3, 1.35, 1.11], [-0.4, 1.2, 1.15], [-1.8, 0.95, 1.3, 2.0], [-3.0, 0.6, 1.72, 2.3], [-4.0, 0.25, 2.18, 2.55], [-4.6, 0.02, 2.36, 2.7]] };
 G.tailplane = { ...G650ER.tailplane, y: 7.48 };
-G.fin = { ...G650ER.fin, tipLE: [7.33, -7.95] };
+G.fin = { ...G650ER.fin, tipLE: [7.33, -9.2] };
 G.engines = [{ ...G650ER.engines[0], r: 0.82, len: 4.8, x: 2.05 }];
 G.stripe = { ...G650ER.stripe, z0: G650ER.stripe.z0 + D };
 G.antennas = [[12.5, 0.28], [5.0, 0.22], [-2.5, 0.2]];
 G.pitot = [G650ER.pitot[0] + D, G650ER.pitot[1]];
 G.gear = { ...G650ER.gear, noseZ: G650ER.gear.noseZ + D };
 // The G650ER's photo corrections carry over (same fuselage and tail), except its wing span.
-G.photoFit = [...G650ER.photoFit.filter(([path]) => path !== "wing.span"), ["fin.rootLE.1", "+", -0.6], ["fin.tipLE.1", "+", -0.3]]; // its own fit on top
+G.photoFit = G650ER.photoFit.filter(([path]) => path !== "wing.span");
 export const G700 = G;

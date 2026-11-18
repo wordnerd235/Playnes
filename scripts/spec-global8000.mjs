@@ -33,7 +33,7 @@ export const GLOBAL8000 = {
   fairing: { top: 2.1, e: 2.3, keys: [[9.4, 0.02, 1.9], [8.6, 0.6, 1.5], [7.2, 1.2, 1.25], [5.0, 1.5, 1.15], [2.0, 1.6, 1.15], [-0.5, 1.45, 1.2], [-2.0, 0.9, 1.45, 2.3], [-3.2, 0.5, 1.85, 2.45], [-4.2, 0.15, 2.12, 2.55], [-4.6, 0.02, 2.2, 2.6]] },
   fin: { rootLE: [5.0, -6.9], tipLE: [8.1, -11.6], rootChord: 5.4, tipChord: 2.6 },
   dorsal: { z0: -5.2, z1: -6.9, ze: -7.5, width: 0.25 },
-  tailplane: { y: 8.15, rootLE: -11.4, root: 3.0, tipX: 5.3, tipLE: -17.0, tip: 1.5 },
+  tailplane: { y: 8.15, rootLE: -11.4, root: 3.0, tipX: 5.3, tipLE: -17.0, tip: 1.5, bullet: { r: 0.26, fwd: 0.9, len: 4.0 } },
   engines: [{ x: 2.35, y: 4.03, zi: -5.0, len: 5.0, r: 0.85 }],
   registration: { on: "nacelle", h: 0.4 },
   stripe: { y: 2.9, riseFrom: -2.0, rise: 0.05, z0: 19.0, z1: -12.0, width: 0.1 },

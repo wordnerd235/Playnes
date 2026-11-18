@@ -673,9 +673,12 @@ export function buildJet(ac, kit, S) {
   const tTail = HT.y > finLE(HT.rootLE) - 0.2;
   if (tTail) {
     // Bullet fairing where the tailplane meets the top of the fin.
-    const len = HT.root * 1.5, zb = HT.rootLE + 0.35;
-    add("body", part(lathe([[0.001, 0], [0.06, len * 0.06], [0.1, len * 0.21], [0.11, len * 0.53], [0.09, len * 0.79], [0.04, len * 0.95], [0.001, len]], 18, T(0, HT.y + 0.02, zb - len)), MAT.paint, cWhite));
-    nodes.beacon = { parts: [part(new THREE.SphereGeometry(0.045, 10, 8), MAT.navRed, C("#ffffff"), { noAO: true })], translation: [0, HT.y + 0.14, zb - len * 0.47] };
+    // tailplane.bullet: { r: radius, len, fwd: how far its nose runs ahead of the tailplane root }
+    // (big jets have a large rounded "acorn" here, seen as a bump ahead of the fin top).
+    const BU = HT.bullet ?? {}, br = (BU.r ?? 0.11) / 0.11;
+    const len = BU.len ?? HT.root * 1.5, zb = HT.rootLE + (BU.fwd ?? 0.35);
+    add("body", part(lathe([[0.001, 0], [0.06 * br, len * 0.06], [0.1 * br, len * 0.21], [0.11 * br, len * 0.53], [0.09 * br, len * 0.79], [0.04 * br, len * 0.95], [0.001, len]], 18, T(0, HT.y + 0.02, zb - len)), MAT.paint, cWhite));
+    nodes.beacon = { parts: [part(new THREE.SphereGeometry(0.045, 10, 8), MAT.navRed, C("#ffffff"), { noAO: true })], translation: [0, HT.y + 0.03 + 0.11 * br, zb - len * 0.47] };
   } else {
     const zt = fin.tipLE.z - fin.tipChord * 0.4;
     nodes.beacon = { parts: [part(new THREE.SphereGeometry(0.045, 10, 8), MAT.navRed, C("#ffffff"), { noAO: true })], translation: [0, fin.tipLE.y + 0.04, zt] };

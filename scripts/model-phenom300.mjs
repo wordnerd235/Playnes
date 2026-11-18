@@ -406,7 +406,7 @@ export function buildPhenom300(ac, kit) {
   }
 
   // ---------------------------------------------------------------- tail
-  const fin = { rootLE: V(0, 2.12, -3.3), tipLE: V(0, 4.5, -5.62), rootChord: 2.1, tipChord: 1.18 };
+  const fin = { rootLE: V(0, 2.12, -3.75), tipLE: V(0, 4.37, -5.95), rootChord: 2.3, tipChord: 1.45 }; // tail close-ups: broader, lower and more upright than before
   const RF = 0.3;
   add("body", part(surface({ rootLE: fin.rootLE, tipLE: fin.tipLE, rootChord: fin.rootChord, tipChord: fin.tipChord, thickness: 0.11, camber: 0, up: V(1, 0, 0), stations: [{ t: 0, cut: 1 - RF }, { t: 1, cut: 1 - RF }] }), MAT.paint, (p) => (p.y > 3.35 && p.y < 3.45 ? cGold : cWhite)));
   {
@@ -441,7 +441,7 @@ export function buildPhenom300(ac, kit) {
     add("body", part(surface({ rootLE, tipLE, rootChord: z0 - z1, tipChord: 0.42, thickness: 0.06, camber: 0, up: V(Math.cos(0.5), side * Math.sin(0.5), 0).multiplyScalar(side), stations: [{ t: 0 }, { t: 1 }] }), MAT.paint, cWhite));
   }
   // T-tail: tailplane on top of the fin, with elevators, and a bullet fairing at the joint.
-  const HT = { y: 4.52, rootLE: -5.62, root: 1.27, tipX: 2.75, tipLE: -6.3, tip: 0.66 };
+  const HT = { y: 4.39, rootLE: -5.95, root: 1.27, tipX: 2.75, tipLE: -6.65, tip: 0.66 };
   const EF = 0.34;
   for (const side of [1, -1]) {
     const rootLE = V(side * 0.05, HT.y, HT.rootLE), tipLE = V(side * HT.tipX, HT.y - 0.04, HT.tipLE);

@@ -26,9 +26,10 @@ export const G650ER = {
   // Belly fairing checked from below: it starts well ahead of the wing and its tail end follows the
   // fuselage's upswept belly into the tail cone (it used to hang below it).
   fairing: { top: 1.95, e: 2.3, keys: [[8.8, 0.02, 1.81], [8.0, 0.6, 1.55], [6.8, 1.0, 1.32], [5.2, 1.25, 1.18], [3.2, 1.35, 1.11], [1.2, 1.35, 1.11], [-0.4, 1.2, 1.15], [-1.8, 0.95, 1.3, 2.0], [-3.0, 0.6, 1.72, 2.3], [-4.0, 0.25, 2.18, 2.55], [-4.6, 0.02, 2.36, 2.7]] },
-  fin: { rootLE: [4.15, -6.1], tipLE: [7.4, -7.95], rootChord: 3.6, tipChord: 1.8 },
-  dorsal: { z0: -4.6, z1: -6.1, ze: -6.6, width: 0.22 },
-  tailplane: { y: 7.55, rootLE: -7.9, root: 2.7, tipX: 5.1, tipLE: -14.0, tip: 1.5 },
+  // Tail close-ups: a strongly swept fin with its tip well aft, the T-tail on top, a long curved fillet.
+  fin: { rootLE: [4.15, -6.1], tipLE: [7.4, -9.2], rootChord: 3.6, tipChord: 2.2 },
+  dorsal: { z0: -4.3, z1: -7.0, ze: -7.5, width: 0.24 },
+  tailplane: { y: 7.55, rootLE: -9.1, root: 2.7, tipX: 5.1, tipLE: -14.0, tip: 1.5 },
   engines: [{ x: 2.0, y: 3.66, zi: -2.45, len: 4.6, r: 0.78 }],
   registration: { on: "nacelle", h: 0.38 },
   stripe: { y: 2.6, riseFrom: 0.0, rise: 0.06, z0: 13.5, z1: -7.0, width: 0.08 },
