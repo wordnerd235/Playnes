@@ -32,5 +32,5 @@ G.antennas = [[12.5, 0.28], [5.0, 0.22], [-2.5, 0.2]];
 G.pitot = [G650ER.pitot[0] + D, G650ER.pitot[1]];
 G.gear = { ...G650ER.gear, noseZ: G650ER.gear.noseZ + D };
 // The G650ER's photo corrections carry over (same fuselage and tail), except its wing span.
-G.photoFit = G650ER.photoFit.filter(([path]) => path !== "wing.span");
+G.photoFit = [...G650ER.photoFit.filter(([path]) => path !== "wing.span"), ["fin.rootLE.1", "+", -0.6], ["fin.tipLE.1", "+", -0.3]]; // its own fit on top
 export const G700 = G;
