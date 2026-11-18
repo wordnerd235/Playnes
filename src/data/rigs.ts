@@ -209,9 +209,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "challenger3500": {
     "retractDeg": {
-      "gearL": 99,
-      "gearR": 99,
-      "gearN": 112.5
+      "gearL": 98.1,
+      "gearR": 98.1,
+      "gearN": 107.5
     },
     "wheelRadius": {
       "wheelL": 0.42,
@@ -224,7 +224,7 @@ export const RIGS: Record<string, Rig> = {
       7.430000000000001
     ],
     "windowEye": [
-      0.6953384018098888,
+      0.7415374991485463,
       2.955,
       4.36
     ],
