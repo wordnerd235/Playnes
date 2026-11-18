@@ -185,8 +185,8 @@ export const RIGS: Record<string, Rig> = {
   },
   "praetor600": {
     "retractDeg": {
-      "gearL": 96.2,
-      "gearR": 96.2,
+      "gearL": 98.5,
+      "gearR": 98.5,
       "gearN": 102.5
     },
     "wheelRadius": {

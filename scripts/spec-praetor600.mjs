@@ -20,13 +20,13 @@ export const PRAETOR600 = {
   cockpit: { bulkheadZ: 6.6, panelZ: 7.96, seatX: 0.48, sidestick: true, extraScreens: true },
   cabin: { lavZ: -0.9, rows: [{ z: 4.88, facing: "aft" }, { z: 3.68 }, { z: 2.3, facing: "aft" }, { z: 1.4 }], tables: [4.28, 1.85], galleyZ: 6.0, windowSeat: 3.53, aisleHalf: 0.42, seatWidth: 0.5 },
   door: { z0: 5.62, z1: 6.44, y0: 1.43, y1: 3.13 },
-  wing: { dihedral: 3, sweep: 22, span: 10.35, y0: 1.05, rootChord: 4.6, tipChord: 1.15, le0: 3.2, flap: [1.2, 6.2], aileron: [6.4, 9.6], thickness: 0.12, winglet: { out: 0.25, height: 1.35, back: 1.0, tipChord: 0.45 } },
+  wing: { dihedral: 3, sweep: 22, span: 10.48, y0: 1.05, rootChord: 4.6, tipChord: 1.15, le0: 2.95, flap: [1.2, 6.2], aileron: [6.4, 9.6], thickness: 0.12, winglet: { out: 0.25, height: 1.35, back: 1.0, tipChord: 0.45 } },
   // Belly fairing checked from below: it starts well ahead of the wing and its tail end follows the
   // fuselage's upswept belly into the tail cone (it used to hang below it).
   fairing: { top: 1.5, e: 2.3, keys: [[6.0, 0.02, 1.22], [5.2, 0.4, 1.06], [4.2, 0.62, 0.92], [3.0, 0.8, 0.82], [1.6, 0.88, 0.78], [0.2, 0.86, 0.79], [-1.0, 0.74, 0.88, 1.5], [-1.9, 0.5, 1.2, 1.8], [-2.6, 0.24, 1.6, 2.05], [-3.1, 0.02, 1.88, 2.2]] },
-  fin: { rootLE: [3.42, -3.6], tipLE: [6.1, -5.75], rootChord: 3.6, tipChord: 1.6 },
+  fin: { rootLE: [3.42, -3.3], tipLE: [6.3, -6.05], rootChord: 3.6, tipChord: 1.6 },
   dorsal: { z0: -2.2, z1: -3.8, ze: -4.3, width: 0.2 },
-  tailplane: { y: 6.15, rootLE: -6.4, root: 2.0, tipX: 3.6, tipLE: -8.9, tip: 0.95 },
+  tailplane: { y: 6.35, rootLE: -6.4, root: 2.0, tipX: 3.6, tipLE: -8.65, tip: 0.95 },
   engines: [{ x: 1.55, y: 2.93, zi: -1.93, len: 3.2, r: 0.47 }],
   registration: { on: "nacelle", h: 0.24 },
   stripe: { y: 1.9, riseFrom: 1.0, rise: 0.11, z0: 10.2, z1: -6.5, width: 0.09 },
