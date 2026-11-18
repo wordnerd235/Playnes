@@ -26,10 +26,10 @@ export const LATITUDE = {
   // wheel, deepens gently under the cabin, is widest and deepest under the wing, and tapers
   // into the tail cone's upswept belly (not a pod under the wing root).
   fairing: { top: 1.35, e: 2.3, keys: [[7.3, 0.02, 1.07], [6.7, 0.32, 1.0], [5.4, 0.48, 0.95], [3.8, 0.6, 0.9], [2.4, 0.76, 0.84], [1.2, 0.86, 0.8], [0.0, 0.88, 0.79], [-1.1, 0.82, 0.84, 1.45], [-2.2, 0.6, 1.08, 1.75], [-3.0, 0.38, 1.48, 1.98], [-3.8, 0.14, 1.86, 2.15], [-4.2, 0.02, 1.98, 2.22]] },
-  fin: { rootLE: [3.27, -3.37], tipLE: [6.33, -6.48], rootChord: 3.75, tipChord: 1.38 },
+  fin: { rootLE: [3.27, -3.37], tipLE: [6.33, -6.78], rootChord: 3.75, tipChord: 1.38 },
   dorsal: { z0: -2.2, z1: -3.6, ze: -4.1, width: 0.18 },
-  tailplane: { y: 3.95, rootLE: -5.25, root: 1.95, tipX: 3.65, tipLE: -8.2, tip: 0.95 },
-  engines: [{ x: 1.55, y: 2.48, zi: -1.58, len: 3.4, r: 0.53 }],
+  tailplane: { y: 3.95, rootLE: -5.25, root: 1.95, tipX: 4.4, tipLE: -8.2, tip: 0.95 },
+  engines: [{ x: 1.55, y: 2.48, zi: -1.58, len: 3.4, r: 0.59 }],
   registration: { on: "nacelle", h: 0.24 },
   stripe: { y: 1.85, riseFrom: 2.0, rise: 0.07, z0: 9.0, z1: -6.0, width: 0.08 },
   antennas: [[4.8, 0.2], [1.0, 0.18], [-2.6, 0.16]],
