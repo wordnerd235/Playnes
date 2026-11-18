@@ -41,8 +41,8 @@ export const RIGS: Record<string, Rig> = {
   },
   "phenom100": {
     "retractDeg": {
-      "gearL": 105.9,
-      "gearR": 105.9,
+      "gearL": 105.8,
+      "gearR": 105.8,
       "gearN": 112.5
     },
     "wheelRadius": {
