@@ -1104,6 +1104,7 @@ function stretchSpec(S, part, d) {
   for (const w of S.cockpitWindows || []) { zf(w, "z0"); zf(w, "z1"); }
   if (S.pitot) S.pitot[0] = f(S.pitot[0]);
   zf(S.stripe, "z0"); zf(S.stripe, "z1"); zf(S.gear, "noseZ"); zf(S.registration, "z");
+  zf(S.cockpit, "panelZ"); zf(S.cockpit, "bulkheadZ"); zf(S.lining, "z0"); zf(S.lining, "z1"); zf(S.door, "z0"); zf(S.door, "z1");
   for (const a of S.antennas || []) a[0] = f(a[0]);
   if (S.fairing) for (const kk of S.fairing.keys) kk[0] = f(kk[0]);
   if (S.fin) { S.fin.rootLE[1] = f(S.fin.rootLE[1]); S.fin.tipLE[1] = f(S.fin.tipLE[1]); }
@@ -1111,8 +1112,8 @@ function stretchSpec(S, part, d) {
   for (const key of ["dorsal", "strakes"]) if (S[key]) for (const kk of ["z0", "z1", "ze"]) zf(S[key], kk);
   for (const e of S.engines || []) if (e.mount !== "wing") zf(e, "zi");
 }
-if (process.env.SPEC_PATCH) {
-  for (const [pp, op, v] of JSON.parse(process.env.SPEC_PATCH)) for (const p of pp.split("|")) {
+function applyPatch(list) {
+  for (const [pp, op, v] of list) for (const p of pp.split("|")) {
     if (p.includes(".@")) { const [id, part] = p.split(".@"); stretchSpec(KIT[id], part, v); continue; }
     const keys = p.split(".");
     const apply = (o, i) => {
@@ -1127,6 +1128,10 @@ if (process.env.SPEC_PATCH) {
     apply(KIT, 0);
   }
 }
+// A spec's photoFit: shape corrections found by fitting the model to photos (same form as
+// SPEC_PATCH, with paths inside the spec), kept as a list so they stay easy to see and undo.
+for (const [id, S] of Object.entries(KIT)) if (S.photoFit) applyPatch(S.photoFit.map(([p, op, v]) => [p.split("|").map((q) => `${id}.${q}`).join("|"), op, v]));
+if (process.env.SPEC_PATCH) applyPatch(JSON.parse(process.env.SPEC_PATCH));
 for (const [id, spec] of Object.entries(KIT)) DETAILED[id] = (ac, k) => buildJet(ac, k, spec);
 // KIT_CHECK=1: build the Phenom 300E through the kit instead (to check the kit against it).
 if (process.env.KIT_CHECK) DETAILED.phenom300 = (ac, k) => buildJet(ac, k, PHENOM300);

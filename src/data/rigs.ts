@@ -320,7 +320,7 @@ export const RIGS: Record<string, Rig> = {
       14.91
     ],
     "windowEye": [
-      0.903068583629404,
+      0.907039537386139,
       3.93,
       11.05
     ],

@@ -41,4 +41,9 @@ export const GLOBAL8000 = {
   pitot: [18.8, 2.7],
   slats: { from: 0.18, to: 0.95 }, // leading-edge slats
   gear: { mainX: 2.6, pivotY: 1.75, mainR: 0.5, mainW: 0.32, mainDual: true, legR: 0.1, noseZ: 16.74, noseR: 0.33, noseW: 0.2, noseDual: true, nosePivotY: 2.0 },
+  // Corrections from fitting the model to eleven photos (below, beside, behind; see docs/HANDOFF.md):
+  // the nose and the tail were too long (overall 38.5 m against the published 33.8 m), the
+  // tailplane too swept, the engines a little small and too far back, the wing too flat.
+  photoFit: [["@nose", "+", -1.125], ["@tail", "+", -1.25], ["fin.rootLE.1", "+", 0.3], ["tailplane.tipX", "+", 0.25], ["tailplane.tipLE", "+", 0.5],
+    ["wing.dihedral", "+", 1], ["engines.0.r", "*", 1.12], ["engines.0.zi", "+", 0.625], ["fus.*.2", "+", -0.06]],
 };
