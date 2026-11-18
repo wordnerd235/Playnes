@@ -201,7 +201,7 @@ export function buildF16(ac, kit) {
   }
 
   // ---- fin, rudder, dorsal fairing and ventral fins
-  const fin = { rootLE: V(0, 2.3, -2.3), tipLE: V(0, 5.0, -5.1), rootChord: 2.75, tipChord: 0.95 };
+  const fin = { rootLE: V(0, 2.3, -2.8), tipLE: V(0, 5.0, -5.6), rootChord: 2.75, tipChord: 0.95 };
   const finAt = (t) => ({ le: fin.rootLE.clone().lerp(fin.tipLE, t), ch: lerp(fin.rootChord, fin.tipChord, t) });
   const R0 = 0.1, R1 = 0.74, RC = 0.74;
   const finColor = (p) => (p.y > 4.62 ? cAccent : cMid);
@@ -231,7 +231,7 @@ export function buildF16(ac, kit) {
       up: V(1, side * 0.27, 0).normalize(), stations: [{ t: 0 }, { t: 1 }],
     }), XMAT.matte, cMid));
   }
-  nodes.strobe = { parts: [part(new THREE.SphereGeometry(0.05, 10, 8), MAT.white, C("#ffffff"), { noAO: true })], translation: [0, 5.05, -5.75] };
+  nodes.strobe = { parts: [part(new THREE.SphereGeometry(0.05, 10, 8), MAT.white, C("#ffffff"), { noAO: true })], translation: [0, 5.05, -6.25] };
 
   // ---- canopy glass, fairing and sill rails (the outline is defined near the top)
   const arc = (z, n = 24, grow = 0) => {
