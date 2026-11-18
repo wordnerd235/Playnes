@@ -83,6 +83,22 @@ window.final = (az, el, fov, N) => {
   renderer.setSize(R, R);
   return res;
 };
+// Orthographic outline for comparing with three-view drawings: view "side" (from the left, nose
+// to the left), "top" (nose up) or "front"; s pixels per metre; framed exactly on the visible model.
+window.ortho = (view, s) => {
+  const mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+  for (const [, a, b] of window.parts) for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], a[k]); mx[k] = Math.max(mx[k], b[k]); }
+  let w, h, cam;
+  const c = new THREE.Vector3((mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2);
+  if (view === "side") { w = mx[2] - mn[2]; h = mx[1] - mn[1]; cam = new THREE.OrthographicCamera(-w / 2, w / 2, h / 2, -h / 2, 0.1, 1000); cam.position.set(c.x + 100, c.y, c.z); cam.up.set(0, 1, 0); }
+  else if (view === "top") { w = mx[0] - mn[0]; h = mx[2] - mn[2]; cam = new THREE.OrthographicCamera(-w / 2, w / 2, h / 2, -h / 2, 0.1, 1000); cam.position.set(c.x, c.y + 100, c.z); cam.up.set(0, 0, 1); }
+  else { w = mx[0] - mn[0]; h = mx[1] - mn[1]; cam = new THREE.OrthographicCamera(-w / 2, w / 2, h / 2, -h / 2, 0.1, 1000); cam.position.set(c.x, c.y, c.z + 100); cam.up.set(0, 1, 0); }
+  cam.lookAt(c); cam.updateProjectionMatrix();
+  const W = Math.round(w * s), H = Math.round(h * s);
+  renderer.setSize(W, H); setMask(true); renderer.setClearColor(0xffffff, 1); renderer.render(scene, cam);
+  const url = renderer.domElement.toDataURL("image/png"); renderer.setSize(R, R);
+  return { url, w, h, min: mn, max: mx };
+};
 new GLTFLoader().load((q.get("src") || `/repo/public/models/${q.get("id")}.glb`) + `?${Date.now()}`, (g) => {
   model = g.scene; scene.add(model);
   if (q.get("zs")) model.scale.z = Number(q.get("zs"));

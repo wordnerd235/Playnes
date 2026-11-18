@@ -49,3 +49,23 @@ figures (note it counts hidden parts such as the afterburner flame).
 Outlines say nothing about colours or details inside the outline, and thin parts (wings seen
 edge-on, gear legs, aerials) are often lost in the cut-out. Hand-built models (Cessna, Phenom
 300E, F-16, Chinook) can be fitted and compared, but not tuned automatically.
+
+## Manufacturer three-view drawings (exact scale)
+
+Better than photos where a maker publishes a dimensioned three-view. `drawings/specs.json` says
+which page image and which pixel box holds each view (side, top, front), the published length and
+span, and how to read it (`kind`: line art by default, `net` for a render, `netplus` views,
+`rot` to turn a view upright, `nogear`). Put the page image (rendered from the maker's PDF with
+`pdftoppm -r 400`) in `drawings/` (not committed: it is the maker's artwork), then:
+
+    python3 drawsil.py <jet>            # outlines -> drawings/<jet>_<view>_sil.png, px per metre
+    python3 dcmp.py <jet>               # model vs drawing, drawings/<jet>_cmp.jpg, IoU per view
+    python3 mkdparams.py <jet>          # parameter list for the tuner
+    python3 drawtune.py <jet> drawings/<jet>_params.json 2 [start.json]
+
+`drawtune.py` keeps a change only if the mean outline overlap improves, with a penalty for any
+change to the published length or span (without it the tuner "wins" by stretching the nose).
+Sources used (Nov 2026): HondaJet Elite II brochure (Honda, technical specifications page),
+Falcon 8X press pack (Dassault, Sept 2020, page 8), Citation Latitude Specification and
+Description (Textron, Oct 2015, page 4: front/side renders, top view rotated 45 degrees), PC-24
+Just The Facts (Pilatus, page 4: side render).

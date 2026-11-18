@@ -2,3 +2,6 @@
 /*/
 *.log
 tq.txt
+# Manufacturer drawings are copyrighted: keep only specs.json (where each view sits on the page).
+/drawings/*
+!/drawings/specs.json

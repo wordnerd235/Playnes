@@ -418,3 +418,34 @@ upgrade Cesium casually, and re-run `tools/diag-google.cjs` if you do.
    water landings), then "real stalls" as a grown-up setting. (Done: "Real controls".)
 5. (Done: cartoon-map trees and buildings.)
 6. When the owner is happy: put the test copy's commit in `.stable-ref` and deploy.
+
+
+## To-do (updated 18 Nov 2026)
+
+In progress when paused:
+- **Check every jet against the makers' three-view drawings** (tools/photofit, see its README).
+  Drawings found and turned into exact-scale outlines: HondaJet, Falcon 8X, Citation Latitude,
+  PC-24 (side only). Nothing from this step is in the models yet. First results:
+  - Falcon 8X (match 0.69 -> 0.83 in a first tune): the wing and engines sit about a metre too
+    far forward, the tailplane is too small and low, the fin about 0.7 m too short, the engines
+    a little small. That tune stretched the nose 1.5 m, so re-run it with the length penalty
+    (now in drawtune.py) before applying anything.
+  - HondaJet (0.81 -> 0.86): small changes (wing sweep, tailplane chord, engines lower/forward);
+    also re-run with the length penalty.
+  - Latitude: fin too far forward, tail cone too short and shallow, tailplane chord too small.
+  - PC-24 (side): belly too deep under the nose, tail cone too long and round, fin tip too short.
+  No public three-views found for the PC-12 NGX (Pilatus's only render is too faint; the 2024
+  "Just The Facts" line drawing is small), Phenom 100/300E and Praetor 600 (Embraer brochures have
+  none), Challenger 3500 and Global 8000 (Bombardier factsheets have none), Gulfstream G650ER/G700
+  (gulfstream.aero refuses downloads). Airport planning manuals for these are customer-only.
+  After each tune: look at the overlay by eye, put the result in the spec's photoFit list,
+  rebuild, gear check, tests, re-render the hangar pictures, commit, deploy.
+- Known small model issues: Challenger fin-top fairing smaller than real; Phenom 300E 0.2 m under
+  its published height; Latitude tailplane tips may be a little long.
+
+Still to do:
+- Check on iPad and in Google (photo-realistic) map mode.
+- Copy the test copy over to the main game (change .stable-ref) when the owner says so.
+- Housekeeping: split src/game/flight.ts, add a linter, shared helpers for the test scripts,
+  trim the site.
+- PC-24: check its winglets; let it use short and unpaved strips.
