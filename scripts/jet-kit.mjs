@@ -62,6 +62,7 @@ export function wingSpoilers(kit, o) {
 export function buildJet(ac, kit, S) {
   const { THREE, V, C, T, RY, RZ, lerp, MAT, MATERIALS, loft, smooth, surface, controlSurface, lathe, cylinderBetween, registration, REGISTRATION, part, curve, asNode, mergeVertices } = kit;
   const DEG = Math.PI / 180;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
   const X0 = MATERIALS.length;
   const XMAT = { glass: X0, fabric: X0 + 1, display: X0 + 2, skin: X0 + 3, leather: X0 + 4, wood: X0 + 5, blur: X0 + 6 };
@@ -502,14 +503,125 @@ export function buildJet(ac, kit, S) {
     }
     return r;
   };
+  // The wing's thickness at (x, z): its lower and upper surface heights (null off the wing).
+  const wingSec = (x, z) => {
+    const ax = Math.abs(x);
+    if (ax > XT) return null;
+    const c = chordAt(ax), u = (leAt(ax) - z) / c;
+    if (u < 0 || u > 1) return null;
+    const t = WG.thickness ?? 0.12;
+    const half = 5 * t * (0.2969 * Math.sqrt(u) - 0.126 * u - 0.3516 * u * u + 0.2843 * u ** 3 - 0.1036 * u ** 4) * c;
+    // Behind the flap hinge the flap itself is much thinner than the wing box.
+    if (ax > FLAP[0] && ax < FLAP[1] && u > FCUT - 0.02) return { lo: wingY(ax) - 0.035, hi: wingY(ax) + 0.012 };
+    const mid = wingY(ax) + 0.02 * 4 * u * (1 - u) * c;
+    return { lo: mid - half, hi: mid + half };
+  };
   // The belly (wing-to-body) fairing: keys [z, half width, bottom, top?] smoothed along its
-  // length (a key's own top lets the tail end follow the fuselage as its belly sweeps up).
-  if (S.fairing) {
+  // length (a key's own top lets the tail end follow the fuselage as its belly sweeps up). It is
+  // then fitted round the middle of the wing: as wide as the fuselage over the wing root, and
+  // deep enough that no part of the wing shows under the body. The wing comes out of its sides,
+  // as on the real jets (seen from behind, the wing's trailing edge must not run across the belly).
+  const FE = S.fairing?.e ?? 2.0;
+  const fairSec = (() => {
+    if (!S.fairing) return () => null;
     const ks = S.fairing.keys.map(([z, hw, bot, top]) => [z, hw, bot, top ?? S.fairing.top]);
-    const F = curve(ks), z0 = Math.max(...ks.map((k) => k[0])), z1 = Math.min(...ks.map((k) => k[0]));
+    const F = curve(ks);
+    const zLE = WG.le0, zTE = WG.le0 - WG.rootChord;
+    const zA = Math.max(...ks.map((k) => k[0]), zLE + 0.7), zB = Math.max(Z_TAIL + 0.5, Math.min(...ks.map((k) => k[0]), zTE - 4.0));
+    const keyA = Math.max(...ks.map((k) => k[0])), keyB = Math.min(...ks.map((k) => k[0]));
+    const STEP = 0.05, zs = [], hw = [], bot = [], top = [];
+    for (let z = zA; z > zB - 1e-6; z -= STEP) {
+      let [h, b, t] = z > keyA || z < keyB ? [0.0, (FUS(z)[2] + 0.01), FUS(z)[2] + 0.2] : F(z);
+      const w = clamp((zLE + 0.6 - z) / 0.6, 0, 1) * clamp((z - (zTE - 1.0)) / 1.0, 0, 1);
+      h = Math.max(h, lerp(h, FUS(z)[0] * 1.0, w));
+      zs.push(z); hw.push(h); bot.push(b); top.push(Math.max(t, Math.min(S.fairing.top, FUS(z)[2] + 0.2)));
+    }
+    const N = zs.length, R = Math.round(0.45 / STEP);
+    const avg = (arr, r) => arr.map((_, i) => { const a = arr.slice(Math.max(0, i - r), i + r + 1).filter(Number.isFinite); return a.length ? a.reduce((p, q) => p + q, 0) / a.length : Infinity; });
+    // Smoothed widths, but never narrower than the fuselage over the wing root.
+    const hwS = avg(hw, Math.round(0.3 / STEP)).map((v, i) => Math.max(v, hw[i]));
+    // Deep enough that the wing's underside fits inside the fairing's rounded section right out
+    // to where the wing leaves it.
+    const need = zs.map((z, i) => {
+      const h = hwS[i], tt = top[i];
+      let n = Infinity;
+      for (let k = 0; k <= 12; k++) {
+        const x = (k / 12) * h * 0.97, ws = wingSec(x, z);
+        if (!ws) continue;
+        let bb = Math.min(bot[i], ws.lo - 0.035);
+        const inside = (bb) => { const yc = (tt + bb) / 2, hh = (tt - bb) / 2; return (x / Math.max(h, 1e-3)) ** FE + (Math.abs(ws.lo - yc) / hh) ** FE <= 0.97; };
+        while (!inside(bb) && bb > ws.lo - 0.6) bb -= 0.01;
+        n = Math.min(n, bb);
+      }
+      return n;
+    });
+    // Smooth the wing's demands along the length (a gentle bulge, not a step at the trailing edge).
+    const needMin = need.map((_, i) => Math.min(...need.slice(Math.max(0, i - R), i + R + 1)));
+    const needS = avg(needMin, R).map((v, i) => (Number.isFinite(needMin[i]) ? Math.min(v, need[i]) : Infinity));
+    const bF = bot.map((b, i) => Math.min(b, needS[i]));
+    // Taper gently: its depth below the fuselage's own belly shrinks no faster than 0.55 m per
+    // metre and its width no faster than 0.5 m per metre, both ways (no blunt lump behind the
+    // wing, and it follows the belly as that sweeps up to the tail).
+    const fb = zs.map((z) => FUS(z)[2]);
+    const dep = bF.map((b, i) => fb[i] - b);
+    const DS = 0.55 * STEP, WS = 0.5 * STEP;
+    for (let i = 1; i < N; i++) { dep[i] = Math.max(dep[i], dep[i - 1] - DS); hwS[i] = Math.max(hwS[i], hwS[i - 1] - WS); }
+    for (let i = N - 2; i >= 0; i--) { dep[i] = Math.max(dep[i], dep[i + 1] - DS); hwS[i] = Math.max(hwS[i], hwS[i + 1] - WS); }
+    // Behind the wing, the depth closes up in step with the width (a smooth tail, not a wall).
+    let iw = N - 1;
+    while (iw > 0 && !Number.isFinite(need[iw])) iw--;
+    for (let i = iw + 1; i < N; i++) dep[i] = Math.min(dep[i], (dep[iw] * hwS[i]) / Math.max(hwS[iw], 1e-3));
+    for (let i = 0; i < N; i++) bF[i] = fb[i] - dep[i];
+    // Never below where the fuselage's own belly is; close up where the width runs out.
+    for (let i = 0; i < N; i++) { top[i] = Math.max(top[i], Math.min(FUS(zs[i])[2] + 0.2, FUS(zs[i])[1])); if (bF[i] > FUS(zs[i])[2]) hwS[i] = Math.min(hwS[i], Math.max(0.01, hwS[i] * (1 - (bF[i] - FUS(zs[i])[2]) / 0.15))); }
+    let last = N - 1;
+    while (last > 1 && hwS[last - 1] < 0.03) last--;
+    if (process.env.FAIR_DEBUG === ac.id) for (let i = 0; i < N; i += 4) console.log(zs[i].toFixed(2), "hw", hwS[i].toFixed(3), "bot", bF[i].toFixed(3), "top", top[i].toFixed(3), "fb", FUS(zs[i])[2].toFixed(3), "fw", FUS(zs[i])[0].toFixed(3), i > last ? "CUT" : "");
+    zs.length = last + 1;
+    const M = zs.length;
+    return (z) => {
+      if (z > zs[0] || z < zs[M - 1]) return null;
+      const f = (zs[0] - z) / STEP, i = Math.min(M - 2, Math.floor(f)), u = f - i;
+      return { hw: lerp(hwS[i], hwS[i + 1], u), bot: lerp(bF[i], bF[i + 1], u), top: lerp(top[i], top[i + 1], u), z0: zs[0], z1: zs[M - 1] };
+    };
+  })();
+  if (S.fairing) {
+    const { z0, z1 } = fairSec(0) ?? fairSec(WG.le0 - WG.rootChord / 2);
     const rings = [];
-    for (let z = z0; z > z1 - 1e-6; z -= Math.min(0.25, (z0 - z1) / 8)) { const [hw, bot, top] = F(z); rings.push(superRing(z, Math.max(0.01, hw), top, bot, S.fairing.e ?? 2.0)); }
+    for (let z = z0; z > z1 + 1e-6; z -= 0.12) {
+      const f = fairSec(z);
+      if (f) rings.push(superRing(z, Math.max(0.01, f.hw), Math.max(f.top, f.bot + 0.02), f.bot, FE));
+    }
+    const fl = fairSec(z1 + 1e-4);
+    rings.push(superRing(z1, Math.max(0.01, fl.hw), Math.max(fl.top, fl.bot + 0.02), fl.bot, FE));
     add("body", part(smooth(loft(rings)), XMAT.skin, cWhite));
+  }
+  // Quality check: under the fuselage, every bit of the wing must be inside the body or the fairing.
+  {
+    const insideFair = (x, y, z) => {
+      const f = fairSec(z);
+      if (!f || y > f.top || y < f.bot) return false;
+      const yc = (f.top + f.bot) / 2, hh = (f.top - f.bot) / 2;
+      return (Math.abs(x) / Math.max(f.hw, 1e-3)) ** FE + (Math.abs(y - yc) / hh) ** FE <= 1.0001;
+    };
+    let bad = 0, worst = null;
+    for (let z = WG.le0; z > WG.le0 - WG.rootChord - 0.01; z -= 0.08) {
+      // The body's underside: as wide as the fuselage a fifth of the way up from its bottom (out
+      // beside its curved lower flank the wing is simply meeting the side).
+      const fz = FUS(z), fw = halfW(z, fz[2] + (fz[1] - fz[2]) * 0.2);
+      for (let x = 0; x <= fw; x += 0.05) {
+        const ws = wingSec(x, z);
+        if (!ws) continue;
+        for (const y of [ws.lo, (ws.lo + ws.hi) / 2]) {
+          const f = FUS(z), inBody = y < f[1] && y > f[2] && Math.abs(x) < halfW(z, y);
+          // Only what hangs below the body's underside matters (beside it, the wing meets the side).
+          if (inBody || y >= f[2] || insideFair(x, y, z)) continue;
+          bad++;
+          if (!worst || y < worst[1]) worst = [x, y, z];
+        }
+      }
+    }
+    if (bad) console.warn(`${ac.id}: the wing shows under the belly at ${bad} points, lowest at (${worst.map((v) => v.toFixed(2)).join(", ")})`);
   }
 
   SECTION = "tail";
@@ -738,29 +850,8 @@ export function buildJet(ac, kit, S) {
   // Where a folded wheel can hide: inside the fuselage, the belly fairing or the wing. Points
   // under the playne are "covered" (a wheel well seen from below); anything else is exposed
   // (poking up through the wing or out of the side), which the fold must avoid.
-  const fairAt = (() => {
-    if (!S.fairing) return () => null;
-    const ks = [...S.fairing.keys].sort((a, b) => a[0] - b[0]);
-    return (z) => {
-      if (z <= ks[0][0] || z >= ks[ks.length - 1][0]) return null;
-      let i = 0;
-      while (ks[i + 1][0] < z) i++;
-      const t = (z - ks[i][0]) / (ks[i + 1][0] - ks[i][0]);
-      return { hw: lerp(ks[i][1], ks[i + 1][1], t), bot: lerp(ks[i][2], ks[i + 1][2], t), top: lerp(ks[i][3] ?? S.fairing.top, ks[i + 1][3] ?? S.fairing.top, t) };
-    };
-  })();
-  const wingHalf = (x, z) => {
-    const ax = Math.abs(x);
-    if (ax > XT) return null;
-    const c = chordAt(ax), u = (leAt(ax) - z) / c;
-    if (u < 0 || u > 1) return null;
-    const t = WG.thickness ?? 0.12;
-    const half = 5 * t * (0.2969 * Math.sqrt(u) - 0.126 * u - 0.3516 * u * u + 0.2843 * u ** 3 - 0.1036 * u ** 4) * c;
-    // Behind the flap hinge the flap itself is much thinner than the wing box.
-    if (ax > FLAP[0] && ax < FLAP[1] && u > FCUT - 0.02) return { lo: wingY(ax) - 0.035, hi: wingY(ax) + 0.012 };
-    const mid = wingY(ax) + 0.02 * 4 * u * (1 - u) * c;
-    return { lo: mid - half, hi: mid + half };
-  };
+  const fairAt = fairSec;
+  const wingHalf = wingSec;
   // Ahead of the windshield the nose is closed: the nose wheel may fold up into it.
   const noseBay = S.windshield.z1 + 0.05;
   const place = (p) => {

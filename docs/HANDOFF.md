@@ -339,6 +339,14 @@ section (and any single part over 3,000) and stops. The kit jets now range from 
   the tail cone, and where the belly sweeps up their tail end must follow it (fairing keys take an
   optional top: `[z, half width, bottom, top]`). Check the gear's track and wheelbase against the
   maker's figures too (the Latitude's were 0.45 m off).
+- **Look from straight behind, too.** Even with keel fairings, the owner could still see the
+  Latitude's wing trailing edge running across under the belly from behind; on the real jets the
+  wing goes into the side of the fairing. The kit now fits the fairing itself (`fairSec` in
+  `jet-kit.mjs`): the spec's keys give its rough shape, then over the wing root it is made as
+  wide as the fuselage and deep enough that the wing's underside sits inside it; behind the wing
+  its depth closes up in step with its width (a smooth sweep up, never a flat wall). The build
+  warns `the wing shows under the belly at N points` if any part of the wing hangs below the body
+  outside the fairing; `FAIR_DEBUG=<id>` prints the fitted sections.
 - **Check in the game, from behind, at phone size, not just in the preview tool.** The owner
   found the Cessna's square cabin frame not meeting the round tailcone, seen from the default
   chase view; the preview's soft lighting hid it. `tailRing()` now blends the tailcone's first
