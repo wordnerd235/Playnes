@@ -406,7 +406,7 @@ export function buildPhenom300(ac, kit) {
   }
 
   // ---------------------------------------------------------------- tail
-  const fin = { rootLE: V(0, 2.12, -3.75), tipLE: V(0, 4.37, -5.95), rootChord: 2.3, tipChord: 1.45 }; // tail close-ups: broader, lower and more upright than before
+  const fin = { rootLE: V(0, 2.12, -3.75), tipLE: V(0, 4.37, -5.95), rootChord: 2.45, tipChord: 1.7 }; // tail close-ups: broader, lower and more upright than before
   const RF = 0.3;
   add("body", part(surface({ rootLE: fin.rootLE, tipLE: fin.tipLE, rootChord: fin.rootChord, tipChord: fin.tipChord, thickness: 0.11, camber: 0, up: V(1, 0, 0), stations: [{ t: 0, cut: 1 - RF }, { t: 1, cut: 1 - RF }] }), MAT.paint, (p) => (p.y > 3.35 && p.y < 3.45 ? cGold : cWhite)));
   {
