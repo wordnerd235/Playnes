@@ -65,9 +65,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "pc12": {
     "retractDeg": {
-      "gearL": 121.2,
-      "gearR": 121.2,
-      "gearN": 90
+      "gearL": 123.7,
+      "gearR": 123.7,
+      "gearN": 115
     },
     "wheelRadius": {
       "wheelL": 0.3,
@@ -80,7 +80,7 @@ export const RIGS: Record<string, Rig> = {
       0.6599999999999999
     ],
     "windowEye": [
-      0.3024429492390702,
+      0.30937086732285446,
       2.35,
       -0.85
     ],
