@@ -1086,6 +1086,24 @@ const kit = { THREE, V, C, M, T, RX, RY, RZ, S, chain, lerp, MAT, MATERIALS, lof
 const DETAILED = { f16: buildF16, c172: buildC172, phenom300: buildPhenom300, ch47: buildCh47 };
 // Jets built by the shared kit (scripts/jet-kit.mjs) from a measured spec.
 const KIT = { pc24: PC24, praetor600: PRAETOR600, latitude: LATITUDE, challenger3500: CHALLENGER3500, phenom100: PHENOM100, falcon8x: FALCON8X, hondajet: HONDAJET, global8000: GLOBAL8000, pc12: PC12, g650er: G650ER, g700: G700 };
+// SPEC_PATCH (dev, for photo-fitting experiments): JSON [[path, op, value], ...] applied to the
+// kit specs before building, e.g. [["latitude.wing.le0", "+", 0.2], ["latitude.fus.*.2", "+", 0.05]]
+// (op "=" sets, "+" adds, "*" scales; "*" in a path means every element; "a|b" changes both).
+if (process.env.SPEC_PATCH) {
+  for (const [pp, op, v] of JSON.parse(process.env.SPEC_PATCH)) for (const p of pp.split("|")) {
+    const keys = p.split(".");
+    const apply = (o, i) => {
+      if (o == null) return;
+      const k = keys[i];
+      const targets = k === "*" ? Object.keys(o) : [k];
+      for (const t of targets) {
+        if (i === keys.length - 1) o[t] = op === "=" ? v : op === "+" ? o[t] + v : o[t] * v;
+        else apply(o[t], i + 1);
+      }
+    };
+    apply(KIT, 0);
+  }
+}
 for (const [id, spec] of Object.entries(KIT)) DETAILED[id] = (ac, k) => buildJet(ac, k, spec);
 // KIT_CHECK=1: build the Phenom 300E through the kit instead (to check the kit against it).
 if (process.env.KIT_CHECK) DETAILED.phenom300 = (ac, k) => buildJet(ac, k, PHENOM300);
@@ -1093,7 +1111,7 @@ const rigs = {};
 const only = process.argv[2];
 for (const ac of AIRCRAFT) {
   if (only && ac.id !== only) {
-    if (DETAILED[ac.id]) rigs[ac.id] = DETAILED[ac.id](ac, kit).rig;
+    if (DETAILED[ac.id] && !process.env.FAST) rigs[ac.id] = DETAILED[ac.id](ac, kit).rig;
     continue;
   }
   let bytes;
@@ -1102,14 +1120,17 @@ for (const ac of AIRCRAFT) {
     rigs[ac.id] = rig;
     if (process.env.GEAR_CHECK) { checkGear(ac.id, nodes, rig); continue; }
     const t0 = Date.now();
-    const verts = bakeAO(nodes);
-    bytes = writeGlb(nodes, join(outDir, `${ac.id}.glb`), extraMaterials);
+    // FAST=1 (with one id): skip the baked shadows and rigs.ts, for quick shape checks;
+    // OUT_DIR puts the model somewhere else (e.g. to compare variants against photos).
+    const verts = process.env.FAST ? 0 : bakeAO(nodes);
+    bytes = writeGlb(nodes, join(process.env.OUT_DIR || outDir, `${ac.id}.glb`), extraMaterials);
     console.log(`${ac.id}.glb  ${(bytes / 1024).toFixed(0)} KB  (${verts} vertices, shadows baked in ${((Date.now() - t0) / 1000).toFixed(1)} s)`);
     continue;
   }
   bytes = writeGlb(buildAircraft(ac), join(outDir, `${ac.id}.glb`));
   console.log(`${ac.id}.glb  ${(bytes / 1024).toFixed(0)} KB`);
 }
+if (process.env.FAST) process.exit(0);
 // How the game moves the detailed models' parts (generated; see scripts/model-*.mjs).
 writeFileSync(
   join(root, "src", "data", "rigs.ts"),

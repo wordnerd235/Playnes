@@ -41,8 +41,8 @@ export const RIGS: Record<string, Rig> = {
   },
   "phenom100": {
     "retractDeg": {
-      "gearL": 103.5,
-      "gearR": 103.5,
+      "gearL": 105.9,
+      "gearR": 105.9,
       "gearN": 112.5
     },
     "wheelRadius": {
@@ -137,8 +137,8 @@ export const RIGS: Record<string, Rig> = {
   },
   "pc24": {
     "retractDeg": {
-      "gearL": 97.8,
-      "gearR": 97.8,
+      "gearL": 96.8,
+      "gearR": 96.8,
       "gearN": 112.5
     },
     "wheelRadius": {
@@ -161,8 +161,8 @@ export const RIGS: Record<string, Rig> = {
   },
   "latitude": {
     "retractDeg": {
-      "gearL": 94.7,
-      "gearR": 94.7,
+      "gearL": 93.6,
+      "gearR": 93.6,
       "gearN": 110
     },
     "wheelRadius": {
@@ -185,8 +185,8 @@ export const RIGS: Record<string, Rig> = {
   },
   "praetor600": {
     "retractDeg": {
-      "gearL": 95.2,
-      "gearR": 95.2,
+      "gearL": 96.2,
+      "gearR": 96.2,
       "gearN": 102.5
     },
     "wheelRadius": {
@@ -305,8 +305,8 @@ export const RIGS: Record<string, Rig> = {
   },
   "global8000": {
     "retractDeg": {
-      "gearL": 81,
-      "gearR": 81,
+      "gearL": 77.6,
+      "gearR": 77.6,
       "gearN": 105
     },
     "wheelRadius": {
