@@ -1,0 +1,1 @@
+cd "$(dirname "$0")"; while read f c m; do b=${f%.jpg}; python3 -c "import json;d=json.load(open('$b.fit.json'));print('$f', 'az',round(d['az']),'el',round(d['el']),'iou',round(d['iou'],3))"; done < $1/photos.txt

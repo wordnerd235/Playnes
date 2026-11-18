@@ -339,6 +339,13 @@ section (and any single part over 3,000) and stops. The kit jets now range from 
   the tail cone, and where the belly sweeps up their tail end must follow it (fairing keys take an
   optional top: `[z, half width, bottom, top]`). Check the gear's track and wheelbase against the
   maker's figures too (the Latitude's were 0.45 m off).
+- **Fit to photos from every angle, and measure.** Eyeballing one or two photos missed real
+  errors that a measurement found at once: the HondaJet's fin far too far back and its body 0.6 m
+  long, the Global 8000 4.7 m long, the Falcon 8X and PC-12 spans 1 m and 0.7 m short, most fins
+  too far forward. `tools/photofit/` (see its README) cuts the playne out of many Commons photos,
+  finds each photo's camera angle, colours where the outlines disagree, and for kit jets tunes
+  the spec until the photos agree, keeping to the published dimensions. The corrections sit in a
+  spec's `photoFit` list. `node tools/photofit/dims.cjs <ids>` checks span, length and height.
 - **Look from straight behind, too.** Even with keel fairings, the owner could still see the
   Latitude's wing trailing edge running across under the belly from behind; on the real jets the
   wing goes into the side of the fairing. The kit now fits the fairing itself (`fairSec` in

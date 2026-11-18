@@ -1,0 +1,102 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>fit</title>
+<script type="importmap">{"imports":{"three":"/repo/node_modules/three/build/three.module.js","three/addons/":"/repo/node_modules/three/examples/jsm/"}}</script>
+</head><body style="margin:0">
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+const q = new URLSearchParams(location.search);
+const R = Number(q.get("R") || 256);
+const NN = Number(q.get("N") || 160), SS = NN * 0.375, HC = NN / 2;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(R, R);
+document.body.appendChild(renderer.domElement);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.0));
+const sun = new THREE.DirectionalLight(0xffffff, 2.4); sun.position.set(-6, 12, 8); scene.add(sun);
+const black = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide });
+let model, centre, radius, mats = [];
+const cam = new THREE.PerspectiveCamera(6, 1, 1, 100000);
+function place(az, el, fov) {
+  const a = az * Math.PI / 180, e = el * Math.PI / 180;
+  const d = new THREE.Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e));
+  cam.fov = fov; cam.updateProjectionMatrix();
+  const dist = radius / Math.sin(fov * Math.PI / 360) * 1.05;
+  cam.position.copy(centre).addScaledVector(d, dist);
+  cam.up.set(0, 1, 0);
+  if (Math.abs(el) > 89) cam.up.set(0, 0, 1);
+  cam.lookAt(centre);
+}
+function setMask(on) { model.traverse((o) => { if (o.isMesh) o.material = on ? black : o.userData.mat; }); }
+const work = document.createElement("canvas"); work.width = work.height = NN;
+const wctx = work.getContext("2d", { willReadFrequently: true });
+let photo = null; // Uint8Array NN x NN
+function renderMask(az, el, fov) {
+  place(az, el, fov);
+  renderer.setClearColor(0xffffff, 1);
+  renderer.render(scene, cam);
+}
+function moments() {
+  const gl = renderer.getContext();
+  const px = new Uint8Array(R * R * 4);
+  gl.readPixels(0, 0, R, R, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  let n = 0, sx = 0, sy = 0;
+  for (let y = 0; y < R; y++) for (let x = 0; x < R; x++) { if (px[(y * R + x) * 4] < 128) { n++; sx += x; sy += R - 1 - y; } }
+  return { n, cx: sx / Math.max(n, 1), cy: sy / Math.max(n, 1) };
+}
+function score(m, roll) {
+  const k = SS / Math.sqrt(Math.max(m.n, 1)); // photo masks: sqrt(area) = 0.375 N px, centred
+  wctx.setTransform(1, 0, 0, 1, 0, 0); wctx.fillStyle = "#fff"; wctx.fillRect(0, 0, NN, NN);
+  wctx.translate(HC, HC); wctx.rotate(roll * Math.PI / 180); wctx.scale(k, k); wctx.translate(-m.cx, -m.cy);
+  wctx.drawImage(renderer.domElement, 0, 0);
+  const d = wctx.getImageData(0, 0, NN, NN).data;
+  let inter = 0, uni = 0;
+  for (let i = 0; i < NN * NN; i++) { const a = d[i * 4] < 128 ? 1 : 0, b = photo[i]; inter += a & b; uni += a | b; }
+  return inter / Math.max(uni, 1);
+}
+window.setPhoto = (arr) => { photo = Uint8Array.from(arr); };
+window.search = (azs, els, rolls, fov) => {
+  setMask(true);
+  const out = [];
+  for (const az of azs) for (const el of els) {
+    renderMask(az, el, fov);
+    const m = moments();
+    if (m.n < 20) continue;
+    for (const r of rolls) out.push([score(m, r), az, el, r]);
+  }
+  out.sort((a, b) => b[0] - a[0]);
+  return out.slice(0, 120);
+};
+// Final renders at a pose: mask and shaded at size N, with the mask's centroid and area.
+window.final = (az, el, fov, N) => {
+  renderer.setSize(N, N);
+  const res = {};
+  setMask(true); place(az, el, fov); renderer.setClearColor(0xffffff, 1); renderer.render(scene, cam);
+  res.mask = renderer.domElement.toDataURL("image/png");
+  setMask(false); renderer.setClearColor(0x9cc4e6, 1); renderer.render(scene, cam);
+  res.shaded = renderer.domElement.toDataURL("image/png");
+  renderer.setSize(R, R);
+  return res;
+};
+new GLTFLoader().load((q.get("src") || `/repo/public/models/${q.get("id")}.glb`) + `?${Date.now()}`, (g) => {
+  model = g.scene; scene.add(model);
+  if (q.get("zs")) model.scale.z = Number(q.get("zs"));
+  model.traverse((o) => { if (o.isMesh) o.userData.mat = o.material; });
+  for (const name of (q.get("hide") || "").split(",").filter(Boolean)) { const n = model.getObjectByName(name); if (n) n.visible = false; }
+  for (const pair of (q.get("rot") || "").split(",").filter(Boolean)) {
+    const [name, deg] = pair.split(":"); const n = model.getObjectByName(name);
+    if (n) n.rotateX((Number(deg) * Math.PI) / 180);
+  }
+  const box = new THREE.Box3().setFromObject(model);
+  centre = box.getCenter(new THREE.Vector3());
+  window.dims = { min: box.min.toArray(), max: box.max.toArray() };
+  window.parts = []; model.traverse((o) => { if (o.isMesh && o.visible) { let v = true; o.traverseAncestors((a) => { if (!a.visible) v = false; }); if (!v) return; const b = new THREE.Box3().setFromObject(o); let n = o; while (n.parent && !n.name) n = n.parent; window.parts.push([n.name || "?", b.min.toArray().map((x) => +x.toFixed(2)), b.max.toArray().map((x) => +x.toFixed(2))]); } });
+  radius = box.getSize(new THREE.Vector3()).length() / 2;
+  document.title = "ready";
+});
+</script></body></html>

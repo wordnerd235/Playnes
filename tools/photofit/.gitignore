@@ -1,0 +1,4 @@
+# Photos, cut-outs, fits and model variants are working files: never commit them.
+/*/
+*.log
+tq.txt
