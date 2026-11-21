@@ -144,8 +144,8 @@ function setSseKeepingMemoryRelief(tileset: Cesium3DTileset, sse: number): void 
 }
 
 /** Runs the detail governor on every rendered frame; `apply` gets the new detail scale. */
-function installGovernor(scene: Scene, apply: (scale: number) => void): DetailGovernor {
-  const g = new DetailGovernor();
+function installGovernor(scene: Scene, apply: (scale: number) => void, max = 2.6): DetailGovernor {
+  const g = new DetailGovernor({ max, min: 0.85, window: 1.5 });
   let last = performance.now();
   scene.postRender.addEventListener(() => {
     const now = performance.now();
@@ -282,6 +282,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   sceneHeights.getHeight = () => undefined;
   sceneHeights.updateHeight = () => () => {};
   const b = detailBudget(q);
+  const mobileDevice = deviceClass() !== "desktop";
   // Google serves over HTTP/2: more requests at once means tiles arrive sooner.
   RequestScheduler.requestsByServer["tile.googleapis.com:443"] = 24;
   const makeTileset = (): Promise<Cesium3DTileset> => createGooglePhotorealistic3DTileset(
@@ -303,6 +304,10 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       foveatedScreenSpaceError: false,
       preloadWhenHidden: false,
       dynamicScreenSpaceError: true,
+      // How much coarser far-off tiles may be (in pixels of error, Cesium's default is 24).
+      // Far ground is hazy anyway; on iPads and phones relax it more, since looking out to a
+      // horizon 100+ km away from a few thousand feet is what makes them struggle.
+      dynamicScreenSpaceErrorFactor: mobileDevice ? 40 : 24,
     },
   );
   const makeSteadyTileset = async () => {
@@ -324,10 +329,12 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
     if (Math.abs(target - tileset.maximumScreenSpaceError) < target * 0.04) return;
     setSseKeepingMemoryRelief(tileset, target);
   };
+  // iPads and phones may coarsen further when even 2.6x isn't enough (seen on an iPad at
+  // ~1,500 m looking out to a far horizon: governor pinned at its limit, still choppy).
   installGovernor(scene, (k) => {
     govK = k;
     applyDetail();
-  });
+  }, mobileDevice ? 4 : 2.6);
   let lastSpeedApply = 0;
 
   // Safety net: Cesium never lets go of the tile tree it has explored (only the tiles'
@@ -337,7 +344,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   // trip is very long, load a fresh copy of the 3D world in the background, switch over once
   // it has the ground around us, and drop the old one. (A "tree has doubled" trigger fired
   // too early: Google's map is still filling in for a while after the start.)
-  const mobile = deviceClass() !== "desktop";
+  const mobile = mobileDevice;
   const maxTravel = mobile ? 400_000 : 600_000;
   const treeSize = () => (tileset as unknown as { _statistics?: { numberOfTilesTotal?: number } })._statistics?.numberOfTilesTotal ?? 0;
   let treeBaseline = 0;
@@ -395,6 +402,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   const frameLog: { t: number; f: number }[] = [];
   let lastPrune = 0;
   let trimmed = 0;
+  let trimMs = 0;
   scene.postRender.addEventListener(() => {
     const now = performance.now();
     const f = (scene as unknown as { frameState: { frameNumber: number } }).frameState.frameNumber;
@@ -409,11 +417,13 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
     let since: number | null = null;
     for (const e of frameLog) if (now - e.t >= idleMs) since = e.f;
     if (since === null) return;
+    const t0 = performance.now();
     try {
       trimmed += pruneTileTree(tileset as unknown as PrunableTileset, { untouchedSince: since, camera: scene.camera.positionWC, minDistance: dev?.minDistance ?? 20_000, budget: 50_000 });
     } catch (e) {
       console.warn("tile trim failed", e);
     }
+    trimMs = Math.max(trimMs * 0.9, performance.now() - t0);
   });
 
   // With no globe, Cesium leaves out the blue sky (you'd see stars at noon): turn it back on.
@@ -486,14 +496,15 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       tileset.show = v;
     },
     perfStats() {
-      const t = tileset as unknown as { _memoryAdjustedScreenSpaceError?: number; _statistics?: { numberOfTilesTotal?: number; numberOfPendingRequests?: number; numberOfTilesProcessing?: number } };
+      const t = tileset as unknown as { _memoryAdjustedScreenSpaceError?: number; _statistics?: { numberOfTilesTotal?: number; numberOfPendingRequests?: number; numberOfTilesProcessing?: number; selected?: number; numberOfCommands?: number; numberOfTrianglesSelected?: number } };
       const st = t._statistics ?? {};
       const mb = (b: number) => Math.round(b / 1048576);
       return [
         `tiles ${mb(tileset.totalMemoryUsageInBytes)}/${mb(tileset.cacheBytes)} MB  tree ${st.numberOfTilesTotal ?? "?"}${treeBaseline ? ` (start ${treeBaseline})` : ""}`,
         `detail ${tileset.maximumScreenSpaceError.toFixed(0)}→${(t._memoryAdjustedScreenSpaceError ?? 0).toFixed(0)}  gov ${govK.toFixed(2)}  speed ${speedK}`,
         `loading ${st.numberOfPendingRequests ?? 0}+${st.numberOfTilesProcessing ?? 0}  fresh starts ${recycles}${recycling ? " (now)" : ""}  ${(travel / 1000).toFixed(0)} km`,
-        `trimmed ${trimmed}`,
+        `drawn ${st.selected ?? "?"} tiles  ${((st.numberOfTrianglesSelected ?? 0) / 1e6).toFixed(1)}M triangles  ${st.numberOfCommands ?? "?"} draws`,
+        `trimmed ${trimmed}  trim ${trimMs.toFixed(0)} ms`,
       ].join("\n");
     },
     afterTeleport() {

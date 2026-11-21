@@ -445,6 +445,14 @@ If the owner can supply any of those drawings, add them to tools/photofit/drawin
   rather than jumps). A blur was not used: it costs GPU time and would make the drop worse on
   iPads. tools/diag-lookreset.cjs measures it (headless has no GPU, so only the swing itself
   can be checked there; frame times need a real device).
+- iPad choppiness in Google mode at ~1,500 m (owner's overlay: 35 fps, governor pinned at
+  2.6, tile memory 299/300 MB, almost nothing loading): the device was struggling to draw the
+  view out to a far horizon. On iPads and phones the governor may now go to 4x coarser and far
+  tiles are relaxed more (dynamicScreenSpaceErrorFactor 40 instead of 24). The overlay now
+  shows the lowest frame rate and hitches (>50 ms) over the last 10 s, uncapped frame times
+  (the old "slowest" was the 95th percentile and capped at 100 ms), processor time per frame
+  (much less than the frame time = graphics-chip bound), tiles/triangles/draws drawn and the
+  tile-trim time. Next step: a screenshot of the new overlay from the same spot.
 
 Still to do:
 - Check on iPad and in Google (photo-realistic) map mode.

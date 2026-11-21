@@ -146,13 +146,20 @@ class Game implements ScreenHost {
     this.world.setClouds(this.settings.clouds !== false);
     this.world.widget.scene.preUpdate.addEventListener(() => {
       // A bug in game code must never stop the 3D view from rendering.
+      this.cpuStart = performance.now();
       try {
         this.frame();
+        this.gameMs = performance.now() - this.cpuStart;
       } catch (err) {
         this.frameErrors++;
         if (this.frameErrors < 5) console.error("frame error", err);
         recordFrameError(err);
       }
+    });
+    // Processor time per frame (game + map work, up to handing the picture to the graphics
+    // chip). Much less than the frame time means the graphics chip is the bottleneck.
+    this.world.widget.scene.postRender.addEventListener(() => {
+      if (this.settings.perfStats && this.cpuStart) this.perfCpu.push([performance.now() - this.cpuStart, this.gameMs]);
     });
   }
 
@@ -161,14 +168,21 @@ class Game implements ScreenHost {
   private perfAt = 0;
   private perfStart = 0;
   private perfFrames: number[] = [];
+  /** Last 10 s of frame times (ms, not capped) for the low frame rate and hitch count. */
+  private perfRecent: { t: number; ms: number }[] = [];
+  private perfCpu: [number, number][] = [];
+  private cpuStart = 0;
+  private gameMs = 0;
 
-  private updatePerf(now: number, dt: number): void {
+  private updatePerf(now: number, frameMs: number): void {
     if (!this.settings.perfStats || !this.world) {
       this.perfEl?.remove();
       this.perfEl = null;
       return;
     }
-    this.perfFrames.push(dt * 1000);
+    this.perfFrames.push(frameMs);
+    this.perfRecent.push({ t: now, ms: frameMs });
+    while (this.perfRecent.length && now - this.perfRecent[0].t > 10_000) this.perfRecent.shift();
     if (now - this.perfAt < 1000) return;
     this.perfAt = now;
     if (!this.perfEl) {
@@ -180,12 +194,21 @@ class Game implements ScreenHost {
     const f = this.perfFrames.sort((a, b) => a - b);
     this.perfFrames = [];
     const avg = f.length ? f.reduce((a, b) => a + b, 0) / f.length : 0;
-    const worst = f.length ? f[Math.floor(f.length * 0.95)] : 0;
+    // Lowest frame rate = the single slowest frame in the last 10 s (a menu or a hidden tab
+    // over a second doesn't count); hitches = frames slower than 50 ms (a visible stutter).
+    const recent = this.perfRecent.filter((r) => r.ms < 1000);
+    const slowest = recent.reduce((m, r) => Math.max(m, r.ms), 0);
+    const hitches = recent.filter((r) => r.ms > 50).length;
+    const cpu = this.perfCpu.splice(0);
+    const cpuAvg = cpu.length ? cpu.reduce((a, c) => a + c[0], 0) / cpu.length : 0;
+    const cpuMax = cpu.reduce((m, c) => Math.max(m, c[0]), 0);
+    const gameAvg = cpu.length ? cpu.reduce((a, c) => a + c[1], 0) / cpu.length : 0;
     const heap = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize;
     const mins = Math.floor((now - this.perfStart) / 60000);
     const secs = Math.floor(((now - this.perfStart) / 1000) % 60);
     const lines = [
-      `${avg ? Math.round(1000 / avg) : 0} fps  slowest ${Math.round(worst)} ms  ${mins}:${String(secs).padStart(2, "0")}  ${this.world.kind}`,
+      `${avg ? Math.round(1000 / avg) : 0} fps  low ${slowest ? Math.round(1000 / slowest) : 0} fps  hitches ${hitches} (10 s)  ${mins}:${String(secs).padStart(2, "0")}  ${this.world.kind}`,
+      `frame ${avg.toFixed(0)} ms  slowest ${Math.round(slowest)}  cpu ${cpuAvg.toFixed(0)} (max ${Math.round(cpuMax)}, game ${gameAvg.toFixed(0)})`,
       ...(this.world.perfStats ? [this.world.perfStats()] : []),
       ...(heap ? [`js ${Math.round(heap / 1048576)} MB`] : []),
       // Which version is running (the offline cache can keep an older one for a launch).
@@ -196,11 +219,12 @@ class Game implements ScreenHost {
 
   private frame(): void {
     const now = performance.now();
-    const dt = Math.min(0.1, (now - this.lastFrame) / 1000);
+    const rawMs = now - this.lastFrame;
+    const dt = Math.min(0.1, rawMs / 1000);
     this.lastFrame = now;
     if (this.flight) {
       this.flight.update(dt);
-      this.updatePerf(now, dt);
+      this.updatePerf(now, rawMs);
       // Keep a Free Flight saved every few seconds, so it survives leaving or closing the app.
       if (now - this.lastFreeSave > 5000) {
         this.lastFreeSave = now;
