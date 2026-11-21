@@ -439,6 +439,12 @@ If the owner can supply any of those drawings, add them to tools/photofit/drawin
 - Latitude tailplane: the drawing showed it slightly short, not long. A tuning pass on the
   tailplane alone moved the root 0.2 m aft and grew each side 0.3 m (top-view match 0.904 to
   0.916, overall 0.841 to 0.845), in line with the earlier photo note that it looked short.
+- Reset-view stutter: the reset button used to jump the view up to 180 degrees in one frame,
+  so the world had to draw a whole new set of tiles at once. It now swings back over 0.3-0.65 s
+  (PlaneView.resetLook(true); a slow frame advances the swing at most 1/20 s, so it slows down
+  rather than jumps). A blur was not used: it costs GPU time and would make the drop worse on
+  iPads. tools/diag-lookreset.cjs measures it (headless has no GPU, so only the swing itself
+  can be checked there; frame times need a real device).
 
 Still to do:
 - Check on iPad and in Google (photo-realistic) map mode.

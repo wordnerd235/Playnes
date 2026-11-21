@@ -355,7 +355,7 @@ export class FlightSession {
     this.hudGlass = new HudGlass(deps.hud.root);
     this.paxWindow = new PassengerWindow(deps.hud.root);
     deps.hud.onLook = (dy, dp) => this.view.addLook(dy, dp);
-    deps.hud.onLookReset = () => this.view.resetLook();
+    deps.hud.onLookReset = () => this.view.resetLook(true);
     this.unsub = deps.controls.on((e) => this.onControl(e));
     const from = airportByCode(mission.kind === "charter" ? mission.from : mission.airport);
     const to = airportByCode(mission.kind === "charter" ? mission.to : mission.airport);

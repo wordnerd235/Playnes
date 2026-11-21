@@ -74,7 +74,10 @@ const path = require("path");
   await page.waitForTimeout(800);
   await shot("3-look");
   await page.click(".look-reset", { force: true });
-  check((await page.evaluate(() => window.playnes.flight.view.lookYaw)) === 0, "reset view button");
+  // The view swings back over about half a second (longer in a slow headless browser).
+  const swinging = Math.abs(await page.evaluate(() => window.playnes.flight.view.lookYaw)) > 0;
+  const back = await page.waitForFunction(() => window.playnes.flight.view.lookYaw === 0, null, { timeout: 30000 }).then(() => true, () => false);
+  check(swinging && back, "reset view button swings the view back");
 
   // Big map: autopilot holds heading.
   const before = await F();

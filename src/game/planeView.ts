@@ -127,12 +127,25 @@ export class PlaneView {
     this.camHeading = h;
   }
 
-  resetLook(): void {
+  /**
+   * Point the view ahead again. `smooth` swings it back over about half a second instead of
+   * jumping: a jump makes the world load a whole new view of tiles in one frame (a visible
+   * stutter), a swing spreads that over many frames and reads as a camera pan.
+   */
+  resetLook(smooth = false): void {
+    const a = Math.max(Math.abs(this.lookYaw), Math.abs(this.lookPitch));
+    if (smooth && a > 2) {
+      this.lookEase = { yaw: this.lookYaw, pitch: this.lookPitch, t: 0, dur: 0.3 + 0.35 * Math.min(1, a / 180) };
+      return;
+    }
+    this.lookEase = null;
     this.lookYaw = 0;
     this.lookPitch = 0;
   }
+  private lookEase: { yaw: number; pitch: number; t: number; dur: number } | null = null;
 
   addLook(dYaw: number, dPitch: number): void {
+    this.lookEase = null;
     this.lookYaw = ((this.lookYaw + dYaw + 540) % 360) - 180;
     this.lookPitch = clamp(this.lookPitch + dPitch, this.mode === "cockpit" ? -60 : -25, this.mode === "cockpit" ? 45 : 70);
   }
@@ -341,6 +354,16 @@ export class PlaneView {
     const L = this.ac.shape.length;
     const k = dt === 0 ? 1 : 1 - Math.exp(-dt * 2.5);
     this.camHeading += angleDiff(s.heading, this.camHeading) * k;
+    if (this.lookEase) {
+      // A slow frame advances the swing by at most 1/20 s, so it slows down rather than jumps.
+      const e = this.lookEase;
+      e.t += Math.min(dt, 0.05);
+      const u = dt === 0 ? 1 : Math.min(1, e.t / e.dur);
+      const w = 1 - u * u * (3 - 2 * u);
+      this.lookYaw = e.yaw * w;
+      this.lookPitch = e.pitch * w;
+      if (u >= 1) this.lookEase = null;
+    }
     // A modelled cabin is seen with a person's wide view from the seats (the chase view and the
     // other playnes keep the usual 60 degrees).
     const seatFov = this.mode !== "chase" ? RIGS[this.ac.id]?.fov : undefined;
