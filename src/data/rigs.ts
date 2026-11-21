@@ -161,8 +161,8 @@ export const RIGS: Record<string, Rig> = {
   },
   "latitude": {
     "retractDeg": {
-      "gearL": 93.6,
-      "gearR": 93.6,
+      "gearL": 94.7,
+      "gearR": 94.7,
       "gearN": 110
     },
     "wheelRadius": {
@@ -173,10 +173,10 @@ export const RIGS: Record<string, Rig> = {
     "eye": [
       0.46,
       2.465,
-      5.79
+      5.806363636363637
     ],
     "windowEye": [
-      0.4555273161030743,
+      0.432824903814616,
       2.49,
       2.33
     ],
