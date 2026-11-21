@@ -89,9 +89,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "hondajet": {
     "retractDeg": {
-      "gearL": 104.8,
-      "gearR": 104.8,
-      "gearN": 110
+      "gearL": 108.2,
+      "gearR": 108.2,
+      "gearN": 112.5
     },
     "wheelRadius": {
       "wheelL": 0.25,
@@ -104,7 +104,7 @@ export const RIGS: Record<string, Rig> = {
       3.01
     ],
     "windowEye": [
-      0.3250028385141043,
+      0.3210451716906858,
       1.8399999999999999,
       1.2
     ],

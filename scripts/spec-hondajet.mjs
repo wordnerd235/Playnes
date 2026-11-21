@@ -34,4 +34,7 @@ export const HONDAJET = {
   pitot: [5.571, 1.25],
   speedbrake: "tail", // petals on the tail cone
   gear: { mainX: 1.35, pivotY: 0.72, mainR: 0.25, mainW: 0.16, noseZ: 4.943, noseR: 0.19, noseW: 0.12, nosePivotY: 0.9 },
+  // Corrections from fitting the model to Honda's dimensioned three-view (HondaJet Elite II
+  // brochure): more wing sweep, lower and slightly bigger engines, a broader tailplane root.
+  photoFit: [["@nose", "+", 0.3], ["wing.le0", "+", 0.3], ["wing.sweep", "+", 2.0], ["fin.tipChord", "*", 0.9], ["tailplane.tipX", "+", -0.2], ["tailplane.root", "*", 1.16], ["engines.0.zi", "+", -0.3], ["engines.0.y", "+", -0.1], ["engines.0.x", "+", -0.1], ["wing.dihedral", "+", -0.5], ["wing.y0", "+", 0.05], ["fin.rootLE.1", "+", 0.3], ["engines.0.r", "*", 1.09], ["fus.*.2", "+", 0.03]],
 };
