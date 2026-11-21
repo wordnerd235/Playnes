@@ -422,24 +422,13 @@ upgrade Cesium casually, and re-run `tools/diag-google.cjs` if you do.
 
 ## To-do (updated 18 Nov 2026)
 
-In progress when paused:
-- **Check every jet against the makers' three-view drawings** (tools/photofit, see its README).
-  Drawings found and turned into exact-scale outlines: HondaJet, Falcon 8X, Citation Latitude,
-  PC-24 (side only). Nothing from this step is in the models yet. First results:
-  - Falcon 8X (match 0.69 -> 0.83 in a first tune): the wing and engines sit about a metre too
-    far forward, the tailplane is too small and low, the fin about 0.7 m too short, the engines
-    a little small. That tune stretched the nose 1.5 m, so re-run it with the length penalty
-    (now in drawtune.py) before applying anything.
-  - HondaJet (0.81 -> 0.86): small changes (wing sweep, tailplane chord, engines lower/forward);
-    also re-run with the length penalty.
-  - Latitude: fin too far forward, tail cone too short and shallow, tailplane chord too small.
-  - PC-24 (side): belly too deep under the nose, tail cone too long and round, fin tip too short.
-  No public three-views found for the PC-12 NGX (Pilatus's only render is too faint; the 2024
-  "Just The Facts" line drawing is small), Phenom 100/300E and Praetor 600 (Embraer brochures have
-  none), Challenger 3500 and Global 8000 (Bombardier factsheets have none), Gulfstream G650ER/G700
-  (gulfstream.aero refuses downloads). Airport planning manuals for these are customer-only.
-  After each tune: look at the overlay by eye, put the result in the spec's photoFit list,
-  rebuild, gear check, tests, re-render the hangar pictures, commit, deploy.
+Done (21 Nov): the Falcon 8X, HondaJet, Citation Latitude and PC-24 are fitted to the makers'
+dimensioned drawings (outline match: Falcon 0.66 -> 0.80, HondaJet 0.78 -> 0.86, Latitude
+0.64 -> 0.84, PC-24 side 0.85 -> 0.89), keeping to the published length and span. The corrections
+are each spec's photoFit list. No public three-views were found for the PC-12 NGX (Pilatus's
+render is too faint; the 2024 "Just The Facts" line drawing is small), Phenom 100/300E, Praetor
+600, Challenger 3500, Global 8000 and G650ER/G700; airport planning manuals are customer-only.
+If the owner can supply any of those drawings, add them to tools/photofit/drawings/specs.json.
 - Known small model issues: Challenger fin-top fairing smaller than real; Phenom 300E 0.2 m under
   its published height; Latitude tailplane tips may be a little long.
 
