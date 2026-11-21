@@ -33,4 +33,7 @@ export const PC24 = {
   antennas: [[4.5, 0.2], [0.5, 0.16], [-2.4, 0.15]],
   pitot: [8.2, 1.3],
   gear: { mainX: 1.55, pivotY: 1.05, mainR: 0.3, mainW: 0.19, noseZ: 7.12, noseR: 0.22, noseW: 0.14, nosePivotY: 1.05 },
+  // Corrections from fitting the model to Pilatus's exterior-view drawing (PC-24 Just The Facts):
+  // fin and tailplane slightly lower and the fin tip further back, engines higher, slimmer belly.
+  photoFit: [["@nose", "+", 0.3], ["fin.tipLE.1", "+", -0.6], ["engines.0.y", "+", 0.2], ["fus.*.2", "+", -0.06], ["fin.rootLE.1", "+", 0.15], ["fin.tipLE.0", "+", -0.2], ["tailplane.y", "+", -0.225], ["engines.0.zi", "+", -0.15]],
 };
