@@ -429,6 +429,8 @@ are each spec's photoFit list. No public three-views were found for the PC-12 NG
 render is too faint; the 2024 "Just The Facts" line drawing is small), Phenom 100/300E, Praetor
 600, Challenger 3500, Global 8000 and G650ER/G700; airport planning manuals are customer-only.
 If the owner can supply any of those drawings, add them to tools/photofit/drawings/specs.json.
+- PC-24 wingtips done (raked tips, no winglets). Short/unpaved strips dropped: the maps have no
+  such strips, and any playne can already land on flat open ground.
 - Known small model issues: Challenger fin-top fairing smaller than real; Phenom 300E 0.2 m under
   its published height; Latitude tailplane tips may be a little long.
 
@@ -437,4 +439,3 @@ Still to do:
 - Copy the test copy over to the main game (change .stable-ref) when the owner says so.
 - Housekeeping: split src/game/flight.ts, add a linter, shared helpers for the test scripts,
   trim the site.
-- PC-24: check its winglets; let it use short and unpaved strips.

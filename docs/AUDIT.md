@@ -17,7 +17,7 @@ the published figures for nearly every type. These are the things that are off:
 | Challenger 3500 | Mmo 0.85 | **0.83** (confirmed by search) | fixed in the test copy |
 | HondaJet Elite II | tail "conventional" | **T-tail** | fixed in the test copy |
 | Citation Latitude | tail "t-tail" | **cruciform** (tailplane part-way up the fin) | fixed in the test copy |
-| Pilatus PC-24 | winglets: no | has small winglets | not fixed; cosmetic |
+| Pilatus PC-24 | wingtips | no winglets: raked, slightly upturned tips (Pilatus drawing, photos) | fixed: raked tips, dihedral 4.5 deg to match the drawing |
 | Global 8000 | span 32.4 m | **31.7 m (104 ft)** (Bombardier factsheet) | fixed in the test copy (data and model) |
 | Phenom 300E | span 16.2 m | about 15.9 m | fixed in the test copy |
 | PC-12 NGX | Vmo 236 kt | **240 kt** (calibrated; Aviation Week, the POH) | fixed in the test copy |

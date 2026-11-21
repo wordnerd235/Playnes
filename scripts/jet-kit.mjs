@@ -462,12 +462,18 @@ export function buildJet(ac, kit, S) {
       const wr = LE(XT).add(V(0, -0.01, -0.02)), wt = V(side * (XT + WL.out), wingY(XT) + WL.height, leAt(XT) - WL.back);
       add("body", part(surface({ rootLE: wr, tipLE: wt, rootChord: chordAt(XT) * 0.98, tipChord: WL.tipChord, thickness: 0.1, camber: 0, up: V(side, 0, 0), stations: [{ t: 0 }, { t: 1 }] }), MAT.paint, WL.colour ? C(WL.colour) : cWhite));
       add("body", part(new THREE.SphereGeometry(1, 14, 8).applyMatrix4(new THREE.Matrix4().makeScale(0.07, 0.07, chordAt(XT) * 0.45)).applyMatrix4(T(side * XT, wingY(XT) + 0.02, leAt(XT) - chordAt(XT) * 0.47)), MAT.paint, cWhite));
+    } else if (WG.tip) {
+      // Raked tip (wing.tip: { out, back, chord, up }): the outer panel swept back to a narrow
+      // tip and turned up slightly, as on the PC-24 (no winglet).
+      const R = WG.tip, wr = LE(XT).add(V(0, 0, 0.004)), wt = V(side * (XT + R.out), wingY(XT) + (R.up ?? 0), leAt(XT) - R.back);
+      add("body", part(surface({ rootLE: wr, tipLE: wt, rootChord: chordAt(XT) * 1.0, tipChord: R.chord, thickness: WG.thickness ?? 0.12, camber: 0.02, up: V(0, 1, 0), stations: [{ t: 0 }, { t: 1 }] }), MAT.paint, cWing));
+      lightX = XT + R.out * 0.5; lightY = wingY(XT) + (R.up ?? 0) * 0.5 + 0.02;
     } else {
       // Plain rounded tip.
       add("body", part(new THREE.SphereGeometry(1, 16, 8).applyMatrix4(new THREE.Matrix4().makeScale(0.12, chordAt(XT) * 0.06, chordAt(XT) * 0.5)).applyMatrix4(T(side * XT, wingY(XT) + 0.01, leAt(XT) - chordAt(XT) * 0.48)), MAT.paint, cWing));
       lightX = XT + 0.1;
     }
-    add("body", part(new THREE.SphereGeometry(0.04, 10, 8).applyMatrix4(T(side * lightX, lightY, leAt(XT) - 0.05)), side > 0 ? MAT.navRed : MAT.navGreen, C("#ffffff"), { noAO: true }));
+    add("body", part(new THREE.SphereGeometry(0.04, 10, 8).applyMatrix4(T(side * lightX, lightY, leAt(XT) - 0.05 - (WG.tip && !WL ? WG.tip.back * 0.5 : 0))), side > 0 ? MAT.navRed : MAT.navGreen, C("#ffffff"), { noAO: true }));
     add("strobe", part(new THREE.SphereGeometry(0.035, 10, 8).applyMatrix4(T(side * (lightX + 0.01), lightY + 0.07, leAt(XT) - Math.min(0.75, chordAt(XT) * 0.8))), MAT.white, C("#ffffff"), { noAO: true }));
   }
   // Speedbrakes: spoiler panels on the wings ahead of the flaps (most jets), or petals on the

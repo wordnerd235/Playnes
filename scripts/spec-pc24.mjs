@@ -20,7 +20,7 @@ export const PC24 = {
   cabin: { lavZ: -1.3, rows: [{ z: 3.45, facing: "aft" }, { z: 2.25 }, { z: 0.8 }, { z: -0.5 }], tables: [2.85], galleyZ: 4.35, windowSeat: 2.1, aisleHalf: 0.36 },
   door: { z0: 3.95, z1: 4.68, y0: 1.25, y1: 2.78 },
   exits: [{ side: -1, z0: 1.07, z1: 1.55, y0: 1.95, y1: 2.55 }], // over the right wing
-  wing: { dihedral: 3, sweep: 12, span: 8.45, y0: 0.95, rootChord: 3.0, tipChord: 1.1, le0: 2.5, flap: [1.0, 5.4], aileron: [5.6, 7.9], thickness: 0.13, winglet: null },
+  wing: { dihedral: 4.5, sweep: 12, span: 8.0, y0: 0.95, rootChord: 3.0, tipChord: 1.1, le0: 2.5, flap: [1.0, 5.4], aileron: [5.6, 7.9], thickness: 0.13, winglet: null, tip: { out: 0.55, back: 0.78, chord: 0.36, up: 0.05 } }, // raked, slightly upturned tips (no winglets)
   // A long keel fairing (checked from below against photos), not a pod under the wing.
   fairing: { top: 1.2, e: 2.3, keys: [[6.7, 0.02, 0.86], [6.0, 0.3, 0.82], [4.8, 0.45, 0.78], [3.4, 0.56, 0.74], [2.2, 0.62, 0.71], [0.8, 0.64, 0.7], [-0.4, 0.6, 0.72], [-1.4, 0.48, 0.8], [-2.4, 0.3, 1.05, 1.4], [-3.2, 0.12, 1.36, 1.6], [-3.6, 0.02, 1.5, 1.7]] },
   // Tail close-ups: the trailing edge stands nearly upright over the end of the tail cone.

@@ -137,8 +137,8 @@ export const RIGS: Record<string, Rig> = {
   },
   "pc24": {
     "retractDeg": {
-      "gearL": 96.8,
-      "gearR": 96.8,
+      "gearL": 92.4,
+      "gearR": 92.4,
       "gearN": 112.5
     },
     "wheelRadius": {
