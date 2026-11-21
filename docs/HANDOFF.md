@@ -436,7 +436,9 @@ If the owner can supply any of those drawings, add them to tools/photofit/drawin
   tail photos. Phenom 300E height left as is: the model's top is 4.92 m against 5.10 m published,
   but a 0.18 m taller tail scored worse on the straight side photos (b000, b006, b009), so the
   photos say the tail is right; the published figure probably includes more strut extension.
-- Known small model issue: Latitude tailplane tips may be a little long.
+- Latitude tailplane: the drawing showed it slightly short, not long. A tuning pass on the
+  tailplane alone moved the root 0.2 m aft and grew each side 0.3 m (top-view match 0.904 to
+  0.916, overall 0.841 to 0.845), in line with the earlier photo note that it looked short.
 
 Still to do:
 - Check on iPad and in Google (photo-realistic) map mode.

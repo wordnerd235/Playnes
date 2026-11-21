@@ -38,6 +38,6 @@ export const LATITUDE = {
   gear: { mainX: 1.52, mainZ: -0.43, pivotY: 1.25, mainR: 0.33, mainW: 0.22, legR: 0.06, noseZ: 7.8, noseR: 0.23, noseW: 0.15, noseDual: true, nosePivotY: 1.3 },
   // Corrections from fitting the model to Textron's dimensioned three-view (Specification and
   // Description, Oct 2015): the fin 1.5 m further back at the root, a deeper tail cone, bigger
-  // engines, a broader tailplane, a slightly longer nose.
-  photoFit: [["@nose", "+", 0.3], ["wing.le0", "+", 0.3], ["wing.span", "+", 0.15], ["fin.rootLE.1", "+", -1.5], ["fin.tipLE.1", "+", -0.6], ["tailplane.tipLE", "+", 0.3], ["tailplane.y", "+", -0.3], ["engines.0.r", "*", 1.24], ["fus.*.2", "+", 0.18], ["wing.tipChord", "*", 0.8], ["tailplane.root", "*", 1.24], ["engines.0.y", "+", -0.05], ["fus.12.3", "+", -0.25], ["fus.13.3", "+", -0.5], ["fus.14.3", "+", -0.8], ["fus.15.3", "+", -1.0], ["fus.16.3", "+", -1.05]],
+  // engines, a broader and wider tailplane set a little further back, a slightly longer nose.
+  photoFit: [["@nose", "+", 0.3], ["wing.le0", "+", 0.3], ["wing.span", "+", 0.15], ["fin.rootLE.1", "+", -1.5], ["fin.tipLE.1", "+", -0.6], ["tailplane.tipLE", "+", 0.3], ["tailplane.y", "+", -0.3], ["engines.0.r", "*", 1.24], ["fus.*.2", "+", 0.18], ["wing.tipChord", "*", 0.8], ["tailplane.root", "*", 1.24], ["engines.0.y", "+", -0.05], ["fus.12.3", "+", -0.25], ["fus.13.3", "+", -0.5], ["fus.14.3", "+", -0.8], ["fus.15.3", "+", -1.0], ["fus.16.3", "+", -1.05], ["tailplane.rootLE", "+", -0.2], ["tailplane.tipX", "+", 0.3]],
 };
