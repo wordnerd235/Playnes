@@ -233,9 +233,9 @@ export const RIGS: Record<string, Rig> = {
   },
   "falcon8x": {
     "retractDeg": {
-      "gearL": 82.8,
-      "gearR": 82.8,
-      "gearN": 82.5
+      "gearL": 87.5,
+      "gearR": 87.5,
+      "gearN": 70
     },
     "wheelRadius": {
       "wheelL": 0.43,
@@ -245,10 +245,10 @@ export const RIGS: Record<string, Rig> = {
     "eye": [
       0.55,
       2.565,
-      9.510000000000002
+      9.570728744939274
     ],
     "windowEye": [
-      0.597037339812771,
+      0.6421078464962205,
       2.575,
       6.22
     ],
