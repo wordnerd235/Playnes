@@ -97,25 +97,62 @@ function pruneBranch(ts: PrunableTileset, top: PrunableTile, tiles: PrunableTile
 }
 
 /**
- * One trimming pass. Walks the parts of the tree in use, and for every branch the camera hasn't
- * touched lately and that's far away, frees the topmost index branch(es) under it.
- * Returns the number of tiles destroyed.
+ * One trimming pass, all at once. Walks the parts of the tree in use, and for every branch the
+ * camera hasn't touched lately and that's far away, frees the topmost index branch(es) under it.
+ * Returns the number of tiles destroyed. (The game uses TreeTrimmer, which spreads a pass over
+ * many frames.)
  */
 export function pruneTileTree(ts: PrunableTileset, o: PruneOptions): number {
-  let destroyed = 0;
-  const stack: { t: PrunableTile; depth: number }[] = [{ t: ts.root, depth: 0 }];
-  while (stack.length && destroyed < o.budget) {
-    const { t, depth } = stack.pop()!;
-    const idle = t._touchedFrame < o.untouchedSince;
-    // Never the root or its own index (the first file Cesium loads).
-    if (depth >= 2 && idle && t.hasTilesetContent && !t.hasImplicitContent && t._contentState !== LOADING && t._contentState !== PROCESSING && t.children.length && far(t, o)) {
-      const tiles = collect(t);
-      if (tiles) {
-        destroyed += pruneBranch(ts, t, tiles);
-        continue;
-      }
-    }
-    for (const c of t.children) stack.push({ t: c, depth: depth + 1 });
+  const t = new TreeTrimmer();
+  return t.step(ts, o, Infinity);
+}
+
+/**
+ * The trimming pass spread over frames: each step works for at most a couple of milliseconds
+ * and carries on where the last one stopped. Walking the whole tree in one go took ~27 ms on a
+ * fast computer with a 50k-entry tree and much longer on an iPad with a bigger one: a stutter
+ * every few seconds (and the detail governor then kept the map coarse for nothing).
+ */
+export class TreeTrimmer {
+  private stack: { t: PrunableTile; depth: number }[] = [];
+  private ts: PrunableTileset | null = null;
+  /** Passes started (a pass ends when the whole tree in use has been walked). */
+  passes = 0;
+
+  /** True while a pass is part-way through. */
+  get busy(): boolean {
+    return this.stack.length > 0;
   }
-  return destroyed;
+
+  /** Work for at most `maxMs`. Starts a new pass if the last one finished. Returns tiles destroyed. */
+  step(ts: PrunableTileset, o: PruneOptions, maxMs: number, now: () => number = () => performance.now()): number {
+    if (ts !== this.ts) {
+      this.ts = ts;
+      this.stack = [];
+    }
+    if (!this.stack.length) {
+      this.stack.push({ t: ts.root, depth: 0 });
+      this.passes++;
+    }
+    const end = maxMs === Infinity ? Infinity : now() + maxMs;
+    const stack = this.stack;
+    let destroyed = 0;
+    let n = 0;
+    while (stack.length && destroyed < o.budget) {
+      if (end !== Infinity && (++n & 63) === 0 && now() > end) break;
+      const { t, depth } = stack.pop()!;
+      const idle = t._touchedFrame < o.untouchedSince;
+      // Never the root or its own index (the first file Cesium loads).
+      if (depth >= 2 && idle && t.hasTilesetContent && !t.hasImplicitContent && t._contentState !== LOADING && t._contentState !== PROCESSING && t.children.length && far(t, o)) {
+        const tiles = collect(t);
+        if (tiles) {
+          destroyed += pruneBranch(ts, t, tiles);
+          continue;
+        }
+      }
+      for (const c of t.children) stack.push({ t: c, depth: depth + 1 });
+    }
+    if (destroyed >= o.budget) this.stack = [];
+    return destroyed;
+  }
 }

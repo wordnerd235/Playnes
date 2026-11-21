@@ -33,7 +33,7 @@ import { AirportBuildings } from "./buildings.ts";
 import { LandmarkMarkers } from "./landmarks.ts";
 import { detailBudget, deviceClass } from "./device.ts";
 import { DetailGovernor, shareTextureCounts, speedStep, steadyTileDetail } from "./governor.ts";
-import { pruneTileTree, type PrunableTileset } from "./tilePruner.ts";
+import { TreeTrimmer, type PrunableTileset } from "./tilePruner.ts";
 import { degrade, FEATURE_NAMES, gfxOn, type GfxFeature } from "./safety.ts";
 
 /** "cartoon" = offline cartoon world; "basic" = bare globe if the offline data is missing. */
@@ -403,6 +403,9 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   let lastPrune = 0;
   let trimmed = 0;
   let trimMs = 0;
+  // A pass is spread over frames, at most ~2 ms each (see TreeTrimmer).
+  const trimmer = new TreeTrimmer();
+  let passSince = 0;
   scene.postRender.addEventListener(() => {
     const now = performance.now();
     const f = (scene as unknown as { frameState: { frameNumber: number } }).frameState.frameNumber;
@@ -410,20 +413,24 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       frameLog.push({ t: now, f });
       if (frameLog.length > 90) frameLog.shift();
     }
+    if (recycling) return;
     const dev = (window as unknown as { __playnesPrune?: { idleMs?: number; minDistance?: number; everyMs?: number } }).__playnesPrune;
-    if (recycling || now - lastPrune < (dev?.everyMs ?? 3000)) return;
-    lastPrune = now;
-    const idleMs = dev?.idleMs ?? 20_000;
-    let since: number | null = null;
-    for (const e of frameLog) if (now - e.t >= idleMs) since = e.f;
-    if (since === null) return;
+    if (!trimmer.busy) {
+      if (now - lastPrune < (dev?.everyMs ?? 3000)) return;
+      lastPrune = now;
+      const idleMs = dev?.idleMs ?? 20_000;
+      let since: number | null = null;
+      for (const e of frameLog) if (now - e.t >= idleMs) since = e.f;
+      if (since === null) return;
+      passSince = since;
+    }
     const t0 = performance.now();
     try {
-      trimmed += pruneTileTree(tileset as unknown as PrunableTileset, { untouchedSince: since, camera: scene.camera.positionWC, minDistance: dev?.minDistance ?? 20_000, budget: 50_000 });
+      trimmed += trimmer.step(tileset as unknown as PrunableTileset, { untouchedSince: passSince, camera: scene.camera.positionWC, minDistance: dev?.minDistance ?? 20_000, budget: 50_000 }, 2);
     } catch (e) {
       console.warn("tile trim failed", e);
     }
-    trimMs = Math.max(trimMs * 0.9, performance.now() - t0);
+    trimMs = Math.max(trimMs * 0.98, performance.now() - t0);
   });
 
   // With no globe, Cesium leaves out the blue sky (you'd see stars at noon): turn it back on.
@@ -496,14 +503,14 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       tileset.show = v;
     },
     perfStats() {
-      const t = tileset as unknown as { _memoryAdjustedScreenSpaceError?: number; _statistics?: { numberOfTilesTotal?: number; numberOfPendingRequests?: number; numberOfTilesProcessing?: number; selected?: number; numberOfCommands?: number; numberOfTrianglesSelected?: number } };
+      const t = tileset as unknown as { _memoryAdjustedScreenSpaceError?: number; _statistics?: { numberOfTilesTotal?: number; numberOfPendingRequests?: number; numberOfTilesProcessing?: number; selected?: number; numberOfCommands?: number } };
       const st = t._statistics ?? {};
       const mb = (b: number) => Math.round(b / 1048576);
       return [
         `tiles ${mb(tileset.totalMemoryUsageInBytes)}/${mb(tileset.cacheBytes)} MB  tree ${st.numberOfTilesTotal ?? "?"}${treeBaseline ? ` (start ${treeBaseline})` : ""}`,
         `detail ${tileset.maximumScreenSpaceError.toFixed(0)}→${(t._memoryAdjustedScreenSpaceError ?? 0).toFixed(0)}  gov ${govK.toFixed(2)}  speed ${speedK}`,
         `loading ${st.numberOfPendingRequests ?? 0}+${st.numberOfTilesProcessing ?? 0}  fresh starts ${recycles}${recycling ? " (now)" : ""}  ${(travel / 1000).toFixed(0)} km`,
-        `drawn ${st.selected ?? "?"} tiles  ${((st.numberOfTrianglesSelected ?? 0) / 1e6).toFixed(1)}M triangles  ${st.numberOfCommands ?? "?"} draws`,
+        `drawn ${st.selected ?? "?"} tiles  ${st.numberOfCommands ?? "?"} draws`,
         `trimmed ${trimmed}  trim ${trimMs.toFixed(0)} ms`,
       ].join("\n");
     },

@@ -216,6 +216,7 @@ const { chromium } = require("playwright");
     }
   }
   if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
+  console.log("overlay:\n" + (await page.evaluate(() => document.querySelector(".perf-stats")?.textContent)));
   console.log(errors.length ? `errors: ${[...new Set(errors)].slice(0, 6).join(" | ")}` : "no page errors");
   await browser.close();
 })();

@@ -452,7 +452,15 @@ If the owner can supply any of those drawings, add them to tools/photofit/drawin
   shows the lowest frame rate and hitches (>50 ms) over the last 10 s, uncapped frame times
   (the old "slowest" was the 95th percentile and capped at 100 ms), processor time per frame
   (much less than the frame time = graphics-chip bound), tiles/triangles/draws drawn and the
-  tile-trim time. Next step: a screenshot of the new overlay from the same spot.
+  tile-trim time.
+- Measured in Google mode in the cloud browser with an iPad-sized view at 1,490 m
+  (tools/diag-google-view.cjs): the view itself is light (detail 14: 233 tiles/draws; at the
+  governor's old limit, detail 36: 79). But the tile-index trim walked the whole tree in one go
+  every 3 s: 27 ms on this fast machine with a 52k tree, so a regular stutter on an iPad with a
+  177k tree (which also kept the governor pinned at its coarsest). The trim is now spread over
+  frames (TreeTrimmer, at most ~2 ms per frame); a 50 km fast flight showed the tree staying
+  at ~6k entries and no step over 5 ms. Next step: the owner's new overlay from the same kind
+  of spot.
 
 Still to do:
 - Check on iPad and in Google (photo-realistic) map mode.

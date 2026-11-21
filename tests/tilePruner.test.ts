@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pruneTileTree, type PrunableTile, type PrunableTileset } from "../src/world/tilePruner.ts";
+import { pruneTileTree, TreeTrimmer, type PrunableTile, type PrunableTileset } from "../src/world/tilePruner.ts";
 
 let destroyedCount = 0;
 let unloadedCount = 0;
@@ -100,5 +100,23 @@ describe("tile tree pruning", () => {
   it("stops at its budget", () => {
     const ts = tileset([branch(100), branch(100), branch(100)]);
     expect(pruneTileTree(ts, { ...opts, budget: 3 })).toBe(4);
+  });
+
+  it("spreads a pass over several short steps and frees the same tiles", () => {
+    const many = Array.from({ length: 400 }, (_, i) => branch(i % 2 ? 100 : 900));
+    const ts = tileset(many);
+    const tr = new TreeTrimmer();
+    // A clock that moves 1 ms per reading: each 3 ms step stops after a few checks.
+    let clock = 0;
+    const now = () => clock++;
+    let total = 0;
+    let steps = 0;
+    do {
+      total += tr.step(ts, opts, 3, now);
+      steps++;
+    } while (tr.busy && steps < 1000);
+    expect(steps).toBeGreaterThan(1);
+    expect(total).toBe(200 * 4);
+    expect(tr.passes).toBe(1);
   });
 });
