@@ -44,6 +44,6 @@ export const FALCON8X = {
   gear: { mainX: 2.35, mainZ: 0.3, pivotY: 1.3, mainR: 0.43, mainW: 0.26, mainDual: true, legR: 0.08, noseZ: 10.13, noseR: 0.28, noseW: 0.17, noseDual: true, nosePivotY: 1.6 },
   // Corrections from fitting the model to Dassault's dimensioned three-view (press pack, Sept 2020):
   // the wing and engines further aft, a smaller outer wing chord, flatter wing, bigger engines, a
-  // higher tailplane, a deeper fuselage and a slightly longer nose (tools/photofit, drawtune.py).
-  photoFit: [["wing.le0", "+", -0.3], ["wing.tipChord", "*", 0.7], ["wing.dihedral", "+", -1.0], ["wing.y0", "+", 0.2], ["fin.rootLE.1", "+", -0.3], ["tailplane.rootLE|tailplane.tipLE", "+", 0.3], ["tailplane.y", "+", 0.45], ["engines.0.zi", "+", -0.6], ["engines.0.len", "*", 1.08], ["engines.0.r", "*", 1.24], ["fus.*.1", "*", 1.03], ["fus.*.2", "+", 0.18], ["fus.*.3", "+", -0.06], ["@nose", "+", 0.75], ["wing.rootChord", "*", 0.97], ["fin.tipLE.1", "+", -0.15], ["engines.0.y", "+", 0.25]],
+  // higher and larger tailplane, a deeper fuselage and a slightly longer nose (tools/photofit).
+  photoFit: [["wing.le0", "+", -0.3], ["wing.tipChord", "*", 0.7], ["wing.dihedral", "+", -1.0], ["wing.y0", "+", 0.2], ["fin.rootLE.1", "+", -0.3], ["tailplane.rootLE|tailplane.tipLE", "+", 0.3], ["tailplane.y", "+", 0.45], ["engines.0.zi", "+", -0.6], ["engines.0.len", "*", 1.08], ["engines.0.r", "*", 1.24], ["fus.*.1", "*", 1.03], ["fus.*.2", "+", 0.18], ["fus.*.3", "+", -0.06], ["@nose", "+", 0.75], ["wing.rootChord", "*", 0.97], ["fin.tipLE.1", "+", -0.15], ["engines.0.y", "+", 0.25], ["tailplane.root", "*", 1.25], ["tailplane.tip", "*", 1.4], ["tailplane.tipX", "+", 0.4], ["tailplane.tipLE", "+", -0.3]],
 };

@@ -27,7 +27,7 @@ export const CHALLENGER3500 = {
   fairing: { top: 1.55, e: 2.3, keys: [[6.6, 0.02, 1.3], [5.6, 0.45, 1.12], [4.4, 0.72, 0.99], [3.0, 0.9, 0.93], [1.4, 0.98, 0.9], [-0.2, 0.96, 0.91], [-1.3, 0.82, 1.0, 1.7], [-2.2, 0.58, 1.38, 2.05], [-3.0, 0.3, 1.86, 2.3], [-3.6, 0.02, 2.2, 2.45]] },
   fin: { rootLE: [3.78, -3.47], tipLE: [5.8, -6.35], rootChord: 3.65, tipChord: 2.2 },
   dorsal: { z0: -2.4, z1: -3.8, ze: -4.3, width: 0.2 },
-  tailplane: { y: 5.82, rootLE: -6.4, root: 2.2, tipX: 3.95, tipLE: -9.125, tip: 0.85, bullet: { r: 0.24, fwd: 0.85, len: 3.0 } },
+  tailplane: { y: 5.82, rootLE: -6.4, root: 2.2, tipX: 3.95, tipLE: -9.125, tip: 0.85, bullet: { r: 0.3, fwd: 1.1, len: 2.7, dy: 0.2 } },
   engines: [{ x: 1.75, y: 3.07, zi: -1.59, len: 3.5, r: 0.56 }],
   registration: { on: "nacelle", h: 0.26 },
   stripe: { y: 2.25, riseFrom: 1.5, rise: 0.1, z0: 9.6, z1: -6.0, width: 0.09 },
