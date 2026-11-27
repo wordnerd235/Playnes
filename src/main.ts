@@ -6,7 +6,7 @@ import "./styles.css";
 
 import { Cartesian3, Math as CMath } from "cesium";
 import { aircraftById, isHelicopter } from "./data/aircraft.ts";
-import { airportByCode, type Airport } from "./data/airports.ts";
+import { airportByCode, isPlayable, playableBounds, setPlayableArea, type Airport } from "./data/airports.ts";
 import { LINES, type Line } from "./data/lines.ts";
 import { Audio } from "./audio/audio.ts";
 import { FlightSession, type FlightResult, type FreeLanding, type FreeSnapshot, type Mission } from "./game/flight.ts";
@@ -83,6 +83,8 @@ class Game implements ScreenHost {
   lastMission: Mission | null = null;
   sessionStart = performance.now();
   freeSave: FreeSnapshot | null = loadFreeSave();
+  /** A saved Free Flight outside the current map's area (kept for when the 3D map is back). */
+  private freeSaveHidden: FreeSnapshot | null = null;
   /** Playne of the current flight, and bonuses already paid during it. */
   private flightPlane = "c172";
   private flightBonuses: Reward[] = [];
@@ -144,6 +146,20 @@ class Game implements ScreenHost {
       kind = "basic";
     }
     this.worldKind = this.world.kind;
+    // Google and Cesium ion cover the whole country; the offline maps only their own area.
+    setPlayableArea(kind === "google" || kind === "ion" ? null : (this.world.cartoon?.meta.bounds ?? { south: 33, north: 37.5, west: -85.5, east: -78 }));
+    if (!isPlayable(this.progress.currentAirport)) {
+      this.progress.currentAirport = "TRI";
+      this.saveProgress();
+    }
+    if (this.freeSave && !isPlayable(this.freeSave.airport) && playableBounds && !(this.freeSave.lat > playableBounds.south && this.freeSave.lat < playableBounds.north && this.freeSave.lon > playableBounds.west && this.freeSave.lon < playableBounds.east)) {
+      // A saved Free Flight somewhere this map doesn't cover: keep it for the 3D map, just don't offer it here.
+      this.freeSaveHidden = this.freeSave;
+      this.freeSave = null;
+    } else if (this.freeSaveHidden && !this.freeSave) {
+      this.freeSave = this.freeSaveHidden;
+      this.freeSaveHidden = null;
+    }
     this.world.setClouds(this.settings.clouds !== false);
     this.world.widget.scene.preUpdate.addEventListener(() => {
       // A bug in game code must never stop the 3D view from rendering.
@@ -515,6 +531,7 @@ class Game implements ScreenHost {
   storeFreeSave(snap: FreeSnapshot | null): void {
     if (!snap) return;
     this.freeSave = snap;
+    this.freeSaveHidden = null;
     try {
       localStorage.setItem(FREE_SAVE_KEY, JSON.stringify(snap));
     } catch {

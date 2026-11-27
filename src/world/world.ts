@@ -32,6 +32,7 @@ import { Scenery } from "./scenery.ts";
 import { AirportBuildings } from "./buildings.ts";
 import { LandmarkMarkers } from "./landmarks.ts";
 import { PlaceLabels } from "./places.ts";
+import { ALL_AIRPORTS } from "../data/airports.ts";
 import { detailBudget, deviceClass } from "./device.ts";
 import { DetailGovernor, shareTextureCounts, speedStep, steadyTileDetail } from "./governor.ts";
 import { TreeTrimmer, type PrunableTileset } from "./tilePruner.ts";
@@ -252,7 +253,18 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
   // Star pins over the landmarks (every map type), standing on the ground below them.
   const markers = new LandmarkMarkers(w.widget.scene, (lat, lon) => cartoon?.height(lat, lon) ?? 0);
   // Town and city names (a button in Google mode; the cartoon map has its own look).
-  const places = w.kind === "google" ? new PlaceLabels(w.widget.scene, (lat, lon) => cartoon?.height(lat, lon) ?? 0) : null;
+  // Ground height for the labels: the offline terrain where it reaches, else the elevation of
+  // the nearest airport (good to a few hundred meters, plenty for a floating name).
+  const roughGround = (lat: number, lon: number): number => {
+    if (cartoon?.inside(lat, lon)) return cartoon.height(lat, lon);
+    let best = Infinity, h = 0;
+    for (const a of ALL_AIRPORTS) {
+      const d = (a.lat - lat) ** 2 + ((a.lon - lon) * Math.cos((lat * Math.PI) / 180)) ** 2;
+      if (d < best) [best, h] = [d, a.elevFt * 0.3048];
+    }
+    return h;
+  };
+  const places = w.kind === "google" ? new PlaceLabels(w.widget.scene, roughGround) : null;
   installRecovery(w.widget, scenery);
   installCommandGuard(w.widget);
   const setGround = w.setGroundVisible.bind(w);

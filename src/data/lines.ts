@@ -4,7 +4,7 @@
 // This file must stay free of DOM/browser imports: Node scripts import it too.
 
 import { AIRCRAFT } from "./aircraft.ts";
-import { AIRPORTS, LANDMARKS } from "./airports.ts";
+import { CORE_AIRPORTS, LANDMARKS } from "./airports.ts";
 
 export type Speaker = "copilot" | "tower";
 
@@ -190,7 +190,8 @@ export const tpl = {
 /** Every concrete line the game can say, for the audio generator. */
 export function allLines(): Line[] {
   const out: Line[] = Object.values(LINES);
-  for (const a of AIRPORTS) {
+  // Recorded voice lines for the hand-made airports; the others use the device's voice.
+  for (const a of CORE_AIRPORTS) {
     for (const end of a.runway.ends) {
       out.push(tpl.readyForTakeoff(a.towerName, end.spoken));
       out.push(tpl.clearedTakeoff(a.towerName, end.spoken));

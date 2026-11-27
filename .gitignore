@@ -7,3 +7,4 @@ public/cesium/
 .DS_Store
 test-results/
 playwright-report/
+__pycache__/

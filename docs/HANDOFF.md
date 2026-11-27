@@ -485,6 +485,35 @@ If the owner can supply any of those drawings, add them to tools/photofit/drawin
     sonic boom; crash pop-up with "Start again here" (450 m above the crash site, Chinook 150 m
     in a hover) or the nearest airport.
 
+- Continental US, step 1 (Google / Cesium ion maps). Known-good version before it: branch
+  `good-2026-11-27` (commit cacf95c).
+  - Airports: src/data/usAirports.json, 424 airline airports in the lower 48 (large, or medium
+    with scheduled service, paved runway of 4,500 ft or more; longest runway used), built by
+    scripts/world/build-airports.mjs from OurAirports CSVs (public domain). Spoken names: an
+    override table for the big ones, else the town (state added where towns clash). The 12
+    hand-made airports (CORE_AIRPORTS) win over imported ones with the same code and keep the
+    recorded voice lines; the rest use the device's voice for their names.
+  - `AIRPORTS` is now the playable set, updated in place by setPlayableArea(): all of them in
+    Google / Cesium ion, only those inside the offline map in the cartoon / basic worlds (adds
+    AGS, FAY, FLO, LYH, PDK, USA there). `ALL_AIRPORTS` has everything; airportByCode searches
+    both. A saved Free Flight outside the offline map is hidden (not deleted) in that mode.
+  - Free Flight start measures runway heights only within 80 km in Google / ion (measuring all
+    424 would load the 3D map at every airport); refreshNearbyRunways() measures the others as
+    the playne comes within 60 km. groundHeightAt skips far runways cheaply.
+  - The edge turn-back uses the offline map's box, or (3D map) the lower 48 plus a few degrees.
+  - Free Flight picker: with more than 30 airports, the 15 nearest, a search box and a state list.
+    Charters: two home-region airports in turn plus one more from the rest of the country.
+  - Big map: pans (drag), zooms (+/−, pinch, wheel), opens on the playne (~700 km across) in the
+    3D map or on the whole offline area; zoomed out it shows only the big airports.
+  - Map pictures: public/world/tiles z4-8 for the whole lower 48 (scripts/world/build_conus_tiles.py,
+    ~1,450 tiles, ~15 MB; drier West, plains farmland, mountain forests; the Southeast's own
+    tiles untouched). The minimap and big map draw the nearest coarser tile, enlarged, wherever
+    a detailed one doesn't exist. Not part of "Save for offline" (that stays the Southeast).
+  - Town names: public/world/places.json now covers the lower 48 (16,078 places, ~270 KB gzip).
+- Continental US, step 2 (not started): the offline cartoon world for the whole country (terrain
+  in ~1 degree chunks loaded as you fly, lower detail away from home, offline download of a home
+  region only). Later: recorded voice lines for the new airport names, buildings at more airports.
+
 Still to do:
 - iPad speed test results from the owner, then tune the iPad budgets from them.
 - Copy the test copy over to the main game (change .stable-ref) when the owner says so.

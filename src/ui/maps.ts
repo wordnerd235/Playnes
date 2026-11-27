@@ -1,9 +1,13 @@
 // Free Flight maps: a heading-up minimap on the HUD and a full-screen map of the playable area.
 // Both draw the bundled cartoon map tiles, so they work offline and in every world mode.
 
-import { AIRPORTS, LANDMARKS, type Airport } from "../data/airports.ts";
+import { AIRPORTS, LANDMARKS, playableBounds, type Airport } from "../data/airports.ts";
+
+/** The big map's own zoom for positions (tiles are drawn at whatever zoom suits the view). */
+const VIEW_Z = 8;
+/** The lower 48 states, for the big map's widest zoom. */
+const BOUNDS_ALL = { south: 24.3, north: 49.6, west: -125, east: -66.8 };
 import { planRoute } from "../sim/route.ts";
-import { REGION } from "../data/region.ts";
 import { bearing, distance, type LatLon } from "../sim/geo.ts";
 
 const TILE = 256;
@@ -21,9 +25,12 @@ function px(lat: number, lon: number, z: number): { x: number; y: number } {
  */
 class TileCache {
   private imgs = new Map<string, HTMLImageElement>();
+  /** Tiles that don't exist (outside the detailed area): drawn from a coarser tile instead. */
+  private missing = new Set<string>();
   private static readonly MAX = 160;
   get(z: number, x: number, y: number, onload: () => void): HTMLImageElement | null {
     const key = `${z}/${x}/${y}`;
+    if (this.missing.has(key)) return null;
     let img = this.imgs.get(key);
     if (img) {
       this.imgs.delete(key);
@@ -31,6 +38,11 @@ class TileCache {
       img = new Image();
       img.decoding = "async";
       img.onload = onload;
+      img.onerror = () => {
+        this.missing.add(key);
+        this.imgs.delete(key);
+        onload();
+      };
       img.src = `./world/tiles/${key}.webp`;
     }
     this.imgs.set(key, img);
@@ -38,10 +50,32 @@ class TileCache {
       const oldest = this.imgs.keys().next().value as string;
       const old = this.imgs.get(oldest)!;
       old.onload = null;
+      old.onerror = null;
       old.src = "";
       this.imgs.delete(oldest);
     }
     return img.complete && img.naturalWidth > 0 ? img : null;
+  }
+
+  isMissing(z: number, x: number, y: number): boolean {
+    return this.missing.has(`${z}/${x}/${y}`);
+  }
+
+  /**
+   * Draw tile z/x/y at (dx, dy) with the given size. Where the detailed map doesn't reach (the
+   * rest of the country has map pictures only up to zoom 8), the matching part of the nearest
+   * coarser tile is drawn, enlarged.
+   */
+  draw(c: CanvasRenderingContext2D, z: number, x: number, y: number, dx: number, dy: number, size: number, onload: () => void): void {
+    for (let k = 0; z - k >= 4; k++) {
+      const pz = z - k, px_ = x >> k, py_ = y >> k;
+      if (this.isMissing(pz, px_, py_)) continue;
+      const img = this.get(pz, px_, py_, onload);
+      if (!img) return; // still loading (or just found missing: redrawn when known)
+      const sub = TILE / 2 ** k;
+      c.drawImage(img, (x - (px_ << k)) * sub, (y - (py_ << k)) * sub, sub, sub, dx, dy, size, size);
+      return;
+    }
   }
 }
 const tiles = new TileCache();
@@ -126,8 +160,7 @@ export class Minimap {
     const t1y = Math.floor((center.y + span * 1.5) / TILE);
     for (let tx = t0x; tx <= t1x; tx++) {
       for (let ty = t0y; ty <= t1y; ty++) {
-        const img = tiles.get(z, tx, ty, () => (this.dirty = true));
-        if (img) c.drawImage(img, (tx * TILE - center.x) * scale, (ty * TILE - center.y) * scale, TILE * scale + 1, TILE * scale + 1);
+        tiles.draw(c, z, tx, ty, (tx * TILE - center.x) * scale, (ty * TILE - center.y) * scale, TILE * scale + 1, () => (this.dirty = true));
       }
     }
     const toCanvas = (p: LatLon) => {
@@ -234,7 +267,7 @@ export class BigMap {
         <div class="bigmap-title">Map <span>· the autopilot is flying</span></div>
         <button type="button" class="btn primary bigmap-close">Back to flying</button>
       </div>
-      <div class="bigmap-stage"><canvas></canvas><div class="bigmap-layer"></div></div>
+      <div class="bigmap-stage"><canvas></canvas><div class="bigmap-layer"></div><div class="bigmap-zoom"><button type="button" class="bigmap-zin" aria-label="Zoom in">+</button><button type="button" class="bigmap-zout" aria-label="Zoom out">−</button><button type="button" class="bigmap-me" aria-label="Back to the playne">◎</button></div></div>
       <div class="bigmap-info"><span class="bigmap-info-text">Tap an airport to plan a trip.</span><button type="button" class="btn secondary bigmap-clear" hidden>Clear route</button><button type="button" class="btn secondary bigmap-go" hidden>Fly there</button></div>`;
     this.canvas = this.el.querySelector("canvas")!;
     this.ctx = this.canvas.getContext("2d")!;
@@ -257,11 +290,97 @@ export class BigMap {
     });
     parent.append(this.el);
     window.addEventListener("resize", () => !this.el.hidden && this.layout());
+    this.el.querySelector(".bigmap-zin")!.addEventListener("click", () => this.zoomBy(2));
+    this.el.querySelector(".bigmap-zout")!.addEventListener("click", () => this.zoomBy(0.5));
+    this.el.querySelector(".bigmap-me")!.addEventListener("click", () => {
+      if (!this.state) return;
+      const q = px(this.state.pos.lat, this.state.pos.lon, VIEW_Z);
+      this.view.cx = q.x;
+      this.view.cy = q.y;
+      this.redraw();
+    });
+    this.setupPanZoom();
+  }
+
+  // ----- view: centre (pixels at zoom 8) and scale (screen px per zoom-8 px) -----
+  private view = { cx: 0, cy: 0, scale: 1 };
+  private W = 0;
+  private H = 0;
+
+  /** Drag to move the map, two fingers (or the mouse wheel) to zoom. Taps on airports still work. */
+  private setupPanZoom(): void {
+    const stage = this.el.querySelector(".bigmap-stage") as HTMLElement;
+    const pts = new Map<number, { x: number; y: number }>();
+    let pinch0 = 0;
+    stage.addEventListener("pointerdown", (e) => {
+      if ((e.target as HTMLElement).closest("button")) return;
+      stage.setPointerCapture(e.pointerId);
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2) {
+        const [a, b] = [...pts.values()];
+        pinch0 = Math.hypot(a.x - b.x, a.y - b.y);
+      }
+    });
+    stage.addEventListener("pointermove", (e) => {
+      const p = pts.get(e.pointerId);
+      if (!p) return;
+      const dx = e.clientX - p.x, dy = e.clientY - p.y;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 1) {
+        this.view.cx -= dx / this.view.scale;
+        this.view.cy -= dy / this.view.scale;
+        this.redraw();
+      } else if (pts.size === 2) {
+        const [a, b] = [...pts.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinch0 > 0 && Math.abs(d / pinch0 - 1) > 0.04) {
+          this.zoomBy(d / pinch0);
+          pinch0 = d;
+        }
+      }
+    });
+    const up = (e: PointerEvent) => {
+      pts.delete(e.pointerId);
+      pinch0 = 0;
+    };
+    stage.addEventListener("pointerup", up);
+    stage.addEventListener("pointercancel", up);
+    stage.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      this.zoomBy(e.deltaY < 0 ? 1.25 : 0.8);
+    }, { passive: false });
+  }
+
+  private zoomBy(f: number): void {
+    // From the whole country down to about zoom 10 (the detailed Southeast tiles).
+    const min = this.fitScale(BOUNDS_ALL) * 0.8;
+    this.view.scale = Math.max(min, Math.min(4, this.view.scale * f));
+    this.redraw();
+  }
+
+  /** Scale that fits these bounds in the stage. */
+  private fitScale(b: { south: number; north: number; west: number; east: number }): number {
+    const nw = px(b.north, b.west, VIEW_Z), se = px(b.south, b.east, VIEW_Z);
+    return Math.min(this.W / (se.x - nw.x), this.H / (se.y - nw.y));
+  }
+
+  private redrawQueued = false;
+  private redraw(): void {
+    if (this.redrawQueued) return;
+    this.redrawQueued = true;
+    requestAnimationFrame(() => {
+      this.redrawQueued = false;
+      if (this.el.hidden) return;
+      this.drawBase();
+      this.placeMarkers();
+      this.drawPlane();
+    });
   }
 
   open(s: MapState): void {
     this.state = s;
     this.picked = s.target;
+    this.fitted = false;
     this.el.hidden = false;
     this.layout();
     this.updateInfo();
@@ -281,9 +400,7 @@ export class BigMap {
     if (!this.el.hidden) this.drawPlane();
   }
 
-  private z = 8;
-  private origin = { x: 0, y: 0 };
-  private scale = 1;
+  private fitted = false;
 
   private layout(): void {
     const stage = this.canvas.parentElement!;
@@ -294,18 +411,30 @@ export class BigMap {
     this.canvas.height = H * dpr;
     this.canvas.style.width = `${W}px`;
     this.canvas.style.height = `${H}px`;
-    const nw = px(REGION.north, REGION.west, this.z);
-    const se = px(REGION.south, REGION.east, this.z);
-    this.scale = Math.min(W / (se.x - nw.x), H / (se.y - nw.y));
-    this.origin = { x: nw.x - (W / this.scale - (se.x - nw.x)) / 2, y: nw.y - (H / this.scale - (se.y - nw.y)) / 2 };
+    this.W = W;
+    this.H = H;
+    // On opening: the offline map's whole area, or (3D map, the whole country) about 700 km
+    // around the playne.
+    if (!this.fitted) {
+      this.fitted = true;
+      if (playableBounds) {
+        const nw = px(playableBounds.north, playableBounds.west, VIEW_Z), se = px(playableBounds.south, playableBounds.east, VIEW_Z);
+        this.view = { cx: (nw.x + se.x) / 2, cy: (nw.y + se.y) / 2, scale: this.fitScale(playableBounds) };
+      } else {
+        const p = this.state?.pos ?? { lat: 36, lon: -82 };
+        const q = px(p.lat, p.lon, VIEW_Z);
+        const mPerPx = (156543.03392 * Math.cos((p.lat * Math.PI) / 180)) / 2 ** VIEW_Z;
+        this.view = { cx: q.x, cy: q.y, scale: Math.min(W, H) / (700_000 / mPerPx) };
+      }
+    }
     this.drawBase();
     this.placeMarkers();
     this.drawPlane();
   }
 
   private toScreen(p: LatLon): { x: number; y: number } {
-    const q = px(p.lat, p.lon, this.z);
-    return { x: (q.x - this.origin.x) * this.scale, y: (q.y - this.origin.y) * this.scale };
+    const q = px(p.lat, p.lon, VIEW_Z);
+    return { x: (q.x - this.view.cx) * this.view.scale + this.W / 2, y: (q.y - this.view.cy) * this.view.scale + this.H / 2 };
   }
 
   private drawBase(): void {
@@ -314,28 +443,38 @@ export class BigMap {
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     c.fillStyle = "#9ccbe8";
     c.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    const nw = px(REGION.north, REGION.west, this.z);
-    const se = px(REGION.south, REGION.east, this.z);
-    for (let tx = Math.floor(nw.x / TILE); tx <= Math.floor(se.x / TILE); tx++) {
-      for (let ty = Math.floor(nw.y / TILE); ty <= Math.floor(se.y / TILE); ty++) {
-        const img = tiles.get(this.z, tx, ty, () => this.drawBase());
-        if (img) c.drawImage(img, (tx * TILE - this.origin.x) * this.scale, (ty * TILE - this.origin.y) * this.scale, TILE * this.scale + 1, TILE * this.scale + 1);
+    // Tile zoom to match the view (zoom 4-8 everywhere, 9-10 in the detailed Southeast).
+    const tz = Math.max(4, Math.min(10, Math.round(VIEW_Z + Math.log2(this.view.scale))));
+    const k = 2 ** (tz - VIEW_Z); // tile-zoom px per view px
+    const s = this.view.scale / k; // screen px per tile-zoom px
+    const cx = this.view.cx * k, cy = this.view.cy * k;
+    const x0 = Math.floor((cx - this.W / 2 / s) / TILE), x1 = Math.floor((cx + this.W / 2 / s) / TILE);
+    const y0 = Math.floor((cy - this.H / 2 / s) / TILE), y1 = Math.floor((cy + this.H / 2 / s) / TILE);
+    for (let tx = x0; tx <= x1; tx++) {
+      for (let ty = y0; ty <= y1; ty++) {
+        tiles.draw(c, tz, tx, ty, (tx * TILE - cx) * s + this.W / 2, (ty * TILE - cy) * s + this.H / 2, TILE * s + 1, () => this.redraw());
       }
     }
-    // Edge of the playable area.
-    const a = this.toScreen({ lat: REGION.north, lon: REGION.west });
-    const b = this.toScreen({ lat: REGION.south, lon: REGION.east });
-    c.strokeStyle = "rgba(255,255,255,.9)";
-    c.setLineDash([10, 8]);
-    c.lineWidth = 3;
-    c.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
-    c.setLineDash([]);
+    // Edge of the playable area (the offline maps).
+    if (playableBounds) {
+      const a = this.toScreen({ lat: playableBounds.north, lon: playableBounds.west });
+      const b = this.toScreen({ lat: playableBounds.south, lon: playableBounds.east });
+      c.strokeStyle = "rgba(255,255,255,.9)";
+      c.setLineDash([10, 8]);
+      c.lineWidth = 3;
+      c.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
+      c.setLineDash([]);
+    }
   }
 
   private placeMarkers(): void {
     this.layer.innerHTML = "";
+    const onScreen = (q: { x: number; y: number }) => q.x > -40 && q.y > -40 && q.x < this.W + 40 && q.y < this.H + 40;
+    // Zoomed out over the country: only the big airports (and the home ones), or it's a crowd.
+    const zoomedOut = !playableBounds && this.view.scale < 0.45;
     for (const l of LANDMARKS) {
       const q = this.toScreen(l);
+      if (!onScreen(q)) continue;
       const m = document.createElement("div");
       m.className = "bigmap-landmark";
       m.style.left = `${q.x}px`;
@@ -346,6 +485,8 @@ export class BigMap {
     }
     for (const a of AIRPORTS) {
       const q = this.toScreen(a);
+      if (!onScreen(q)) continue;
+      if (zoomedOut && a.size === "medium" && a !== this.picked && a !== this.state?.target) continue;
       const b = document.createElement("button");
       b.type = "button";
       b.className = `bigmap-airport${this.picked === a ? " picked" : ""}`;
@@ -413,7 +554,7 @@ export class BigMap {
     const s = this.state;
     this.clearBtn.hidden = !s?.target;
     if (!this.picked || !s) {
-      this.info.textContent = "Tap an airport to plan a trip. The dashed line is the edge of the map.";
+      this.info.textContent = playableBounds ? "Tap an airport to plan a trip. The dashed line is the edge of the map." : "Tap an airport to plan a trip. Drag to move the map; + and − zoom.";
       this.goBtn.hidden = true;
       return;
     }

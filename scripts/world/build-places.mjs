@@ -16,8 +16,8 @@ const svarint = () => { const v = varint(); return v % 2 ? -(v + 1) / 2 : v / 2;
 const str = () => { const n = varint(); const s = buf.toString("utf8", pos, pos + n); pos += n; return s; };
 let lastLat = 0, lastLon = 0;
 const out = [];
-// The game's airports span about 33.6-37.4 N, 78.8-85.2 W; keep a margin around them.
-const box = { s: 32.2, n: 38.8, w: -86.8, e: -77.0 };
+// The lower 48 states (the 3D map covers the whole country).
+const box = { s: 24.3, n: 49.6, w: -125.0, e: -66.8 };
 while (pos < buf.length) {
   const end = varint() + pos;
   const c = { name: "", country: "", admin: "", code: "", pop: 0, lat: 0, lon: 0 };

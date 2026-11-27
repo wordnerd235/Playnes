@@ -9,7 +9,7 @@ import {
   Math as CMath,
   type Request,
 } from "cesium";
-import { AIRPORTS } from "../data/airports.ts";
+import { ALL_AIRPORTS } from "../data/airports.ts";
 
 export interface WorldMeta {
   bounds: { south: number; north: number; west: number; east: number };
@@ -52,7 +52,8 @@ export class CartoonData {
     private dem: Int16Array,
     private land: Uint8Array,
   ) {
-    for (const a of AIRPORTS) {
+    for (const a of ALL_AIRPORTS) {
+      if (!this.inside(a.lat, a.lon)) continue;
       const [e0, e1] = a.runway.ends;
       const kx = 111320 * Math.cos((e0.lat * Math.PI) / 180);
       const dx = (e1.lon - e0.lon) * kx;

@@ -28,8 +28,7 @@ import { CHINOOK_PERF, isHelicopter, type AircraftDef } from "../data/aircraft.t
 import { stepHeli } from "../sim/heli.ts";
 import { nearestIndex, planRoute, type RoutePlan } from "../sim/route.ts";
 import { SkyGuide } from "./skyGuide.ts";
-import { AIRPORTS, airportByCode, LANDMARKS, type Airport, type Landmark } from "../data/airports.ts";
-import { inRegion, REGION } from "../data/region.ts";
+import { AIRPORTS, airportByCode, LANDMARKS, playableBounds, type Airport, type Landmark } from "../data/airports.ts";
 import { LINES, tpl, type Line, type Passenger } from "../data/lines.ts";
 import type { Audio } from "../audio/audio.ts";
 import type { Controls, ControlEvent } from "../input/controls.ts";
@@ -313,6 +312,48 @@ export class FlightSession {
   /** First takeoff from an airport earns a bonus: returns the Wings (0 if not new). */
   onTakeoff: (code: string) => number = () => 0;
   private allRunways: RunwayInUse[] = [];
+  /** Airports whose runway heights have been measured in the live world. */
+  private runwayMeasured = new Set<string>();
+  private runwayRefreshAt = 0;
+  private runwayRefreshing = false;
+
+  /** A runway height (ellipsoid m) from the published elevation, before it's measured. */
+  private fallbackHeight(ft: number): number {
+    return this.d.world.kind === "basic" ? 0 : ft * FT + (this.d.world.kind === "cartoon" ? 0 : GEOID_GUESS);
+  }
+
+  /**
+   * Free Flight across the country: every few seconds, measure the runways of airports coming
+   * within 60 km that haven't been measured yet (Google / Cesium ion), and swap in the measured
+   * runway so landing there sits on the real ground.
+   */
+  private refreshNearbyRunways(): void {
+    if (this.runwayRefreshing || this.time < this.runwayRefreshAt) return;
+    this.runwayRefreshAt = this.time + 3;
+    const todo = this.allRunways.filter((r) => !this.runwayMeasured.has(r.airport.code) && distance(this.s, r.airport) < 60_000);
+    if (!todo.length) return;
+    this.runwayRefreshing = true;
+    for (const r of todo) this.runwayMeasured.add(r.airport.code);
+    void this.d.world
+      .sampleHeights(todo.flatMap((r) => r.airport.runway.ends))
+      .then((hs) => {
+        if (this.destroyed) return;
+        todo.forEach((old, i) => {
+          const a = old.airport;
+          const [h0, h1] = [hs[2 * i], hs[2 * i + 1]];
+          if (h0 === undefined && h1 === undefined) {
+            this.runwayMeasured.delete(a.code); // try again later
+            return;
+          }
+          const fresh = makeRunway(a, a.runway.ends[0], a.runway.ends[1], h0 ?? h1 ?? old.hEnd, h1 ?? h0 ?? old.hOther);
+          const k = this.allRunways.indexOf(old);
+          if (k >= 0) this.allRunways[k] = fresh;
+        });
+      })
+      .finally(() => {
+        this.runwayRefreshing = false;
+      });
+  }
   private autopilot: { heading: number; alt: number; ias: number } | null = null;
   /** Speedbrakes extended (jets). */
   private speedbrakeOut = false;
@@ -883,11 +924,22 @@ export class FlightSession {
   // ------------------------------------------------------------------ free flight
 
   private async startSandbox(code: string, resume?: FreeSnapshot): Promise<void> {
-    const pts: LatLon[] = AIRPORTS.flatMap((a) => a.runway.ends);
-    const hs = await this.d.world.sampleHeights(pts);
+    // Runway heights: measured in the live world for airports near the start (in Google's 3D
+    // world each measurement loads the map there, so not for hundreds of airports across the
+    // country); the others start from their published elevation and are measured as the playne
+    // comes near them (refreshNearbyRunways).
+    const startAp = AIRPORTS.find((a) => a.code === code);
+    const startPos: LatLon = resume ? { lat: resume.lat, lon: resume.lon } : startAp ?? AIRPORTS[0];
+    const streaming = this.d.world.kind === "google" || this.d.world.kind === "ion";
+    const nearStart = AIRPORTS.filter((a) => !streaming || a.code === code || distance(startPos, a) < 80_000);
+    const hs = await this.d.world.sampleHeights(nearStart.flatMap((a) => a.runway.ends));
     if (this.destroyed) return;
-    const fallback = (ft: number) => (this.d.world.kind === "basic" ? 0 : ft * FT + (this.d.world.kind === "cartoon" ? 0 : GEOID_GUESS));
-    this.allRunways = AIRPORTS.map((a, i) => makeRunway(a, a.runway.ends[0], a.runway.ends[1], hs[2 * i] ?? fallback(a.runway.ends[0].elevFt), hs[2 * i + 1] ?? fallback(a.runway.ends[1].elevFt)));
+    const measured = new Map(nearStart.map((a, i) => [a.code, [hs[2 * i], hs[2 * i + 1]] as const]));
+    for (const a of nearStart) this.runwayMeasured.add(a.code);
+    this.allRunways = AIRPORTS.map((a) => {
+      const m = measured.get(a.code);
+      return makeRunway(a, a.runway.ends[0], a.runway.ends[1], m?.[0] ?? this.fallbackHeight(a.runway.ends[0].elevFt), m?.[1] ?? this.fallbackHeight(a.runway.ends[1].elevFt));
+    });
     // The departure runway first (the loading screen waits for it), then all the others.
     const startRwy = this.allRunways.find((r) => r.airport.code === code);
     if (startRwy) this.addRunwayVisuals(startRwy);
@@ -1095,6 +1147,7 @@ export class FlightSession {
   }
 
   private updateFree(dt: number): void {
+    this.refreshNearbyRunways();
     this.followRoute(dt);
     if (this.heli) {
       this.updateHeli(dt);
@@ -1375,14 +1428,17 @@ export class FlightSession {
    */
   private edgeTurn(): number | null {
     const s = this.s;
-    if (!s.onGround && !inRegion(s.lat, s.lon, 0.06) && !this.edgeActive) {
+    // The offline maps' own area, or (3D map) a generous box around the lower 48 states.
+    const B = playableBounds ?? { south: 21.5, north: 52.5, west: -128, east: -64 };
+    const inside = (m: number) => s.lat > B.south + m && s.lat < B.north - m && s.lon > B.west + m && s.lon < B.east - m;
+    if (!s.onGround && !inside(0.06) && !this.edgeActive) {
       this.edgeActive = true;
       void this.say(LINES.edge, true);
     }
     if (!this.edgeActive) return null;
-    const home = bearing(s, { lat: (REGION.north + REGION.south) / 2, lon: (REGION.east + REGION.west) / 2 });
+    const home = bearing(s, { lat: (B.north + B.south) / 2, lon: (B.east + B.west) / 2 });
     const err = angleDiff(home, s.heading);
-    if (s.onGround || (inRegion(s.lat, s.lon, 0.12) && Math.abs(err) < 30)) {
+    if (s.onGround || (inside(0.12) && Math.abs(err) < 30)) {
       this.edgeActive = false;
       return null;
     }
@@ -1936,7 +1992,8 @@ export class FlightSession {
     let runwayPlane: number | null = null;
     let onRunway: RunwayInUse | null = null;
     for (const r of [this.dep, this.arr, ...this.allRunways]) {
-      if (r && onRunwayArea(r, p)) {
+      // (Quick skip of runways far away: there can be hundreds.)
+      if (r && Math.abs(r.end.lat - p.lat) < 0.06 && Math.abs(r.end.lon - p.lon) < 0.1 && onRunwayArea(r, p)) {
         runwayPlane = runwayHeight(r, runwayCoords(r, p).s) + (this.runwayPrims.length ? RUNWAY_LIFT : 0);
         onRunway = r;
         break;

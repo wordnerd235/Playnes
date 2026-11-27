@@ -111,7 +111,9 @@ def tile_range(south, north, west, east, z):
 # ---------------------------------------------------------------- elevation
 
 class Dem:
-    def __init__(self, cache: Path, region):
+    def __init__(self, cache: Path, region, z=DEM_Z):
+        self.z = z
+        DEM_Z = z  # noqa: N806 (local: the zoom of the elevation tiles used)
         m = 0.3
         tx0, tx1, ty0, ty1 = tile_range(region["south"] - m, region["north"] + m, region["west"] - m, region["east"] + m, DEM_Z)
         self.tx0, self.ty0 = tx0, ty0
@@ -133,7 +135,7 @@ class Dem:
             self.mosaic[(y - ty0) * TILE:(y - ty0 + 1) * TILE, (x - tx0) * TILE:(x - tx0 + 1) * TILE] = e
 
     def at(self, lon, lat):
-        x, y = lonlat_to_px(lon, lat, DEM_Z)
+        x, y = lonlat_to_px(lon, lat, self.z)
         x = np.clip(x - self.tx0 * TILE - 0.5, 0, self.mosaic.shape[1] - 1.001)
         y = np.clip(y - self.ty0 * TILE - 0.5, 0, self.mosaic.shape[0] - 1.001)
         x0 = np.floor(x).astype(int)
@@ -353,7 +355,7 @@ def value_noise(lon, lat, scale_deg, seed):
     return (h(x0, y0) * (1 - sx) + h(x0 + 1, y0) * sx) * (1 - sy) + (h(x0, y0 + 1) * (1 - sx) + h(x0 + 1, y0 + 1) * sx) * sy
 
 
-def render_tile(z, tx, ty, dem, layers, runways, region):
+def render_tile(z, tx, ty, dem, layers, runways, region, conus=False):
     N = TILE * SS
     px = tx * TILE + (np.arange(N) + 0.5) / SS
     py = ty * TILE + (np.arange(N) + 0.5) / SS
@@ -385,6 +387,17 @@ def render_tile(z, tx, ty, dem, layers, runways, region):
     MX = LON * 111320.0 * math.cos(math.radians(35.0))
     MY = LAT * 111320.0
 
+    # The rest of the country (conus=True): the West is dry, the plains are farmland at a
+    # higher elevation, and forests grow on the high mountains and in the wet Pacific Northwest.
+    # (west = 0 east of about 97 W, so the eastern style is unchanged.)
+    west = np.clip((-97.0 - LON) / 6.0, 0, 1) if conus else np.zeros_like(LON)
+    pnw = (np.clip((LAT - 41.5) / 2.0, 0, 1) * np.clip((-119.5 - LON) / 2.0, 0, 1)) if conus else np.zeros_like(LON)
+    high = np.clip((elev - 2100) / 700, 0, 1)
+    arid = np.clip((-102.0 - LON) / 5.0, 0, 1) * (1 - pnw) * (1 - high) if conus else np.zeros_like(LON)
+    if conus:
+        desert = np.array([214, 196, 150], dtype=np.float32)
+        rgb = rgb * (1 - arid[..., None] * 0.75) + desert * (arid[..., None] * 0.75)
+
     # Farm-field patchwork: rotated rectangles, rotation varies by 6 km super-cell.
     sc = np.floor(MX / 6000) * 31 + np.floor(MY / 6000) * 17
     ang = (hash01(sc, 3) - 0.5) * 1.2
@@ -394,7 +407,7 @@ def render_tile(z, tx, ty, dem, layers, runways, region):
     cell = hash01(np.floor(RX / 320) * 7.13 + np.floor(RY / 210) * 3.71, 5)
     fcols = np.array(FIELD_COLORS, dtype=np.float32)
     field_rgb = fcols[np.minimum((cell * len(FIELD_COLORS)).astype(int), len(FIELD_COLORS) - 1)]
-    lowland = np.clip((800 - elev) / 300, 0, 1)
+    lowland = np.clip((800 + 1100 * west - elev) / 300, 0, 1) * (1 - arid * 0.85)
     if z >= 12:
         # Hedgerows between fields.
         fx_ = RX / 320 - np.floor(RX / 320)
@@ -406,6 +419,10 @@ def render_tile(z, tx, ty, dem, layers, runways, region):
     # Forests: more of them up in the mountains.
     fnoise = value_noise(MX, MY, 1800, 7) * 0.7 + value_noise(MX, MY, 500, 8) * 0.3
     forest_thresh = np.clip(0.66 - elev / 3600, 0.2, 0.66)
+    if conus:
+        # West: forests on the high mountains (about 1,800-3,300 m) and in the Pacific Northwest.
+        w_thresh = 0.8 - np.clip((elev - 1700) / 900, 0, 1) * np.clip((3500 - elev) / 400, 0, 1) * 0.45 - pnw * 0.4
+        forest_thresh = forest_thresh * (1 - west) + w_thresh * west
     forest = fnoise > forest_thresh
     edge_w = 0.03 if z <= 10 else 0.008
     edge = np.clip((fnoise - forest_thresh) / edge_w, 0, 1)
@@ -486,7 +503,7 @@ def render_tile(z, tx, ty, dem, layers, runways, region):
                     else:
                         d.polygon(pts, fill=None)
     # Rivers
-    rw = {6: 1, 7: 1, 8: 2, 9: 2, 10: 3, 11: 4, 12: 6, 13: 8, 14: 10, 15: 12}[z] * SS
+    rw = {4: 1, 5: 1, 6: 1, 7: 1, 8: 2, 9: 2, 10: 3, 11: 4, 12: 6, 13: 8, 14: 10, 15: 12}[z] * SS
     for name in ("ne_10m_rivers_lake_centerlines", "ne_10m_rivers_north_america"):
         for f in layers[name]:
             if f["kind"] == "line" and visible(f):
@@ -497,7 +514,7 @@ def render_tile(z, tx, ty, dem, layers, runways, region):
             if f["kind"] == "line" and visible(f):
                 d.line(ring_px(f["coords"]), fill=BORDER + (110,), width=max(1, SS))
     # Roads
-    road_w = {6: 1, 7: 1, 8: 2, 9: 2, 10: 3, 11: 4, 12: 5, 13: 6, 14: 7, 15: 8}[z] * SS
+    road_w = {4: 1, 5: 1, 6: 1, 7: 1, 8: 2, 9: 2, 10: 3, 11: 4, 12: 5, 13: 6, 14: 7, 15: 8}[z] * SS
     for f in layers["ne_10m_roads"]:
         if f["kind"] != "line" or not visible(f):
             continue

@@ -6,6 +6,7 @@
 // runway names: crowd-sourced data had inconsistent CLT runway names (see docs/GAME_PLAN.md §15).
 
 import type { LatLon } from "../sim/geo.ts";
+import US_AIRPORTS from "./usAirports.json";
 
 export interface RunwayEnd extends LatLon {
   /** Runway designator at this end, e.g. "23". */
@@ -39,9 +40,14 @@ export interface Airport extends LatLon {
   blurb: string;
   icon: string;
   verify?: string;
+  /** State (two letters), for the airport picker. The hand-made airports leave it out. */
+  state?: string;
+  /** Imported airports: "large" (big airline hubs) or "medium" (airline service). */
+  size?: "large" | "medium";
 }
 
-export const AIRPORTS: Airport[] = [
+/** The hand-made airports (home region, recorded voice lines). */
+export const CORE_AIRPORTS: Airport[] = [
   {
     code: "TRI",
     icao: "KTRI",
@@ -231,8 +237,41 @@ export const LANDMARKS: Landmark[] = [
   { id: "atlantic", spoken: "the Atlantic Ocean", lat: 33.68, lon: -78.75, fact: "If you kept going, you'd fly all the way to Africa!" },
 ];
 
+const CORE_STATE: Record<string, string> = { TRI: "TN", CLT: "NC", AVL: "NC", MYR: "SC", ATL: "GA", TYS: "TN", CHA: "TN", GSP: "SC", CAE: "SC", GSO: "NC", RDU: "NC", ROA: "VA" };
+for (const a of CORE_AIRPORTS) a.state ??= CORE_STATE[a.code];
+
+/**
+ * Every airport in the game: the hand-made ones plus all airline airports in the lower 48
+ * states (src/data/usAirports.json, built by scripts/world/build-airports.mjs from OurAirports).
+ */
+export const ALL_AIRPORTS: Airport[] = [...CORE_AIRPORTS, ...(US_AIRPORTS as Airport[]).filter((a) => !CORE_AIRPORTS.some((c) => c.code === a.code))];
+
+/**
+ * The airports you can fly to in the current map: all of them where the map covers the whole
+ * country (Google, Cesium ion), only those inside the offline map's area otherwise. Updated in
+ * place by setPlayableArea, so code that imported it sees the change.
+ */
+export const AIRPORTS: Airport[] = [...CORE_AIRPORTS];
+
+/** Where the current map can be flown: null = everywhere, else a lat/lon box. */
+export let playableBounds: { south: number; north: number; west: number; east: number } | null = { south: 33, north: 37.5, west: -85.5, east: -78 };
+
+export function setPlayableArea(bounds: { south: number; north: number; west: number; east: number } | null): void {
+  playableBounds = bounds;
+  const m = 0.15; // keep clear of the map's edge
+  const inside = (a: Airport) => !bounds || (a.lat > bounds.south + m && a.lat < bounds.north - m && a.lon > bounds.west + m && a.lon < bounds.east - m);
+  AIRPORTS.length = 0;
+  AIRPORTS.push(...ALL_AIRPORTS.filter((a) => CORE_AIRPORTS.includes(a) || inside(a)));
+}
+setPlayableArea(playableBounds);
+
 export function airportByCode(code: string): Airport {
-  const a = AIRPORTS.find((x) => x.code === code);
+  const a = AIRPORTS.find((x) => x.code === code) ?? ALL_AIRPORTS.find((x) => x.code === code);
   if (!a) throw new Error(`Unknown airport ${code}`);
   return a;
+}
+
+/** True if this airport can be flown to in the current map. */
+export function isPlayable(code: string): boolean {
+  return AIRPORTS.some((a) => a.code === code);
 }

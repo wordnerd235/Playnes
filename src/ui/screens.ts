@@ -3,7 +3,7 @@
 
 import { asset } from "../assets.ts";
 import { AIRCRAFT, aircraftById, carriesPassengers, isHelicopter, type AircraftDef } from "../data/aircraft.ts";
-import { AIRPORTS, airportByCode } from "../data/airports.ts";
+import { AIRPORTS, CORE_AIRPORTS, airportByCode, type Airport } from "../data/airports.ts";
 import { LINES, PASSENGERS, tpl, type Line, type Passenger } from "../data/lines.ts";
 import type { FlightResult, FreeSnapshot, LessonId, Mission } from "../game/flight.ts";
 import { buy, canBuy, charterKey, charterPlaneId, charterRewards, exportCode, REWARDS, importCode, landedBefore, owns, waitingForOthers, type Progress, type Reward } from "../game/progress.ts";
@@ -31,6 +31,8 @@ export interface ScreenHost {
   /** Grown-up settings: the Google-mode speed test (see game/speedTest.ts). */
   runSpeedTest(): void;
 }
+
+const STATE_NAMES: Record<string, string> = { AL: "Alabama", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut", DE: "Delaware", DC: "Washington, D.C.", FL: "Florida", GA: "Georgia", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming" };
 
 export const LESSONS: { id: string; title: string; icon: string }[] = [
   { id: "l1", title: "Meet your playne", icon: "✈️" },
@@ -295,9 +297,16 @@ export class Screens {
     const plane = aircraftById(charterPlaneId(p));
     if (plane.id !== p.selectedPlane) this.host.say(isHelicopter(aircraftById(p.selectedPlane)) ? LINES.heliFreeOnly : LINES.fighterFreeOnly);
     const here = airportByCode(p.currentAirport);
-    const dests = AIRPORTS.filter((a) => a.code !== here.code && distance(here, a) / NM <= plane.rangeNm);
+    const inRange = AIRPORTS.filter((a) => a.code !== here.code && distance(here, a) / NM <= plane.rangeNm);
     const fits = PASSENGERS.filter((x) => x.count <= plane.seats);
     const seed = p.flights * 7 + here.code.charCodeAt(0);
+    // Three trips: the home-region airports first (two of them, taking turns from flight to
+    // flight), then somewhere new from the rest of the country (with the 3D map).
+    const core = inRange.filter((a) => CORE_AIRPORTS.includes(a));
+    const rest = inRange.filter((a) => !CORE_AIRPORTS.includes(a)).sort((a, b) => distance(here, a) - distance(here, b));
+    const take = (list: Airport[], n: number, off: number) => (list.length <= n ? list : Array.from({ length: n }, (_, i) => list[(off + i) % list.length]));
+    const fromCore = take(core, rest.length ? 2 : 3, p.flights);
+    const dests = [...fromCore, ...take(rest.slice(0, 40), 3 - fromCore.length, seed)];
     const cards = dests.slice(0, 3).map((a, i) => {
       const pax: Passenger = fits[(seed + i * 3) % fits.length];
       const nm = Math.round(distance(here, a) / NM);
@@ -370,7 +379,7 @@ export class Screens {
         }, "Start over"),
       ]);
     }
-    const grid = h("div.airport-grid", {}, AIRPORTS.map((a) =>
+    const card = (a: Airport) =>
       h(`button.airport-card${a.code === p.currentAirport ? ".here" : ""}`, {
         type: "button",
         onclick: () => {
@@ -382,13 +391,46 @@ export class Screens {
         h("span.airport-code", {}, a.code),
         h("span.airport-name", {}, a.spoken),
         h("span.airport-blurb", {}, a.code === p.currentAirport ? "You are here" : a.home ? "Home base" : a.blurb),
-      ]),
-    ));
+      ]);
+    const grid = h("div.airport-grid");
+    // With the whole country (the 3D map): the nearest airports, a search box and a state list.
+    let finder: HTMLElement | null = null;
+    if (AIRPORTS.length <= 30) grid.append(...AIRPORTS.map(card));
+    else {
+      const here = airportByCode(p.currentAirport);
+      const search = h("input.airport-search", { type: "search", placeholder: "Search: city, airport or code", autocomplete: "off", spellcheck: false }) as HTMLInputElement;
+      const states = [...new Set(AIRPORTS.map((a) => a.state ?? ""))].filter(Boolean).sort((a, b) => (STATE_NAMES[a] ?? a).localeCompare(STATE_NAMES[b] ?? b));
+      const state = h("select.airport-state", {}, [h("option", { value: "" }, "Near you"), ...states.map((st) => h("option", { value: st }, STATE_NAMES[st] ?? st))]) as HTMLSelectElement;
+      const fill = () => {
+        const q = search.value.trim().toLowerCase();
+        let list: Airport[];
+        if (q) {
+          list = AIRPORTS.filter((a) => a.code.toLowerCase() === q)
+            .concat(AIRPORTS.filter((a) => a.code.toLowerCase() !== q && `${a.spoken} ${a.city} ${a.name} ${a.code}`.toLowerCase().includes(q)))
+            .slice(0, 48);
+        } else if (state.value) list = AIRPORTS.filter((a) => a.state === state.value).sort((a, b) => a.spoken.localeCompare(b.spoken));
+        else list = AIRPORTS.slice().sort((a, b) => distance(here, a) - distance(here, b)).slice(0, 15);
+        clear(grid);
+        grid.append(...list.map(card));
+        if (!list.length) grid.append(h("p.hint", {}, "No airports found. Try another name."));
+      };
+      search.addEventListener("input", () => {
+        if (search.value) state.value = "";
+        fill();
+      });
+      state.addEventListener("change", () => {
+        search.value = "";
+        fill();
+      });
+      fill();
+      finder = h("div.airport-finder", {}, [search, state]);
+    }
     this.show(
       h("div.free-pick", {}, [
         this.topBar("Free Flight", () => this.home()),
         resume,
-        h("p.hint", {}, "Pick an airport to take off from:"),
+        h("p.hint", {}, AIRPORTS.length > 30 ? `Pick an airport to take off from (${AIRPORTS.length} across the country):` : "Pick an airport to take off from:"),
+        finder,
         grid,
       ]),
     );
