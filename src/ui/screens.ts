@@ -28,6 +28,8 @@ export interface ScreenHost {
   freeSave: FreeSnapshot | null;
   clearFreeSave(): void;
   completeLesson1(): void;
+  /** Grown-up settings: the Google-mode speed test (see game/speedTest.ts). */
+  runSpeedTest(): void;
 }
 
 export const LESSONS: { id: string; title: string; icon: string }[] = [
@@ -717,6 +719,12 @@ export class Screens {
             field("Graphics quality", quality),
             h("label.check", {}, [clouds, "Clouds (puffy clouds and the cloud layer on long charters)"]),
             h("label.check", {}, [perf, "Show performance numbers while flying (to help track down slowdowns: take a screenshot when it gets slow)"]),
+            this.host.worldKind === "google"
+              ? h("div.code-row", {}, [
+                  h("button.btn.secondary", { type: "button", onclick: () => { save(); this.host.runSpeedTest(); } }, "Run speed test"),
+                  h("p.field-help", {}, "About 2½ minutes over Charlotte in Google's 3D map, trying a few graphics settings. Take a screenshot of the results."),
+                ])
+              : null,
             h("div.code-row", {}, [
               h("button.btn.secondary", {
                 type: "button",
@@ -815,7 +823,7 @@ export class Screens {
             resetBtn,
           ]),
           h("div.parent-actions", {}, [h("button.btn.primary", { type: "button", onclick: save }, "Save")]),
-          h("p.field-help", {}, `Playnes is a private family game. Map data © Google or Cesium as credited on screen; offline map from AWS Terrain Tiles and Natural Earth; airport buildings © OpenStreetMap contributors via Overture Maps. Version ${__BUILD__}.`),
+          h("p.field-help", {}, `Playnes is a private family game. Map data © Google or Cesium as credited on screen; offline map from AWS Terrain Tiles and Natural Earth; airport buildings © OpenStreetMap contributors via Overture Maps; town and city names from GeoNames (CC BY 4.0). Version ${__BUILD__}.`),
         ]),
       ]),
     );

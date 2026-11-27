@@ -41,6 +41,8 @@ export interface Settings {
   clouds: boolean;
   /** Small performance readout in the corner while flying (for troubleshooting slowdowns). */
   perfStats: boolean;
+  /** Google mode: names of cities and towns over the map (the "Names" button). */
+  placeNames: boolean;
 }
 
 const KEY = "playnes.settings.v1";
@@ -67,6 +69,7 @@ export const DEFAULT_SETTINGS: Settings = {
   freeTips: false,
   clouds: true,
   perfStats: false,
+  placeNames: false,
 };
 
 export function loadSettings(): Settings {

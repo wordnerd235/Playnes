@@ -14,7 +14,9 @@ const { chromium } = require("playwright");
   });
   // Say we're the game's website (for keys locked to it).
   const [vw, vh] = (process.env.VIEW || "960x600").split("x").map(Number);
-  const ctx = await browser.newContext({ viewport: { width: vw, height: vh }, reducedMotion: "reduce", extraHTTPHeaders: { referer: "https://wordnerd235.github.io/Playnes/" } });
+  // IPAD=1: look like an iPad (the game then uses its iPad budgets: 300 MB of tiles, detail 14).
+  const ipad = process.env.IPAD ? { viewport: { width: 1180, height: 820 }, screen: { width: 1180, height: 820 }, hasTouch: true, userAgent: "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" } : { viewport: { width: vw, height: vh } };
+  const ctx = await browser.newContext({ ...ipad, reducedMotion: "reduce", extraHTTPHeaders: { referer: "https://wordnerd235.github.io/Playnes/" } });
   // The key comes from the network's saved credential (a header): drop the placeholder key
   // from the address.
   await ctx.route(/tile\.googleapis\.com/, (route) => {
@@ -47,6 +49,10 @@ const { chromium } = require("playwright");
     if (u.includes(".json")) fetched.json++;
     else if (u.includes(".glb")) fetched.glb++;
   });
+  // ROUTE=lat,lon,heading,speed(m/s),height above ground(m): where and how to fly (default: the
+  // F-16 out of Myrtle Beach, 330 m/s, 950 m up, heading north-west).
+  const route = (process.env.ROUTE || "").split(",").map(Number);
+  await ctx.addInitScript((r) => { window.__route = r.length === 5 ? r : null; window.__plane = r.length === 5 && r[3] < 120 ? "c172" : "f16"; }, route);
   await page.goto(base);
   for (let i = 0; i < 40 && !(await page.$(".home-grid")); i++) {
     await page.click(".big-go", { timeout: 5000 }).catch(() => {});
@@ -63,7 +69,7 @@ const { chromium } = require("playwright");
     const g = window.playnes;
     g.progress.tourDone = true;
     g.progress.unlockAll = true;
-    g.progress.selectedPlane = "f16";
+    g.progress.selectedPlane = window.__plane;
     localStorage.setItem("playnes.freeSave.v1", "");
     g.freeSave = null;
     g.startMission({ kind: "sandbox", airport: "MYR" });
@@ -98,7 +104,7 @@ const { chromium } = require("playwright");
   // at true speed (the headless renderer is too slow to let the physics run in real time).
   const t0 = Date.now();
   let last = 0;
-  console.log("t(s)  km   fps  tree   tilesMB  heapMB(raw)  liveTiles  tilesets  pending  fresh  json  glb");
+  console.log("t(s)  km   fps  cpu(avg/max ms)  tree   tilesMB  heapMB(raw)  liveTiles  tilesets  pending  fresh  json  glb");
   // Optional: sample where JS memory is allocated, from ALLOC_FROM to ALLOC_TO seconds.
   const allocFrom = Number(process.env.ALLOC_FROM || 0), allocTo = Number(process.env.ALLOC_TO || 0);
   let sampling = false;
@@ -112,12 +118,15 @@ const { chromium } = require("playwright");
       if (!window.__start) window.__start = { lat: s.lat, lon: s.lon };
       // BACK: turn around halfway and fly back over the same ground.
       const half = window.__half || 1e9;
-      const d = elapsed < half ? 330 * elapsed : 330 * (2 * half - elapsed); // distance out from the start
-      const hdg = (315 * Math.PI) / 180;
+      const R = window.__route;
+      if (R && !window.__routeSet) { window.__start = { lat: R[0], lon: R[1] }; window.__routeSet = true; }
+      const v = R ? R[3] : 330, h0 = R ? R[2] : 315, agl = R ? R[4] : 950;
+      const d = elapsed < half ? v * elapsed : v * (2 * half - elapsed); // distance out from the start
+      const hdg = (h0 * Math.PI) / 180;
       s.lat = window.__start.lat + (Math.cos(hdg) * d) / 111320;
       s.lon = window.__start.lon + (Math.sin(hdg) * d) / (111320 * Math.cos((s.lat * Math.PI) / 180));
       const ground = window.playnes.world.groundHeight(s) ?? 0;
-      Object.assign(s, { alt: ground + 950, onGround: false, speed: 330, heading: elapsed < half ? 315 : 135, pitch: 0, bank: 0, vs: 0, gamma: 0, gearDown: false, flaps: 0 });
+      Object.assign(s, { alt: ground + agl, onGround: false, speed: v, heading: elapsed < half ? h0 : (h0 + 180) % 360, pitch: 0, bank: 0, vs: 0, gamma: 0, gearDown: false, flaps: 0 });
       window.__applyDsse?.();
       // SSE=n: pin the detail level (the slow headless renderer otherwise makes the game's
       // governor coarsen it far more than on a real computer).
@@ -189,9 +198,12 @@ const { chromium } = require("playwright");
         const ts = window.__tilesets();
         const t = ts[0];
         const fps = document.querySelector(".perf-stats")?.textContent.match(/^(\d+) fps/)?.[1] ?? "?";
+        const cm = document.querySelector(".perf-stats")?.textContent.match(/cpu (\d+) \(max (\d+)/);
+        const cpu = cm ? `${cm[1]}/${cm[2]}` : "?";
         const fresh = (document.querySelector(".perf-stats")?.textContent.match(/fresh starts (\d+)/)?.[1] ?? "?") + "/" + (document.querySelector(".perf-stats")?.textContent.match(/trimmed (\d+)/)?.[1] ?? "?");
         return {
           fps,
+          cpu,
           fresh,
           tree: ts.map((x) => x.statistics.numberOfTilesTotal).join("+"),
           tilesMB: Math.round(ts.reduce((a, x) => a + x.totalMemoryUsageInBytes, 0) / 1048576),
@@ -212,7 +224,7 @@ const { chromium } = require("playwright");
       } catch (e) {
         live = "err";
       }
-      console.log(`${el.toFixed(0).padStart(4)} ${((330 * el) / 1000).toFixed(0).padStart(4)} ${String(r.fps).padStart(4)} ${String(r.tree).padStart(6)} ${String(r.tilesMB).padStart(8)} ${String(r.heapMB).padStart(6)}(${rawMB}) ${String(live).padStart(10)} ${String(r.tilesets).padStart(9)} ${String(r.pending).padStart(8)} ${String(r.fresh).padStart(6)} ${String(fetched.json).padStart(5)} ${String(fetched.glb).padStart(5)}`);
+      console.log(`${el.toFixed(0).padStart(4)} ${(((route.length === 5 ? route[3] : 330) * el) / 1000).toFixed(0).padStart(4)} ${String(r.fps).padStart(4)} ${String(r.cpu).padStart(8)} ${String(r.tree).padStart(6)} ${String(r.tilesMB).padStart(8)} ${String(r.heapMB).padStart(6)}(${rawMB}) ${String(live).padStart(10)} ${String(r.tilesets).padStart(9)} ${String(r.pending).padStart(8)} ${String(r.fresh).padStart(6)} ${String(fetched.json).padStart(5)} ${String(fetched.glb).padStart(5)}`);
     }
   }
   if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });

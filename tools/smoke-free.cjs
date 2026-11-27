@@ -146,6 +146,22 @@ const path = require("path");
   await page.mouse.up();
   check(true, "crash happens with crashes enabled");
   await shot("7-crash");
+  // The crash pop-up: "Start again here" puts the playne back in the air above the crash.
+  await page.waitForSelector(".crash-choice [data-a=here]", { timeout: 30000 });
+  const crashAt = await F();
+  // Where it restarts, read the moment it does (it flies on from there straight away).
+  await page.evaluate(() => { const f = window.playnes.flight; const orig = f.startAgainHere.bind(f); f.startAgainHere = () => { orig(); const s = f.s; window.__restart = { lat: s.lat, lon: s.lon, agl: s.alt - f.groundHeightAt(s), onGround: s.onGround, speed: s.speed }; }; });
+  await page.click(".crash-choice [data-a=here]");
+  await page.waitForFunction(() => window.playnes.flight.phase === "free" && !window.playnes.flight.paused, null, { timeout: 10000 });
+  const restart = await page.evaluate(() => window.__restart);
+  const offBy = Math.hypot(restart.lat - crashAt.lat, (restart.lon - crashAt.lon) * Math.cos((restart.lat * Math.PI) / 180)) * 111320;
+  check(!restart.onGround && restart.agl > 300 && restart.speed > 30 && offBy < 200, `start again here: in the air above the crash (${restart.agl.toFixed(0)} m up, ${restart.speed.toFixed(0)} m/s, ${offBy.toFixed(0)} m away)`);
+  await page.waitForTimeout(3000);
+  check(await page.evaluate(() => window.playnes.flight.phase === "free"), "keeps flying after starting again");
+  // Crash again and pick the nearest airport this time.
+  await page.evaluate(() => { const f = window.playnes.flight; f.crash(); });
+  await page.waitForSelector(".crash-choice [data-a=nearest]", { timeout: 30000 });
+  await page.click(".crash-choice [data-a=nearest]");
   await page.waitForFunction(() => window.playnes.flight.phase === "free" && window.playnes.flight.s.onGround, null, { timeout: 30000 });
   check(true, "respawned on a runway after the crash");
 

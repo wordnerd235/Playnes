@@ -49,8 +49,9 @@ export class DetailGovernor {
       // Smooth for a few windows in a row, and a while since it last eased off: sharpen
       // gently (slower than easing off, so it doesn't bounce back into the slow zone; every
       // change of detail swaps distant tiles, which shows as a flicker on far hills).
-      if (++this.calm >= 3 && now - this.easedAt > 10_000) {
-        this.scale = Math.max(this.o.min, this.scale / 1.08);
+      // (From the coarsest back to normal in about half a minute; it took over a minute.)
+      if (++this.calm >= 2 && now - this.easedAt > 8_000) {
+        this.scale = Math.max(this.o.min, this.scale / 1.1);
         this.calm = 0;
       }
     } else this.calm = 0;
@@ -64,8 +65,11 @@ export class DetailGovernor {
  *
  * Memory: Cesium coarsens detail 2% a frame while the tile cache is over its limit and
  * sharpens it 2% a frame as soon as it's under, so near the limit (a dense city on an iPad)
- * detail bounced every few frames. Coarsening still happens at once; sharpening back is slow
- * while the cache is nearly full and quicker once there's real room (under 85%).
+ * detail bounced every few frames. Coarsening still happens at once. Sharpening back waits
+ * until memory has been calm (no coarsening) for ~5 seconds of frames, then goes at a steady
+ * ~4% a second (fully sharp again within ~25 s). It used to depend on how full the cache was,
+ * but the cache is meant to be full (it keeps tiles for coming back to): on any long flight it
+ * stayed over 85%, so lost detail took over a minute to come back, or never did.
  *
  * Distance falloff: Cesium recomputes how fast detail falls off with distance every frame
  * from where the camera points (more falloff looking at the horizon), so banking and
@@ -84,14 +88,14 @@ export function steadyTileDetail(tileset: SteadyTileset): void {
   const original = t.prePassesUpdate;
   if (typeof original !== "function") return;
   let density: number | null = null;
+  let calm = 0;
   t.prePassesUpdate = function (frameState: unknown) {
     const before = t._memoryAdjustedScreenSpaceError;
     original.call(this, frameState);
     const after = t._memoryAdjustedScreenSpaceError;
-    if (after < before) {
-      const used = tileset.totalMemoryUsageInBytes / tileset.cacheBytes;
-      t._memoryAdjustedScreenSpaceError = Math.max(after, before / (used < 0.85 ? 1.0015 : 1.0004));
-    }
+    if (after > before) calm = 0;
+    else calm++;
+    if (after < before) t._memoryAdjustedScreenSpaceError = Math.max(after, before / (calm > 150 ? 1.0015 : 1.0002));
     const raw = t._dynamicScreenSpaceErrorComputedDensity;
     if (typeof raw === "number" && Number.isFinite(raw)) {
       density = density === null ? raw : density + (raw - density) * 0.01;

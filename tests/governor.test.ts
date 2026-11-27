@@ -95,6 +95,20 @@ describe("steady tile detail", () => {
     expect(ts._memoryAdjustedScreenSpaceError).toBeLessThan(eased);
   });
 
+  it("sharpens back steadily once memory has been calm for a while, even with the cache nearly full", () => {
+    const mem = { bytes: 140 };
+    const ts = fakeTileset(mem);
+    steadyTileDetail(ts);
+    for (let i = 0; i < 20; i++) ts.prePassesUpdate(null);
+    mem.bytes = 97; // a full cache is normal on a long flight
+    for (let i = 0; i < 150; i++) ts.prePassesUpdate(null);
+    // Still mostly coarse while waiting for calm (no bouncing near the limit)...
+    expect(ts._memoryAdjustedScreenSpaceError).toBeGreaterThan(23);
+    // ...then fully sharp again within ~10 s at 30 fps (it took minutes before).
+    for (let i = 0; i < 300; i++) ts.prePassesUpdate(null);
+    expect(ts._memoryAdjustedScreenSpaceError).toBeCloseTo(16, 5);
+  });
+
   it("eases the distance falloff instead of jumping with every camera tilt", () => {
     const mem = { bytes: 50 };
     const ts = fakeTileset(mem) as ReturnType<typeof fakeTileset> & { _dynamicScreenSpaceErrorComputedDensity: number };

@@ -462,8 +462,31 @@ If the owner can supply any of those drawings, add them to tools/photofit/drawin
   at ~6k entries and no step over 5 ms. Next step: the owner's new overlay from the same kind
   of spot.
 
+- Owner feedback (iPad, Google mode): still slow on long flights and in cities, and detail took
+  too long to sharpen. Done:
+  - Reverted the iPad-only 4x governor limit and stronger far-tile blur (they made it blurrier).
+  - Found why detail came back so slowly: (1) steadyTileDetail only sharpened quickly with the
+    tile cache under 85% full, but the cache is meant to be full, so on any long flight lost
+    detail took 80+ s or never returned; it now waits for ~150 calm frames and then sharpens
+    at ~4%/s regardless of fill. (2) setSseKeepingMemoryRelief kept the old level as a floor,
+    so every governor sharpening waited on that slow easing; it now keeps the memory relief
+    as a ratio. (3) The governor sharpens faster (/1.1 every 2 calm windows after 8 s).
+    Confirmed in the speed test: before the fix, "Normal" drew half the tiles it should have.
+  - Speed test (grown-up settings, Google mode only; src/game/speedTest.ts): flies a fixed
+    loop over Charlotte and measures fps, low fps, hitches, frame and CPU ms, tiles and MB with
+    Normal / 80% resolution / 1.5x and 2.5x less detail / no clouds / no FXAA / Normal again.
+    The owner's screenshot of the results is the input for tuning the iPad budgets. Headless
+    software-drawing numbers (tools/diag-google-view.cjs, Charlotte at 470 m): 80% resolution
+    -34% drawing work, FXAA off -20%, detail 21 -24% (28: no further gain), clouds off -4%.
+  - Also: place-name labels (Names button, Google mode; public/world/places.json from GeoNames
+    via scripts/world/build-places.mjs, credited in settings); Free Flight trip bar hidden with
+    no destination, else filling with distance to it; co-pilot captions can no longer stick
+    (timeout on each voice line, skip a line cut off while loading); no co-pilot line on the
+    sonic boom; crash pop-up with "Start again here" (450 m above the crash site, Chinook 150 m
+    in a hover) or the nearest airport.
+
 Still to do:
-- Check on iPad and in Google (photo-realistic) map mode.
+- iPad speed test results from the owner, then tune the iPad budgets from them.
 - Copy the test copy over to the main game (change .stable-ref) when the owner says so.
 - Housekeeping: split src/game/flight.ts, add a linter, shared helpers for the test scripts,
   trim the site.

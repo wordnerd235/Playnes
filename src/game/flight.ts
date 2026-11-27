@@ -306,6 +306,10 @@ export class FlightSession {
   /** Free Flight: stopped safely after an emergency landing in a field. `earned`: it counts
    *  for a reward (a real flight first, not a hop). */
   onFieldStop: (nearest: Airport, earned: boolean) => void = () => {};
+  /** Free Flight: crashed (after a moment to see it). Offer to start again right here or at
+   *  the nearest airport. Without a handler it goes straight to the nearest airport. */
+  onCrashed: ((nearest: Airport) => void) | null = null;
+  private crashAsked = false;
   /** First takeoff from an airport earns a bonus: returns the Wings (0 if not new). */
   onTakeoff: (code: string) => number = () => 0;
   private allRunways: RunwayInUse[] = [];
@@ -328,6 +332,8 @@ export class FlightSession {
   private arrivedRunway: RunwayInUse | null = null;
   private lastMach = 0;
   private lastBoom = -100;
+  /** Free Flight: distance to the chosen airport when it was chosen (fills the top bar). */
+  private navStartDist = 0;
   /** Free Flight: when the wheels last left the ground (a bump right after isn't a landing). */
   private liftoffAt = -100;
   /** Free Flight: taking off from a field after an emergency landing (bumpy ground is fine). */
@@ -890,6 +896,7 @@ export class FlightSession {
     for (const r of this.allRunways) if (r !== startRwy) this.addRunwayVisuals(r);
     this.d.audio.startEngine(this.ac.kind);
     this.d.hud.show("FREE", "—");
+    this.d.hud.setRouteShown(this.navTarget !== null);
     this.d.hud.setSandbox(true);
     this.d.hud.setHeli(this.heli);
     this.d.hud.setAutoFlaps(this.autoFlaps);
@@ -959,7 +966,10 @@ export class FlightSession {
     if (r.navTarget) {
       this.navTarget = AIRPORTS.find((a) => a.code === r.navTarget) ?? null;
       this.d.hud.setRoute("FREE", this.navTarget ? this.navTarget.code : "—");
+      // Resumed: count the trip from where it started, if we know it.
+      if (this.navTarget) this.navStartDist = Math.max(distance(this.freeFrom ?? s, this.navTarget), distance(s, this.navTarget), 1);
     }
+    this.d.hud.setRouteShown(this.navTarget !== null);
   }
 
   /** Line up on the airport's preferred runway, ready to go. */
@@ -1007,6 +1017,9 @@ export class FlightSession {
   setNavTarget(a: Airport | null): void {
     this.navTarget = a;
     this.d.hud.setRoute("FREE", a ? a.code : "—");
+    // The top bar shows how much of the way there you've come (hidden with no destination).
+    if (a) this.navStartDist = Math.max(1, distance(this.s, a));
+    this.d.hud.setRouteShown(a !== null);
     if (a) void this.say(tpl.nextStop(a.spoken));
     this.planRouteTo(a);
   }
@@ -1094,7 +1107,7 @@ export class FlightSession {
       this.lastBoom = this.time;
       this.d.audio.sfx("boom");
       this.view.shake = 0.4;
-      void this.say(LINES.sonicBoom, true);
+      // Just the boom and the vapour cone: no co-pilot line (the owner's call).
     }
     this.lastMach = mach;
     const c = this.d.controls.state;
@@ -1591,6 +1604,7 @@ export class FlightSession {
     if (this.phase === "crashed") return;
     this.setPhase("crashed");
     this.crashTimer = 3.5;
+    this.crashAsked = false;
     this.s.speed = 0;
     this.s.throttle = 0;
     this.s.bank = 25;
@@ -1605,8 +1619,63 @@ export class FlightSession {
   private updateCrashed(dt: number): void {
     this.crashTimer -= dt;
     if (this.crashTimer > 0) return;
+    if (this.onCrashed) {
+      if (this.crashAsked) return;
+      this.crashAsked = true;
+      this.paused = true;
+      this.onCrashed(this.nearestAirport());
+      return;
+    }
     this.d.audio.startEngine(this.ac.kind);
     this.startFreeAt(this.nearestAirport());
+  }
+
+  /** Speed test: put the playne exactly here, flying level (the test flies a fixed loop). */
+  setPose(p: { lat: number; lon: number; alt: number; heading: number; speed: number }): void {
+    Object.assign(this.s, { lat: p.lat, lon: p.lon, alt: p.alt, heading: p.heading, speed: p.speed, pitch: 0, bank: 0, gamma: 0, vs: 0, onGround: false, flaps: 0, gearDown: this.ac.shape.fixedGear });
+  }
+
+  /**
+   * Free Flight, after a crash: start again in the air right above the crash site, level, at a
+   * safe height (clear of the ground and anything standing on it) and a comfortable speed, on
+   * the same heading. The Chinook starts in a hover.
+   */
+  startAgainHere(): void {
+    const old = this.s;
+    const pos = { lat: old.lat, lon: old.lon };
+    const ground = this.groundHeightAt(pos);
+    const top = this.d.world.obstacleTop(pos, 400);
+    const clear = Math.max(ground, top ?? ground);
+    const alt = clear + (this.heli ? 150 : 450);
+    const fixed = this.ac.shape.fixedGear;
+    this.s = createState({
+      lat: pos.lat,
+      lon: pos.lon,
+      alt,
+      heading: old.heading,
+      speed: this.heli ? 0 : this.p.vclimb * 1.15,
+      throttle: this.heli ? 0.5 : 0.7,
+      flaps: 0,
+      gearDown: fixed || this.heli,
+      onGround: false,
+    });
+    this.view.resetCameraHeading(old.heading);
+    this.view.resetLook();
+    this.d.controls.reset();
+    this.d.controls.setThrottle(this.heli ? 0.5 : 0.7, false);
+    this.speedbrakeOut = false;
+    this.arrival = null;
+    this.fieldStop = null;
+    this.fieldRoll = false;
+    this.autopilot = null;
+    // Counts as already flying (no takeoff prompts or first-takeoff bonus).
+    this.airborneTime = 30;
+    this.landedAt = null;
+    this.crashAsked = false;
+    this.setPhase("free");
+    this.hudPrompt(null);
+    this.d.audio.startEngine(this.ac.kind);
+    this.paused = false;
   }
 
   private nearestAirport(): Airport {
@@ -2370,7 +2439,7 @@ export class FlightSession {
       fixedGear: this.ac.shape.fixedGear,
       flaps: s.flaps,
       onGround: s.onGround,
-      progress: this.mission.kind === "charter" ? this.cruiseProgressFraction() : null,
+      progress: this.mission.kind === "charter" ? this.cruiseProgressFraction() : this.mission.kind === "sandbox" && this.navTarget ? 1 - distance(s, this.navTarget) / this.navStartDist : null,
       from: this.dep.airport.code,
       to: (this.arr ?? this.dep).airport.code,
       warp: inCruise && this.cruise.moment === 0,

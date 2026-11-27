@@ -18,7 +18,8 @@ import { Hud } from "./ui/hud.ts";
 import { ICONS } from "./ui/icons.ts";
 import { HELI_TOUR, TOUR } from "./ui/tour.ts";
 import { LESSONS, Screens, type ScreenHost } from "./ui/screens.ts";
-import { createWorld, setGraphicsRecoveredHandler, type World } from "./world/world.ts";
+import { createWorld, qualityLevel, setGraphicsRecoveredHandler, type World } from "./world/world.ts";
+import { runSpeedTest, type PhaseResult } from "./game/speedTest.ts";
 
 const app = document.getElementById("app") as HTMLElement;
 
@@ -224,9 +225,10 @@ class Game implements ScreenHost {
     this.lastFrame = now;
     if (this.flight) {
       this.flight.update(dt);
+      this.speedTestFrame?.(dt);
       this.updatePerf(now, rawMs);
       // Keep a Free Flight saved every few seconds, so it survives leaving or closing the app.
-      if (now - this.lastFreeSave > 5000) {
+      if (!this.speedTesting && now - this.lastFreeSave > 5000) {
         this.lastFreeSave = now;
         this.storeFreeSave(this.flight.snapshot());
       }
@@ -291,7 +293,20 @@ class Game implements ScreenHost {
     flight.onTakeoff = (code) => this.takeoff(code);
     flight.onArrived = (a) => this.showArrival(a);
     flight.onFieldStop = (a, earned) => this.showFieldStop(a, earned);
+    flight.onCrashed = (a) => this.showCrashChoice(a);
     flight.onHelp = () => void this.showTour();
+    // Town and city names (Google mode): the "Names" button, remembered between flights.
+    const names = this.world?.placeNames ?? null;
+    names?.setVisible(this.settings.placeNames === true);
+    this.hud.setPlaceNames(names !== null, this.settings.placeNames === true);
+    this.hud.onPlaceNames = () => {
+      if (!names) return;
+      this.audio.sfx("click");
+      this.settings.placeNames = !names.visible;
+      names.setVisible(this.settings.placeNames);
+      this.hud.setPlaceNames(true, this.settings.placeNames);
+      saveSettings(this.settings);
+    };
     this.flightPlane = ac.id;
     this.flightBonuses = [];
     flight
@@ -318,6 +333,71 @@ class Game implements ScreenHost {
         this.endFlight();
         this.screens.home();
       });
+  }
+
+  // ----- speed test (grown-up settings, Google mode) -----
+  private speedTesting = false;
+  private speedTestFrame: ((dt: number) => void) | null = null;
+
+  runSpeedTest(): void {
+    const world = this.world;
+    if (!world || world.kind !== "google" || this.speedTesting) return;
+    this.speedTesting = true;
+    const status = document.createElement("div");
+    status.className = "speed-test-status";
+    app.append(status);
+    let flight: FlightSession | null = null;
+    const done = (out: { results: PhaseResult[]; info: string } | null) => {
+      status.remove();
+      this.speedTestFrame = null;
+      world.setClouds(this.settings.clouds !== false);
+      this.endFlight(); // (still marked as testing: the test flight isn't saved)
+      this.speedTesting = false;
+      this.screens.home();
+      if (out) this.showSpeedTestResults(out.results, out.info);
+    };
+    void runSpeedTest(
+      {
+        world,
+        quality: qualityLevel(this.settings.quality),
+        startFlight: async (p) => {
+          this.startMission({ kind: "sandbox", airport: "CLT", resume: { v: 1, aircraft: "c172", airport: "CLT", worldKind: "google", refHeight: 0, lat: p.lat, lon: p.lon, alt: p.alt, heading: p.heading, pitch: 0, bank: 0, gamma: 0, speed: p.speed, vs: 0, throttle: 0.7, flaps: 0, gearDown: true, onGround: false, navTarget: null, landedAt: null, from: null, savedAt: Date.now() } });
+          flight = this.flight;
+          // The resumed flight starts paused once it's ready: then carry straight on.
+          const t0 = performance.now();
+          while (performance.now() - t0 < 120_000) {
+            if (this.flight !== flight || !flight) return false;
+            if (this.pauseEl) {
+              this.hidePause();
+              this.hud.toast("Speed test", "big");
+              return true;
+            }
+            await new Promise((r) => setTimeout(r, 250));
+          }
+          return false;
+        },
+        setPose: (p) => this.flight?.setPose(p),
+        onFrame: (fn) => {
+          this.speedTestFrame = fn;
+        },
+        stillFlying: () => this.flight !== null && this.flight === flight,
+      },
+      (msg) => {
+        status.textContent = `⏱ ${msg}`;
+      },
+    ).then(done, (e) => {
+      console.error("speed test failed", e);
+      done(null);
+    });
+  }
+
+  private showSpeedTestResults(results: PhaseResult[], info: string): void {
+    const el = document.createElement("div");
+    el.className = "pause-overlay speed-results";
+    const rows = results.map((r) => `<tr><td>${r.name}</td><td>${r.fps.toFixed(0)}</td><td>${r.low.toFixed(0)}</td><td>${r.hitches}</td><td>${r.frameMs.toFixed(0)}</td><td>${r.cpuMs.toFixed(0)}</td><td>${r.tiles}</td><td>${r.tileMB}</td></tr>`).join("");
+    el.innerHTML = `<div class="pause-card"><h1>Speed test results</h1><table class="speed-table"><thead><tr><th>Setting</th><th>fps</th><th>low</th><th>hitches</th><th>frame ms</th><th>cpu ms</th><th>tiles</th><th>MB</th></tr></thead><tbody>${rows}</tbody></table><p class="pause-note speed-info">${info}<br>version ${typeof __BUILD__ === "string" ? __BUILD__.split(" ")[0] : "?"}</p><div class="pause-actions"><button type="button" class="btn primary" data-a="ok">Done</button></div></div>`;
+    el.querySelector("[data-a=ok]")!.addEventListener("click", () => el.remove());
+    app.append(el);
   }
 
   completeLesson1(): void {
@@ -454,9 +534,10 @@ class Game implements ScreenHost {
   private endFlight(): void {
     this.perfEl?.remove();
     this.perfEl = null;
-    if (this.flight) this.storeFreeSave(this.flight.snapshot());
+    if (this.flight && !this.speedTesting) this.storeFreeSave(this.flight.snapshot());
     this.flight?.destroy();
     this.flight = null;
+    this.world?.placeNames?.setVisible(false);
     this.hidePause();
   }
 
@@ -542,6 +623,32 @@ class Game implements ScreenHost {
       this.clearFreeSave();
       if (act === "pick") this.screens.freeFlight();
       else this.screens.home();
+    });
+    app.append(el);
+    this.pauseEl = el;
+  }
+
+  /** Free Flight: crashed. Start again right here (in the air above the crash), or at the nearest airport. */
+  private showCrashChoice(nearest: Airport): void {
+    const flight = this.flight;
+    if (!flight) return;
+    this.pauseEl?.remove();
+    const el = document.createElement("div");
+    el.className = "pause-overlay arrival crash-choice";
+    el.innerHTML = `<div class="pause-card"><div class="arrival-icon">💥</div><h1>Oops, a crash!</h1><p class="pause-note">Everyone is fine. Want to try again?</p><div class="pause-actions arrival-actions"><button type="button" class="btn secondary" data-a="home">Go home</button><button type="button" class="btn secondary" data-a="nearest">Fly from ${nearest.spoken}</button><button type="button" class="btn primary" data-a="here">Start again here</button></div></div>`;
+    el.addEventListener("click", (e) => {
+      const act = (e.target as HTMLElement).closest("button")?.dataset.a;
+      if (!act) return;
+      this.audio.sfx("click");
+      el.remove();
+      this.pauseEl = null;
+      if (act === "here") flight.startAgainHere();
+      else if (act === "nearest") flight.flyFromNearest();
+      else {
+        this.endFlight();
+        this.clearFreeSave();
+        this.screens.home();
+      }
     });
     app.append(el);
     this.pauseEl = el;

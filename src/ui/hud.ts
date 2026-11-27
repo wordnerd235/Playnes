@@ -70,6 +70,7 @@ export class Hud {
   private alt: HTMLElement;
   private ball: SVGGElement;
   private progressBar: HTMLElement;
+  private routeEl!: HTMLElement;
   private progressPlane: HTMLElement;
   private fromLabel: HTMLElement;
   private toLabel: HTMLElement;
@@ -102,6 +103,9 @@ export class Hud {
   onLook: (dYaw: number, dPitch: number) => void = () => {};
   onLookReset: () => void = () => {};
   onOpenMap: () => void = () => {};
+  /** The "Names" button (Google mode): town and city names on or off. */
+  onPlaceNames: () => void = () => {};
+  private namesBtn!: HTMLButtonElement;
   private minimap: Minimap;
   private bigmap: BigMap;
   private leverDragging = false;
@@ -134,6 +138,7 @@ export class Hud {
     left.append(speedBox);
 
     const center = el("div", "hud-route");
+    this.routeEl = center;
     this.fromLabel = el("div", "route-code");
     this.toLabel = el("div", "route-code");
     const track = el("div", "route-track");
@@ -258,10 +263,18 @@ export class Hud {
     look.append(pad, this.lookReset);
 
     this.minimap = new Minimap(() => this.onOpenMap());
+    this.namesBtn = el("button", "names-btn", `${ICONS.pin}<span>Names</span>`) as HTMLButtonElement;
+    this.namesBtn.type = "button";
+    this.namesBtn.setAttribute("aria-label", "Show the names of towns and cities");
+    this.namesBtn.hidden = true;
+    this.namesBtn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      this.onPlaceNames();
+    });
     this.minimap.el.hidden = true;
     this.bigmap = new BigMap(parent);
 
-    this.root.append(top, this.caption, this.yoke, rightCtl, look, this.minimap.el, this.toastEl, this.warpEl, this.hoopsEl, this.hintEl);
+    this.root.append(top, this.caption, this.yoke, rightCtl, look, this.minimap.el, this.namesBtn, this.toastEl, this.warpEl, this.hoopsEl, this.hintEl);
     parent.append(this.root, this.whiteEl);
   }
 
@@ -521,6 +534,7 @@ export class Hud {
     this.setHeli(false);
     this.setRadioEnabled(true);
     this.root.hidden = false;
+    this.routeEl.style.visibility = "";
     this.lookReset.hidden = true;
     this.fromLabel.textContent = from;
     this.toLabel.textContent = to;
@@ -531,6 +545,19 @@ export class Hud {
   setSandbox(on: boolean): void {
     this.minimap.el.hidden = !on;
     if (!on) this.bigmap.close();
+  }
+
+  /** The "Names" button: shown only where place names exist (Google mode); lit when on. */
+  setPlaceNames(available: boolean, on: boolean): void {
+    this.namesBtn.hidden = !available;
+    this.namesBtn.classList.toggle("on", on);
+    this.namesBtn.setAttribute("aria-pressed", String(on));
+  }
+
+  /** Show or hide the trip bar at the top (Free Flight hides it with no destination). */
+  setRouteShown(on: boolean): void {
+    // (Kept in the layout, so the gauges either side don't move.)
+    this.routeEl.style.visibility = on ? "" : "hidden";
   }
 
   setRoute(from: string, to: string): void {

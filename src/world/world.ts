@@ -31,6 +31,7 @@ import { CartoonData } from "./cartoon.ts";
 import { Scenery } from "./scenery.ts";
 import { AirportBuildings } from "./buildings.ts";
 import { LandmarkMarkers } from "./landmarks.ts";
+import { PlaceLabels } from "./places.ts";
 import { detailBudget, deviceClass } from "./device.ts";
 import { DetailGovernor, shareTextureCounts, speedStep, steadyTileDetail } from "./governor.ts";
 import { TreeTrimmer, type PrunableTileset } from "./tilePruner.ts";
@@ -38,6 +39,13 @@ import { degrade, FEATURE_NAMES, gfxOn, type GfxFeature } from "./safety.ts";
 
 /** "cartoon" = offline cartoon world; "basic" = bare globe if the offline data is missing. */
 export type WorldKind = "google" | "ion" | "cartoon" | "basic";
+
+/** One speed-test setting: map detail (allowed blur in pixels), drawing resolution, edge smoothing. */
+export interface BenchSettings {
+  sse: number;
+  res: number;
+  fxaa: boolean;
+}
 
 export interface World {
   kind: WorldKind;
@@ -65,6 +73,11 @@ export interface World {
   setClouds(on: boolean): void;
   /** Numbers for the optional performance readout (grown-up setting). */
   perfStats?(): string;
+  /** The speed test (Google mode): fix detail, resolution and smoothing (null = back to normal,
+   *  with the automatic detail governor). */
+  benchmark?(o: BenchSettings | null): void;
+  /** Names of cities and towns floating over them (Google mode only; null elsewhere). */
+  placeNames: { readonly visible: boolean; setVisible(on: boolean): void } | null;
   destroy(): void;
 }
 
@@ -138,9 +151,11 @@ function installCommandGuard(widget: CesiumWidget): void {
  */
 function setSseKeepingMemoryRelief(tileset: Cesium3DTileset, sse: number): void {
   const t = tileset as unknown as { _memoryAdjustedScreenSpaceError?: number };
-  const relief = t._memoryAdjustedScreenSpaceError ?? sse;
+  // Keep the memory relief as a ratio over the old level, so the new level takes effect at once
+  // (keeping the old value as a floor made every sharpening wait for the slow memory easing).
+  const ratio = Math.max(1, (t._memoryAdjustedScreenSpaceError ?? sse) / Math.max(1e-6, tileset.maximumScreenSpaceError));
   tileset.maximumScreenSpaceError = sse;
-  t._memoryAdjustedScreenSpaceError = Math.max(relief, sse);
+  t._memoryAdjustedScreenSpaceError = sse * Math.min(ratio, 4);
 }
 
 /** Runs the detail governor on every rendered frame; `apply` gets the new detail scale. */
@@ -176,7 +191,7 @@ function isTouchDevice(): boolean {
   return navigator.maxTouchPoints > 1 || /iPad|iPhone/.test(navigator.userAgent);
 }
 
-function qualityLevel(q: Quality): "high" | "medium" | "low" {
+export function qualityLevel(q: Quality): "high" | "medium" | "low" {
   if (q === "high") return "high";
   if (q === "low") return "low";
   return isTouchDevice() ? "medium" : "high";
@@ -222,7 +237,7 @@ function baseWidget(container: HTMLElement, kind: WorldKind, q: "high" | "medium
 export async function createWorld(container: HTMLElement, kind: WorldKind, opts: WorldOptions): Promise<World> {
   const q = qualityLevel(opts.quality);
   const cartoon = await loadCartoon();
-  let w: Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setClouds">;
+  let w: Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setClouds" | "placeNames">;
   if (kind === "google") w = await createGoogleWorld(container, opts.googleKey ?? "", q);
   else if (kind === "ion") w = await createIonWorld(container, opts.ionToken ?? "", q);
   else w = await createBasicWorld(container, q, cartoon);
@@ -236,6 +251,8 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
   }
   // Star pins over the landmarks (every map type), standing on the ground below them.
   const markers = new LandmarkMarkers(w.widget.scene, (lat, lon) => cartoon?.height(lat, lon) ?? 0);
+  // Town and city names (a button in Google mode; the cartoon map has its own look).
+  const places = w.kind === "google" ? new PlaceLabels(w.widget.scene, (lat, lon) => cartoon?.height(lat, lon) ?? 0) : null;
   installRecovery(w.widget, scenery);
   installCommandGuard(w.widget);
   const setGround = w.setGroundVisible.bind(w);
@@ -248,7 +265,9 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
       scenery.setVisible(v);
       buildings?.setVisible(v);
       markers.setVisible(v);
+      places?.setGroundShown(v);
     },
+    placeNames: places,
     setClouds(on: boolean) {
       scenery.setClouds(on);
     },
@@ -256,6 +275,7 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
     updateScenery(p, alt, agl) {
       scenery.update(p, alt, agl);
       buildings?.update(p);
+      places?.update(p);
     },
     obstacleTop(p, radius) {
       const a = scenery.obstacleTop(p, radius);
@@ -266,12 +286,13 @@ export async function createWorld(container: HTMLElement, kind: WorldKind, opts:
       scenery.destroy();
       buildings?.destroy();
       markers.destroy();
+      places?.destroy();
       destroy();
     },
   };
 }
 
-async function createGoogleWorld(container: HTMLElement, key: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setClouds">> {
+async function createGoogleWorld(container: HTMLElement, key: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setClouds" | "placeNames">> {
   const widget = baseWidget(container, "google", q, { globe: false, baseLayer: false });
   const scene = widget.scene;
   // Every frame the camera moves, Cesium asks the 3D map for the ground height under the
@@ -304,10 +325,6 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       foveatedScreenSpaceError: false,
       preloadWhenHidden: false,
       dynamicScreenSpaceError: true,
-      // How much coarser far-off tiles may be (in pixels of error, Cesium's default is 24).
-      // Far ground is hazy anyway; on iPads and phones relax it more, since looking out to a
-      // horizon 100+ km away from a few thousand feet is what makes them struggle.
-      dynamicScreenSpaceErrorFactor: mobileDevice ? 40 : 24,
     },
   );
   const makeSteadyTileset = async () => {
@@ -324,17 +341,16 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   // briefly, so detail relaxes with speed too (or tile streaming snowballs).
   let govK = 1;
   let speedK = 1;
+  let benchSse: number | null = null;
   const applyDetail = () => {
-    const target = Math.min(72, b.tilesSse * govK * speedK);
+    const target = benchSse ?? Math.min(72, b.tilesSse * govK * speedK);
     if (Math.abs(target - tileset.maximumScreenSpaceError) < target * 0.04) return;
     setSseKeepingMemoryRelief(tileset, target);
   };
-  // iPads and phones may coarsen further when even 2.6x isn't enough (seen on an iPad at
-  // ~1,500 m looking out to a far horizon: governor pinned at its limit, still choppy).
   installGovernor(scene, (k) => {
     govK = k;
     applyDetail();
-  }, mobileDevice ? 4 : 2.6);
+  });
   let lastSpeedApply = 0;
 
   // Safety net: Cesium never lets go of the tile tree it has explored (only the tiles'
@@ -540,6 +556,16 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       else if (speed < 85) tileset.loadSiblings = true;
       applyDetail();
     },
+    benchmark(o) {
+      benchSse = o ? o.sse : null;
+      widget.resolutionScale = o ? o.res : 1;
+      scene.postProcessStages.fxaa.enabled = o ? o.fxaa : q !== "high";
+      if (o) {
+        // Exactly this detail, without any leftover easing from before the test.
+        tileset.maximumScreenSpaceError = o.sse;
+        (tileset as unknown as { _memoryAdjustedScreenSpaceError: number })._memoryAdjustedScreenSpaceError = o.sse;
+      } else applyDetail();
+    },
     groundReady() {
       return tileset.tilesLoaded;
     },
@@ -549,7 +575,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   };
 }
 
-async function createIonWorld(container: HTMLElement, token: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setClouds">> {
+async function createIonWorld(container: HTMLElement, token: string, q: "high" | "medium" | "low"): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setClouds" | "placeNames">> {
   Ion.defaultAccessToken = token;
   const widget = baseWidget(container, "ion", q, {
     terrain: Terrain.fromWorldTerrain(),
@@ -604,7 +630,7 @@ async function createIonWorld(container: HTMLElement, token: string, q: "high" |
   };
 }
 
-async function createBasicWorld(container: HTMLElement, q: "high" | "medium" | "low", cartoon: CartoonData | null): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setClouds">> {
+async function createBasicWorld(container: HTMLElement, q: "high" | "medium" | "low", cartoon: CartoonData | null): Promise<Omit<World, "cartoon" | "updateScenery" | "obstacleTop" | "setClouds" | "placeNames">> {
   const provider = await TileMapServiceImageryProvider.fromUrl(buildModuleUrl("Assets/Textures/NaturalEarthII"), {
     credit: new Credit("Natural Earth II"),
   });

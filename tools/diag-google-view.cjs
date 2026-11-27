@@ -4,14 +4,17 @@
 // view, tile memory, and processor time per frame. Also a picture per setting.
 // Needs the Google key injected by the network (see tools/diag-google.cjs).
 // Usage: node tools/diag-google-view.cjs <base-url> <out-dir> [lat,lon,altMeters,heading]
-// Settings: SETS="sse:factor,sse:factor,..." (default compares the old and new iPad limits).
+// Settings: SETS="sse:factor[:clouds 0/1[:fxaa 0/1[:resolutionScale]]],..." (default compares
+// detail levels). Also reports the median frame time with the view held still: drawing here
+// is in software, so it is only a rough guide to how much drawing work each setting is, but
+// differences between settings in the same run are meaningful.
 const { chromium } = require("playwright");
 const path = require("path");
 
 (async () => {
   const [base, out, where = "36.47,-82.42,1490,70"] = process.argv.slice(2);
   const [lat, lon, alt, heading] = where.split(",").map(Number);
-  const sets = (process.env.SETS || "14:24,36:24,36:40,56:40").split(",").map((s) => s.split(":").map(Number));
+  const sets = (process.env.SETS || "14:24,21:24,36:24").split(",").map((s) => s.split(":").map(Number));
   const browser = await chromium.launch({
     proxy: (process.env.HTTPS_PROXY || process.env.https_proxy) ? { server: process.env.HTTPS_PROXY || process.env.https_proxy, bypass: "127.0.0.1,localhost" } : undefined,
   });
@@ -65,10 +68,16 @@ const path = require("path");
     const ts = scene.primitives._primitives.find((p) => p && p.statistics && "numberOfTilesTotal" in p.statistics);
     window.__ts = ts;
     window.__force = null;
+    window.__frames = [];
+    let lastT = performance.now();
+    scene.postRender.addEventListener(() => { const t = performance.now(); window.__frames.push(t - lastT); lastT = t; if (window.__frames.length > 40) window.__frames.shift(); });
     scene.preRender.addEventListener(() => {
       const f = window.__force;
       if (!f) return;
       ts.dynamicScreenSpaceErrorFactor = f[1];
+      if (f[2] !== undefined && !Number.isNaN(f[2]) && window.__clouds !== f[2]) { window.__clouds = f[2]; window.playnes.world.setClouds(!!f[2]); }
+      if (f[3] !== undefined && !Number.isNaN(f[3])) scene.postProcessStages.fxaa.enabled = !!f[3];
+      if (f[4] && window.playnes.world.widget.resolutionScale !== f[4]) window.playnes.world.widget.resolutionScale = f[4];
       if (ts.maximumScreenSpaceError !== f[0]) { ts.maximumScreenSpaceError = f[0]; ts._memoryAdjustedScreenSpaceError = f[0]; }
     });
     window.__cpu = [];
@@ -76,18 +85,22 @@ const path = require("path");
     scene.preUpdate.addEventListener(() => { t0 = performance.now(); });
     scene.postRender.addEventListener(() => { window.__cpu.push(performance.now() - t0); if (window.__cpu.length > 30) window.__cpu.shift(); });
   });
-  for (const [sse, factor] of sets) {
-    await page.evaluate((f) => { window.__force = f; }, [sse, factor]);
+  for (const [sse, factor, ...rest] of sets) {
+    await page.evaluate((f) => { window.__force = f; window.__frames = []; }, [sse, factor, ...rest]);
     await page.waitForTimeout(3000);
     await page.waitForFunction(() => window.__ts.tilesLoaded, null, { timeout: 150000 }).catch(() => {});
-    await page.waitForTimeout(4000);
+    await page.evaluate(() => { window.__frames = []; });
+    await page.waitForTimeout(12000);
     const r = await page.evaluate(() => {
       const ts = window.__ts, st = ts.statistics;
       const cpu = window.__cpu.slice().sort((a, b) => a - b);
-      return { tiles: st.selected, tri: st.numberOfTrianglesSelected, draws: st.numberOfCommands, mb: Math.round(ts.totalMemoryUsageInBytes / 1048576), cpu: cpu[Math.floor(cpu.length / 2)] };
+      const fr = window.__frames.slice().sort((a, b) => a - b);
+      return {
+        frame: fr[Math.floor(fr.length / 2)], tiles: st.selected, tri: st.numberOfTrianglesSelected, draws: st.numberOfCommands, mb: Math.round(ts.totalMemoryUsageInBytes / 1048576), cpu: cpu[Math.floor(cpu.length / 2)] };
     });
-    console.log(`detail ${String(sse).padStart(2)}  far ${factor}:  ${String(r.tiles).padStart(4)} tiles  ${(r.tri / 1e6).toFixed(2)}M triangles  ${String(r.draws).padStart(4)} draws  ${String(r.mb).padStart(3)} MB  cpu ${r.cpu?.toFixed(0)} ms`);
-    await page.screenshot({ path: path.join(out, `view-${sse}-${factor}.png`) });
+    const extra = rest => rest.length ? `  clouds ${rest[0] ?? "-"} fxaa ${rest[1] ?? "-"} res ${rest[2] ?? "-"}` : "";
+    console.log(`detail ${String(sse).padStart(2)}  far ${factor}${extra(rest)}:  frame ${r.frame?.toFixed(0)} ms   ${String(r.tiles).padStart(4)} tiles  ${(r.tri / 1e6).toFixed(2)}M triangles  ${String(r.draws).padStart(4)} draws  ${String(r.mb).padStart(3)} MB  cpu ${r.cpu?.toFixed(0)} ms`);
+    await page.screenshot({ path: path.join(out, `view-${sse}-${factor}${rest.length ? "-" + rest.join("-") : ""}.png`) });
   }
   if (errors.length) console.log("errors:", errors.slice(0, 5));
   await browser.close();

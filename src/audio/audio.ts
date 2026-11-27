@@ -29,6 +29,10 @@ export class Audio {
   private engine: EngineSound | null = null;
   volume = 0.9;
   onCaption: Caption = () => {};
+  /** Bumped whenever the voice is cut off; a line still loading then isn't played. */
+  private voiceGen = 0;
+  /** Ends the line playing now (see next()). */
+  private endCurrent: (() => void) | null = null;
 
   async init(): Promise<void> {
     try {
@@ -111,6 +115,7 @@ export class Audio {
   }
 
   stopVoice(): void {
+    this.voiceGen++;
     for (const q of this.queue) q.resolve();
     this.queue = [];
     try {
@@ -119,6 +124,8 @@ export class Audio {
       /* already stopped */
     }
     this.current = null;
+    // Safari doesn't always report a stopped line as ended: finish it here.
+    this.endCurrent?.();
     try {
       speechSynthesis.cancel();
     } catch {
@@ -139,14 +146,32 @@ export class Audio {
     }
     this.speaking = true;
     this.onCaption(item.line);
-    const buf = await this.load(lineKey(item.line));
-    if (buf && this.ctx && this.voiceGain) {
+    const gen = this.voiceGen;
+    // A voice file that never arrives (or never decodes) mustn't hold up the co-pilot.
+    const buf = await Promise.race([this.load(lineKey(item.line)), new Promise<null>((r) => setTimeout(() => r(null), 6000))]);
+    if (gen !== this.voiceGen) {
+      // Cut off (a newer line interrupted) while its voice file was loading: skip it.
+    } else if (buf && this.ctx && this.voiceGain) {
       await new Promise<void>((done) => {
+        // The line ends when the sound does, or a moment after its length at the latest: on an
+        // iPad the sound sometimes never reports that it ended (audio paused by the system, a
+        // call, another app), which left the caption on screen and the co-pilot stuck.
+        let finished = false;
+        const finish = () => {
+          if (finished) return;
+          finished = true;
+          clearTimeout(timer);
+          if (this.endCurrent === finish) this.endCurrent = null;
+          done();
+        };
+        const timer = setTimeout(finish, buf.duration * 1000 + 1500);
         const src = this.ctx!.createBufferSource();
         src.buffer = buf;
         src.connect(this.voiceGain!);
-        src.onended = () => done();
+        src.onended = finish;
         this.current = src;
+        this.endCurrent = finish;
+        if (this.ctx!.state !== "running") void this.ctx!.resume().catch(() => {});
         src.start();
       });
     } else {
