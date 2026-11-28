@@ -441,7 +441,7 @@ export class BigMap {
     const c = this.ctx;
     const dpr = this.canvas.width / this.canvas.clientWidth;
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
-    c.fillStyle = "#9ccbe8";
+    c.fillStyle = "#489cde"; // the map pictures' ocean colour, for beyond their edge
     c.fillRect(0, 0, this.canvas.width, this.canvas.height);
     // Tile zoom to match the view (zoom 4-8 everywhere, 9-10 in the detailed Southeast).
     const tz = Math.max(4, Math.min(10, Math.round(VIEW_Z + Math.log2(this.view.scale))));
