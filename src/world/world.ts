@@ -365,8 +365,15 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   let govK = 1;
   let speedK = 1;
   let benchSse: number | null = null;
-  // Tile limit (iPads, phones): see TileLimiter.
+  // Tile limit (iPads, phones): see TileLimiter. It eases only the far tiles: the "far"
+  // relief (Cesium's dynamic screen-space error, which coarsens tiles more the farther away they
+  // are) goes from 24 up to 160, while the detail near the playne stays as it is. The owner
+  // found sharper tiles popping in close to the playne distracting, far ones much less so.
+  // Measured over Charlotte: far relief 24 -> 60 halves the tiles drawn (148 -> 77); easing the
+  // whole view instead (detail 14 -> 21) only got to 93 and softened the ground nearby.
   let tileK = 1;
+  const FAR_BASE = 24;
+  const farRelief = () => (benchSse !== null ? FAR_BASE : FAR_BASE + (tileK - 1) * 136);
   const limiter = new TileLimiter(b.maxTiles);
   scene.postRender.addEventListener(() => {
     const st = (tileset as unknown as { _statistics?: { selected?: number } })._statistics;
@@ -377,7 +384,8 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
     }
   });
   const applyDetail = () => {
-    const target = benchSse ?? Math.min(72, b.tilesSse * govK * speedK * tileK);
+    tileset.dynamicScreenSpaceErrorFactor = farRelief();
+    const target = benchSse ?? Math.min(72, b.tilesSse * govK * speedK);
     if (Math.abs(target - tileset.maximumScreenSpaceError) < target * 0.04) return;
     setSseKeepingMemoryRelief(tileset, target);
   };
@@ -580,7 +588,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       const mb = (b: number) => Math.round(b / 1048576);
       return [
         `tiles ${mb(tileset.totalMemoryUsageInBytes)}/${mb(tileset.cacheBytes)} MB  tree ${st.numberOfTilesTotal ?? "?"}${treeBaseline ? ` (start ${treeBaseline})` : ""}`,
-        `detail ${tileset.maximumScreenSpaceError.toFixed(0)}→${(t._memoryAdjustedScreenSpaceError ?? 0).toFixed(0)}  gov ${govK.toFixed(2)}  tiles×${tileK.toFixed(2)}  speed ${speedK}`,
+        `detail ${tileset.maximumScreenSpaceError.toFixed(0)}→${(t._memoryAdjustedScreenSpaceError ?? 0).toFixed(0)}  gov ${govK.toFixed(2)}  far ${farRelief().toFixed(0)}  speed ${speedK}`,
         `loading ${st.numberOfPendingRequests ?? 0}+${st.numberOfTilesProcessing ?? 0}  fresh starts ${recycles}${recycling ? " (now)" : ""}  ${(travel / 1000).toFixed(0)} km`,
         `drawn ${st.selected ?? "?"} tiles  ${st.numberOfCommands ?? "?"} draws`,
         `trimmed ${trimmed}  trim ${trimMs.toFixed(0)} ms`,
@@ -624,6 +632,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       scene.postProcessStages.fxaa.enabled = o ? o.fxaa : q !== "high";
       if (o && o.sse > 0) {
         // Exactly this detail, without any leftover easing from before the test.
+        tileset.dynamicScreenSpaceErrorFactor = FAR_BASE;
         tileset.maximumScreenSpaceError = o.sse;
         (tileset as unknown as { _memoryAdjustedScreenSpaceError: number })._memoryAdjustedScreenSpaceError = o.sse;
       } else applyDetail();

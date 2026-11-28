@@ -545,6 +545,13 @@ If the owner can supply any of those drawings, add them to tools/photofit/drawin
   0 (no quick low-res pass that gets swapped again); tablet tile budget 175 (60 fps at 176-182),
   phone 135. Speed test v4 has a phase with the old skipping back on, to compare by eye.
 
+- iPad speed test 5 (version 0ba5816, skipping off): no major flicker seen. Owner asked to keep
+  the tiles nearest the playne detailed (sharper tiles popping in close by are distracting, far
+  ones much less). The tile limit now raises only the far relief (dynamicScreenSpaceErrorFactor
+  24 -> up to 160; near detail stays at the base level). Over Charlotte: far 24 -> 60 halved
+  the tiles (148 -> 77), detail 14 -> 21 everywhere only got to 93 and softened the near ground.
+  Overlay shows "far N". Speed test v5 compares it.
+
 Still to do:
 - iPad speed test v4 (skipping off): compare flicker by eye between "FULL: automatic" and
   "FULL: OLD skipping"; automatic should hold ~55-60 fps near 175 tiles. from the owner, then tune the iPad budgets from them.

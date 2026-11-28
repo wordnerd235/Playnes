@@ -66,12 +66,13 @@ export async function runSpeedTest(host: SpeedTestHost, progress: (msg: string) 
   // detail, with the tile memory full (a long flight).
   const auto: BenchSettings = { ...normal, sse: 0 };
   // Version 4: also the old level-of-detail skipping, to compare flicker by eye.
+  // Version 5: the tile limit now eases only distant tiles (near ones stay sharp).
   const phases: Phase[] = [
     { name: "Normal (fixed)", set: normal, clouds: true },
-    { name: "Automatic", set: auto, clouds: true },
-    { name: "FULL: automatic (watch for flicker)", set: auto, clouds: true, full: true },
-    { name: "FULL: OLD skipping (watch for flicker)", set: { ...auto, skipLod: true }, clouds: true, full: true },
+    { name: "Automatic (far tiles eased)", set: auto, clouds: true },
     { name: "FULL: fixed detail", set: normal, clouds: true, full: true },
+    { name: "FULL: automatic (watch near the playne)", set: auto, clouds: true, full: true },
+    { name: "FULL: less detail everywhere (x1.5)", set: { ...normal, sse: base * 1.5 }, clouds: true, full: true },
     { name: "FULL: automatic again", set: auto, clouds: true, full: true },
   ];
   progress("Getting to Charlotte...");
