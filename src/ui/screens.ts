@@ -764,7 +764,7 @@ export class Screens {
             this.host.worldKind === "google"
               ? h("div.code-row", {}, [
                   h("button.btn.secondary", { type: "button", onclick: () => { save(); this.host.runSpeedTest(); } }, "Run speed test"),
-                  h("p.field-help", {}, "About 2½ minutes over Charlotte in Google's 3D map, trying a few graphics settings. Take a screenshot of the results."),
+                  h("p.field-help", {}, "About 5 minutes over Charlotte in Google's 3D map, trying a few graphics settings. Take a screenshot of the results."),
                 ])
               : null,
             h("div.code-row", {}, [

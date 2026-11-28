@@ -514,8 +514,17 @@ If the owner can supply any of those drawings, add them to tools/photofit/drawin
   in ~1 degree chunks loaded as you fly, lower detail away from home, offline download of a home
   region only). Later: recorded voice lines for the new airport names, buildings at more airports.
 
+- iPad speed test 1 (owner, version a9f22b0, 11" iPad, drawing 1180x688): 57-60 fps with any
+  setting while tile memory was under its limit; once it reached 300 MB (test 5 onward),
+  38-44 fps with hitches whatever the setting ("Normal again" 44 vs 58 at the start). cpu 3-5 ms
+  per frame throughout. Changes: pre-loading neighbour tiles (loadSiblings) is now off while
+  tile memory is over 95% full (back on under 85%): at the limit Cesium unloads every tile not
+  drawn this frame, so pre-loaded neighbours were being loaded and thrown out over and over.
+  iPad tile budget 300 -> 256 MB (+64 overflow). Speed test v2 fills the memory first and
+  compares settings with it full, including the old pre-loading and a 200 MB budget.
+
 Still to do:
-- iPad speed test results from the owner, then tune the iPad budgets from them.
+- iPad speed test v2 results (compare "FULL: normal" with "FULL: old pre-loading") from the owner, then tune the iPad budgets from them.
 - Copy the test copy over to the main game (change .stable-ref) when the owner says so.
 - Housekeeping: split src/game/flight.ts, add a linter, shared helpers for the test scripts,
   trim the site.

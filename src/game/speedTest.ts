@@ -1,6 +1,6 @@
 // Speed test (grown-up settings, Google mode): flies a fixed loop over downtown Charlotte and
 // measures how smoothly this device draws Google's 3D map with a few different settings, so the
-// detail budgets can be tuned from real numbers instead of guesses. About 2.5 minutes. The
+// detail budgets can be tuned from real numbers instead of guesses. About 4-6 minutes. The
 // results card is meant to be screenshotted and sent to whoever tunes the game.
 
 import type { BenchSettings, World } from "../world/world.ts";
@@ -23,6 +23,8 @@ interface Phase {
   name: string;
   set: BenchSettings;
   clouds: boolean;
+  /** Run once the tile memory has filled up. */
+  full?: boolean;
 }
 
 export interface PhaseResult {
@@ -56,14 +58,18 @@ export async function runSpeedTest(host: SpeedTestHost, progress: (msg: string) 
   if (w.kind !== "google" || !w.benchmark) return null;
   const base = detailBudget(host.quality).tilesSse;
   const normal: BenchSettings = { sse: base, res: 1, fxaa: host.quality !== "high" };
+  // Version 2 (after the first iPad results: smooth until the tile memory filled up, then
+  // slower whatever the setting): two tests with memory still free, then fill it, then compare
+  // settings with memory full, including the old behaviour (pre-loading neighbours on).
   const phases: Phase[] = [
     { name: "Normal", set: normal, clouds: true },
-    { name: "Resolution 80%", set: { ...normal, res: 0.8 }, clouds: true },
     { name: "Less detail (x1.5)", set: { ...normal, sse: base * 1.5 }, clouds: true },
-    { name: "Less detail (x2.5)", set: { ...normal, sse: base * 2.5 }, clouds: true },
-    { name: "No clouds", set: normal, clouds: false },
-    { name: "No edge smoothing", set: { ...normal, fxaa: false }, clouds: true },
-    { name: "Normal again", set: normal, clouds: true },
+    { name: "FULL: normal", set: normal, clouds: true, full: true },
+    { name: "FULL: old pre-loading", set: { ...normal, siblings: true }, clouds: true, full: true },
+    { name: "FULL: less detail (x1.5)", set: { ...normal, sse: base * 1.5 }, clouds: true, full: true },
+    { name: "FULL: resolution 80%", set: { ...normal, res: 0.8 }, clouds: true, full: true },
+    { name: "FULL: memory 200 MB", set: { ...normal, cacheMB: 200 }, clouds: true, full: true },
+    { name: "FULL: normal again", set: normal, clouds: true, full: true },
   ];
   progress("Getting to Charlotte...");
   let t = 0;
@@ -99,6 +105,20 @@ export async function runSpeedTest(host: SpeedTestHost, progress: (msg: string) 
     for (let i = 0; i < phases.length; i++) {
       if (!host.stillFlying()) return null;
       const ph = phases[i];
+      if (ph.full && !phases[i - 1]?.full) {
+        // Keep flying the loop until the tile memory is (nearly) full, up to 3 minutes.
+        w.benchmark(normal);
+        const t1 = performance.now();
+        const used = () => {
+          const m = w.perfStats?.().match(/tiles (\d+)\/(\d+)/);
+          return m ? Number(m[1]) / Number(m[2]) : 0;
+        };
+        while (used() < 0.95 && performance.now() - t1 < 180_000) {
+          if (!host.stillFlying()) return null;
+          progress(`Filling the map memory... ${Math.round(used() * 100)}%`);
+          await wait(1000);
+        }
+      }
       progress(`Test ${i + 1} of ${phases.length}: ${ph.name}`);
       w.benchmark(ph.set);
       w.setClouds(ph.clouds);

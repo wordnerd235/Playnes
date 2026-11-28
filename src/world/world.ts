@@ -46,6 +46,10 @@ export interface BenchSettings {
   sse: number;
   res: number;
   fxaa: boolean;
+  /** Force pre-loading the tiles beside the view on or off (default: the game's own rule). */
+  siblings?: boolean;
+  /** Tile memory budget for this test (default: the device's). */
+  cacheMB?: number;
 }
 
 export interface World {
@@ -428,6 +432,26 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   // we come back). Without this the index grew past a million entries (~3 GB) on a long jet
   // flight. `window.__playnesPrune` overrides the timings (dev tests).
   const frameLog: { t: number; f: number }[] = [];
+  // Pre-loading the tiles beside the view: off at jet speed (it doubles the work), and off while
+  // the tile memory is full. Measured on an iPad (speed test): smooth at ~60 fps until the
+  // memory reached its limit, then ~40 fps with hitches. At the limit Cesium unloads every tile
+  // not drawn this frame to stay under it, and the neighbours it pre-loads are exactly such
+  // tiles: they were loaded, thrown out and loaded again, over and over.
+  let speedSiblings = true;
+  let memSiblings = true;
+  let benchSiblings: boolean | null = null;
+  const applySiblings = () => {
+    tileset.loadSiblings = benchSiblings ?? (speedSiblings && memSiblings);
+  };
+  let memCheck = 0;
+  scene.postRender.addEventListener(() => {
+    if (++memCheck % 30) return;
+    const used = tileset.totalMemoryUsageInBytes / tileset.cacheBytes;
+    const was = memSiblings;
+    if (used > 0.95) memSiblings = false;
+    else if (used < 0.85) memSiblings = true;
+    if (memSiblings !== was) applySiblings();
+  });
   let lastPrune = 0;
   let trimmed = 0;
   let trimMs = 0;
@@ -564,12 +588,16 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       // and the ground rushes past too fast to see the difference.
       speedK = speedStep(speedK, speed / 120 + Math.max(0, speed - 300) / 60);
       // Pre-loading the tiles beside the view helps slow turns; at jet speed it doubles the work.
-      if (speed > 110) tileset.loadSiblings = false;
-      else if (speed < 85) tileset.loadSiblings = true;
+      if (speed > 110) speedSiblings = false;
+      else if (speed < 85) speedSiblings = true;
+      applySiblings();
       applyDetail();
     },
     benchmark(o) {
       benchSse = o ? o.sse : null;
+      benchSiblings = o?.siblings ?? null;
+      tileset.cacheBytes = (o?.cacheMB ?? b.tilesCacheMB) * 1024 * 1024;
+      applySiblings();
       widget.resolutionScale = o ? o.res : 1;
       scene.postProcessStages.fxaa.enabled = o ? o.fxaa : q !== "high";
       if (o) {

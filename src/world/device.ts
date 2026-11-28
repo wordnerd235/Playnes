@@ -31,7 +31,8 @@ export interface DetailBudget {
 export function detailBudget(q: "high" | "medium" | "low", d: DeviceClass = deviceClass()): DetailBudget {
   if (q === "low") return { tilesSse: 24, tilesCacheMB: 160, tilesOverflowMB: 48, globeTileCache: 150 };
   if (d === "phone") return { tilesSse: 16, tilesCacheMB: 200, tilesOverflowMB: 64, globeTileCache: 220 };
-  if (d === "tablet") return { tilesSse: 14, tilesCacheMB: 300, tilesOverflowMB: 96, globeTileCache: 320 };
+  // iPad: 256 MB (was 300; the speed test showed the slowdown starts once tile memory is full).
+  if (d === "tablet") return { tilesSse: 14, tilesCacheMB: 256, tilesOverflowMB: 64, globeTileCache: 320 };
   return q === "high"
     ? { tilesSse: 8, tilesCacheMB: 768, tilesOverflowMB: 256, globeTileCache: 600 }
     : { tilesSse: 12, tilesCacheMB: 384, tilesOverflowMB: 128, globeTileCache: 400 };
