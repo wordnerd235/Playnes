@@ -31,11 +31,12 @@ export interface DetailBudget {
 }
 
 export function detailBudget(q: "high" | "medium" | "low", d: DeviceClass = deviceClass()): DetailBudget {
-  if (q === "low") return { tilesSse: 24, tilesCacheMB: 160, tilesOverflowMB: 48, globeTileCache: 150, maxTiles: d === "desktop" ? 0 : 150 };
-  if (d === "phone") return { tilesSse: 16, tilesCacheMB: 200, tilesOverflowMB: 64, globeTileCache: 220, maxTiles: 170 };
+  if (q === "low") return { tilesSse: 24, tilesCacheMB: 160, tilesOverflowMB: 48, globeTileCache: 150, maxTiles: d === "desktop" ? 0 : 130 };
+  if (d === "phone") return { tilesSse: 16, tilesCacheMB: 200, tilesOverflowMB: 64, globeTileCache: 220, maxTiles: 150 };
   // iPad: 256 MB (was 300; the speed test showed the slowdown starts once tile memory is full).
-  // Tile limit 230: the iPad speed test ran ~60 fps up to ~210 tiles on screen, slower above.
-  if (d === "tablet") return { tilesSse: 14, tilesCacheMB: 256, tilesOverflowMB: 64, globeTileCache: 320, maxTiles: 230 };
+  // Tile limit 200: iPad speed tests ran 48-58 fps at ~210 tiles on screen (it varies from run
+  // to run) and 60 at ~175.
+  if (d === "tablet") return { tilesSse: 14, tilesCacheMB: 256, tilesOverflowMB: 64, globeTileCache: 320, maxTiles: 200 };
   return q === "high"
     ? { tilesSse: 8, tilesCacheMB: 768, tilesOverflowMB: 256, globeTileCache: 600, maxTiles: 0 }
     : { tilesSse: 12, tilesCacheMB: 384, tilesOverflowMB: 128, globeTileCache: 400, maxTiles: 0 };

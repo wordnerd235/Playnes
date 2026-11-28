@@ -164,8 +164,8 @@ function setSseKeepingMemoryRelief(tileset: Cesium3DTileset, sse: number): void 
 }
 
 /** Runs the detail governor on every rendered frame; `apply` gets the new detail scale. */
-function installGovernor(scene: Scene, apply: (scale: number) => void, max = 2.6): DetailGovernor {
-  const g = new DetailGovernor({ max, min: 0.85, window: 1.5 });
+function installGovernor(scene: Scene, apply: (scale: number) => void, max = 2.6, slowMs = 24): DetailGovernor {
+  const g = new DetailGovernor({ max, min: 0.85, window: 1.5, slowMs });
   let last = performance.now();
   scene.postRender.addEventListener(() => {
     const now = performance.now();
@@ -374,10 +374,12 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
     if (Math.abs(target - tileset.maximumScreenSpaceError) < target * 0.04) return;
     setSseKeepingMemoryRelief(tileset, target);
   };
+  // With a tile limit (iPads, phones) that does the everyday easing, the frame-rate governor only
+  // steps in for real trouble (frames over 32 ms, under ~30 fps), so the two don't fight.
   installGovernor(scene, (k) => {
     govK = k;
     applyDetail();
-  });
+  }, 2.6, b.maxTiles > 0 ? 32 : 24);
   let lastSpeedApply = 0;
 
   // Safety net: Cesium never lets go of the tile tree it has explored (only the tiles'

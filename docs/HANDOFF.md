@@ -531,8 +531,16 @@ If the owner can supply any of those drawings, add them to tools/photofit/drawin
   170, low quality 150, computers off) and sharpens back with room; overlay shows "tiles×".
   Speed test v3 compares fixed detail with the automatic detail, memory full.
 
+- iPad speed test 3 (version 925d4ca): automatic 60 fps (176 tiles) vs fixed 48 (213) and 43
+  (271), but the owner saw lots of flicker, and "FULL: automatic" dropped to 87 tiles (both the
+  tile limit and the frame governor easing at once), then back to 205. Fixed detail at 213 tiles
+  ran 48 fps here vs 58 before (device varies run to run). Now: tile limit adjusts at most every
+  4 s in 6% steps, sharpens only after 10 s of room (4% steps), budget 200 (tablet) / 150
+  (phone) / 130 (low); with a tile limit the frame governor only counts frames over 32 ms.
+
 Still to do:
-- iPad speed test v3 results: "FULL: automatic" (the new tile limit) should stay near 55-60 fps. from the owner, then tune the iPad budgets from them.
+- iPad speed test v4 (same test, version after the calmer tile limit): "FULL: automatic"
+  should hold 55-60 fps with roughly 150-200 tiles and no visible flicker. from the owner, then tune the iPad budgets from them.
 - Copy the test copy over to the main game (change .stable-ref) when the owner says so.
 - Housekeeping: split src/game/flight.ts, add a linter, shared helpers for the test scripts,
   trim the site.

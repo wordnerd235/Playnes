@@ -9,6 +9,8 @@ export interface GovernorOptions {
   min: number;
   /** Seconds per decision. */
   window: number;
+  /** A frame slower than this (ms) counts as slow (default 24, below ~42 fps). */
+  slowMs?: number;
 }
 
 export class DetailGovernor {
@@ -33,8 +35,9 @@ export class DetailGovernor {
     const n = this.frames.length;
     let slow = 0;
     let pauses = 0;
+    const slowMs = this.o.slowMs ?? 24;
     for (const f of this.frames) {
-      if (f > 24) slow++;
+      if (f > slowMs) slow++;
       if (f > 60) pauses++;
     }
     this.frames.length = 0;
@@ -116,29 +119,39 @@ export class TileLimiter {
   private sum = 0;
   private n = 0;
   private windowStart = -1;
+  private over = 0;
   private calm = 0;
 
-  constructor(private budget: number, private max = 2.2) {}
+  // Changes are slow and small on purpose: every change of detail swaps tiles on screen for
+  // coarser or sharper ones, which shows as flicker (the first version, adjusting every second
+  // and fighting the frame-rate governor, overshot to a third of the budget and back).
+  constructor(private budget: number, private max = 2) {}
 
   frame(now: number, tilesDrawn: number): number | null {
     if (this.budget <= 0) return null;
     if (this.windowStart < 0) this.windowStart = now;
     this.sum += tilesDrawn;
     this.n++;
-    if (now - this.windowStart < 1000) return null;
+    if (now - this.windowStart < 2000) return null;
     const avg = this.sum / this.n;
     this.sum = this.n = 0;
     this.windowStart = now;
     const before = this.scale;
-    if (avg > this.budget * 1.08) {
-      this.scale = Math.min(this.max, this.scale * 1.1);
+    if (avg > this.budget * 1.1) {
+      // Too many for two windows in a row (4 s): ease a small step.
       this.calm = 0;
-    } else if (avg < this.budget * 0.8) {
-      if (++this.calm >= 3) {
-        this.scale = Math.max(1, this.scale / 1.05);
+      if (++this.over >= 2) {
+        this.scale = Math.min(this.max, this.scale * 1.06);
+        this.over = 0;
+      }
+    } else if (avg < this.budget * 0.75) {
+      // Room for more for five windows in a row (10 s): sharpen a small step.
+      this.over = 0;
+      if (++this.calm >= 5) {
+        this.scale = Math.max(1, this.scale / 1.04);
         this.calm = 0;
       }
-    } else this.calm = 0;
+    } else this.over = this.calm = 0;
     return this.scale !== before ? this.scale : null;
   }
 }

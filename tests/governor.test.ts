@@ -201,21 +201,26 @@ describe("tile limit", () => {
     for (let i = 0; i < secs * 60; i++) l.frame((t += 1000 / 60), tiles);
     return t;
   };
-  it("eases detail while too many tiles are on screen, within its limit", () => {
-    const l = new TileLimiter(230);
-    feed(l, 0, 3, 310);
-    expect(l.scale).toBeGreaterThan(1.2);
-    feed(l, 4000, 30, 400);
-    expect(l.scale).toBeLessThanOrEqual(2.2);
+  it("eases detail in small steps only after a few seconds over budget", () => {
+    const l = new TileLimiter(200);
+    let t = feed(l, 0, 3, 300);
+    expect(l.scale).toBe(1); // one window over: waits
+    t = feed(l, t, 3, 300);
+    expect(l.scale).toBeCloseTo(1.06, 5);
+    feed(l, t, 120, 400);
+    expect(l.scale).toBeLessThanOrEqual(2);
   });
-  it("leaves detail alone near the budget and sharpens back when there's room", () => {
-    const l = new TileLimiter(230);
-    let t = feed(l, 0, 5, 320);
-    t = feed(l, t, 2, 220); // (the window straddling the change may ease once more)
+  it("holds inside the band and sharpens back slowly with room", () => {
+    const l = new TileLimiter(200);
+    let t = feed(l, 0, 20, 300);
+    t = feed(l, t, 2, 180); // (the window straddling the change)
     const eased = l.scale;
-    t = feed(l, t, 10, 220); // inside the band: holds
+    expect(eased).toBeGreaterThan(1);
+    t = feed(l, t, 20, 180); // inside the band: holds
     expect(l.scale).toBe(eased);
-    feed(l, t, 60, 120);
+    t = feed(l, t, 8, 100);
+    expect(l.scale).toBe(eased); // not before 10 s of room
+    feed(l, t, 200, 100);
     expect(l.scale).toBe(1);
   });
   it("does nothing with no budget (computers)", () => {
