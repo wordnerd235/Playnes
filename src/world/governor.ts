@@ -125,7 +125,9 @@ export class TileLimiter {
   // Changes are slow and small on purpose: every change of detail swaps tiles on screen for
   // coarser or sharper ones, which shows as flicker (the first version, adjusting every second
   // and fighting the frame-rate governor, overshot to a third of the budget and back).
-  constructor(private budget: number, private max = 2) {}
+  // Up to 2 the scale eases only the far tiles (cheap to look at), so it steps faster there;
+  // beyond 2 it also eases detail everywhere (see world.ts), in small steps.
+  constructor(private budget: number, private max = 3) {}
 
   frame(now: number, tilesDrawn: number): number | null {
     if (this.budget <= 0) return null;
@@ -141,7 +143,7 @@ export class TileLimiter {
       // Too many for two windows in a row (4 s): ease a small step.
       this.calm = 0;
       if (++this.over >= 2) {
-        this.scale = Math.min(this.max, this.scale * 1.06);
+        this.scale = Math.min(this.max, this.scale < 2 ? Math.min(2, this.scale * 1.15) : this.scale * 1.06);
         this.over = 0;
       }
     } else if (avg < this.budget * 0.75) {

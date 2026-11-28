@@ -206,9 +206,13 @@ describe("tile limit", () => {
     let t = feed(l, 0, 3, 300);
     expect(l.scale).toBe(1); // one window over: waits
     t = feed(l, t, 3, 300);
-    expect(l.scale).toBeCloseTo(1.06, 5);
-    feed(l, t, 120, 400);
-    expect(l.scale).toBeLessThanOrEqual(2);
+    expect(l.scale).toBeCloseTo(1.15, 5); // far tiles: bigger steps
+    t = feed(l, t, 16, 400);
+    expect(l.scale).toBe(2); // far relief at its most within ~20 s
+    t = feed(l, t, 4, 400);
+    expect(l.scale).toBeCloseTo(2.12, 5); // then the whole view, in small steps
+    feed(l, t, 300, 400);
+    expect(l.scale).toBeLessThanOrEqual(3);
   });
   it("holds inside the band and sharpens back slowly with room", () => {
     const l = new TileLimiter(200);

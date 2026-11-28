@@ -552,6 +552,12 @@ If the owner can supply any of those drawings, add them to tools/photofit/drawin
   the tiles (148 -> 77), detail 14 -> 21 everywhere only got to 93 and softened the near ground.
   Overlay shows "far N". Speed test v5 compares it.
 
+- iPad speed test 6 (version 064643f, far-only easing): automatic 60 fps at 132 tiles before the
+  memory filled, but with it full only 212 tiles / 45 fps (looking across downtown most tiles
+  are near), and the limiter took ~50 s to reach full far relief. Now: far steps of 15% (full
+  far relief in ~20 s), then, only if still over budget, the whole view eases up to 1.5x in 6%
+  steps (TileLimiter scale 2-3 -> nearRelief). Overlay shows "far N  near×K".
+
 Still to do:
 - iPad speed test v4 (skipping off): compare flicker by eye between "FULL: automatic" and
   "FULL: OLD skipping"; automatic should hold ~55-60 fps near 175 tiles. from the owner, then tune the iPad budgets from them.

@@ -373,7 +373,10 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   // whole view instead (detail 14 -> 21) only got to 93 and softened the ground nearby.
   let tileK = 1;
   const FAR_BASE = 24;
-  const farRelief = () => (benchSse !== null ? FAR_BASE : FAR_BASE + (tileK - 1) * 136);
+  const farRelief = () => (benchSse !== null ? FAR_BASE : FAR_BASE + (Math.min(tileK, 2) - 1) * 136);
+  // Only when far relief is at its most and there are still too many tiles (looking across a
+  // downtown, where most tiles are close by): ease the whole view too, up to 1.5x.
+  const nearRelief = () => (tileK > 2 ? 1 + (tileK - 2) * 0.5 : 1);
   const limiter = new TileLimiter(b.maxTiles);
   scene.postRender.addEventListener(() => {
     const st = (tileset as unknown as { _statistics?: { selected?: number } })._statistics;
@@ -385,7 +388,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   });
   const applyDetail = () => {
     tileset.dynamicScreenSpaceErrorFactor = farRelief();
-    const target = benchSse ?? Math.min(72, b.tilesSse * govK * speedK);
+    const target = benchSse ?? Math.min(72, b.tilesSse * govK * speedK * nearRelief());
     if (Math.abs(target - tileset.maximumScreenSpaceError) < target * 0.04) return;
     setSseKeepingMemoryRelief(tileset, target);
   };
@@ -588,7 +591,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       const mb = (b: number) => Math.round(b / 1048576);
       return [
         `tiles ${mb(tileset.totalMemoryUsageInBytes)}/${mb(tileset.cacheBytes)} MB  tree ${st.numberOfTilesTotal ?? "?"}${treeBaseline ? ` (start ${treeBaseline})` : ""}`,
-        `detail ${tileset.maximumScreenSpaceError.toFixed(0)}→${(t._memoryAdjustedScreenSpaceError ?? 0).toFixed(0)}  gov ${govK.toFixed(2)}  far ${farRelief().toFixed(0)}  speed ${speedK}`,
+        `detail ${tileset.maximumScreenSpaceError.toFixed(0)}→${(t._memoryAdjustedScreenSpaceError ?? 0).toFixed(0)}  gov ${govK.toFixed(2)}  far ${farRelief().toFixed(0)}  near×${nearRelief().toFixed(2)}  speed ${speedK}`,
         `loading ${st.numberOfPendingRequests ?? 0}+${st.numberOfTilesProcessing ?? 0}  fresh starts ${recycles}${recycling ? " (now)" : ""}  ${(travel / 1000).toFixed(0)} km`,
         `drawn ${st.selected ?? "?"} tiles  ${st.numberOfCommands ?? "?"} draws`,
         `trimmed ${trimmed}  trim ${trimMs.toFixed(0)} ms`,
