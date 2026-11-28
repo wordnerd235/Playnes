@@ -65,12 +65,13 @@ export async function runSpeedTest(host: SpeedTestHost, progress: (msg: string) 
   // ~60 fps up to ~210): the game's automatic detail with the new tile limit, against fixed
   // detail, with the tile memory full (a long flight).
   const auto: BenchSettings = { ...normal, sse: 0 };
+  // Version 4: also the old level-of-detail skipping, to compare flicker by eye.
   const phases: Phase[] = [
     { name: "Normal (fixed)", set: normal, clouds: true },
-    { name: "Automatic (tile limit)", set: auto, clouds: true },
+    { name: "Automatic", set: auto, clouds: true },
+    { name: "FULL: automatic (watch for flicker)", set: auto, clouds: true, full: true },
+    { name: "FULL: OLD skipping (watch for flicker)", set: { ...auto, skipLod: true }, clouds: true, full: true },
     { name: "FULL: fixed detail", set: normal, clouds: true, full: true },
-    { name: "FULL: automatic", set: auto, clouds: true, full: true },
-    { name: "FULL: less detail (x1.5)", set: { ...normal, sse: base * 1.5 }, clouds: true, full: true },
     { name: "FULL: automatic again", set: auto, clouds: true, full: true },
   ];
   progress("Getting to Charlotte...");

@@ -50,6 +50,8 @@ export interface BenchSettings {
   siblings?: boolean;
   /** Tile memory budget for this test (default: the device's). */
   cacheMB?: number;
+  /** Cesium's level-of-detail skipping (the old setting; default off). */
+  skipLod?: boolean;
 }
 
 export interface World {
@@ -330,9 +332,14 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       maximumScreenSpaceError: b.tilesSse,
       cacheBytes: b.tilesCacheMB * 1024 * 1024,
       maximumCacheOverflowBytes: b.tilesOverflowMB * 1024 * 1024,
-      skipLevelOfDetail: true,
-      // Smaller jumps from blurry to sharp (Cesium's default skips more levels at once).
+      // No level-of-detail skipping: it jumped from blurry straight to sharp tiles and, while
+      // the sharp ones loaded, drew both levels mixed together (the owner saw flicker and
+      // sudden "snaps" on an iPad). Without it, detail sharpens one level at a time and a tile
+      // is only replaced once all its sharper children are ready.
+      skipLevelOfDetail: false,
       skipScreenSpaceErrorFactor: 6,
+      // No quick low-resolution pass first (it is then swapped again for the real detail).
+      progressiveResolutionHeightFraction: 0,
       // Load the tiles beside the ones in view too, so turning doesn't reveal blurry ground.
       loadSiblings: true,
       // No "middle of the screen first": it gives tiles off to the sides coarser detail than
@@ -610,6 +617,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       // sse 0: the game's own automatic detail (the tile limit and governors).
       benchSse = o && o.sse > 0 ? o.sse : null;
       benchSiblings = o?.siblings ?? null;
+      tileset.skipLevelOfDetail = o?.skipLod ?? false;
       tileset.cacheBytes = (o?.cacheMB ?? b.tilesCacheMB) * 1024 * 1024;
       applySiblings();
       widget.resolutionScale = o ? o.res : 1;

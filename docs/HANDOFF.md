@@ -538,9 +538,16 @@ If the owner can supply any of those drawings, add them to tools/photofit/drawin
   4 s in 6% steps, sharpens only after 10 s of room (4% steps), budget 200 (tablet) / 150
   (phone) / 130 (low); with a tile limit the frame governor only counts frames over 32 ms.
 
+- iPad speed test 4 (version 8088622, calmer tile limit): automatic 49-59 fps at 182-215 tiles
+  vs fixed 43 at 272; the owner still saw lots of flicker and sudden snaps to better detail
+  while tiles loaded. Now: Cesium's skipLevelOfDetail off (it jumped blurry -> sharp and drew
+  parent and child levels mixed while children loaded) and progressiveResolutionHeightFraction
+  0 (no quick low-res pass that gets swapped again); tablet tile budget 175 (60 fps at 176-182),
+  phone 135. Speed test v4 has a phase with the old skipping back on, to compare by eye.
+
 Still to do:
-- iPad speed test v4 (same test, version after the calmer tile limit): "FULL: automatic"
-  should hold 55-60 fps with roughly 150-200 tiles and no visible flicker. from the owner, then tune the iPad budgets from them.
+- iPad speed test v4 (skipping off): compare flicker by eye between "FULL: automatic" and
+  "FULL: OLD skipping"; automatic should hold ~55-60 fps near 175 tiles. from the owner, then tune the iPad budgets from them.
 - Copy the test copy over to the main game (change .stable-ref) when the owner says so.
 - Housekeeping: split src/game/flight.ts, add a linter, shared helpers for the test scripts,
   trim the site.
