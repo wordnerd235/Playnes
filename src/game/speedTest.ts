@@ -1,6 +1,6 @@
 // Speed test (grown-up settings, Google mode): flies a fixed loop over downtown Charlotte and
 // measures how smoothly this device draws Google's 3D map with a few different settings, so the
-// detail budgets can be tuned from real numbers instead of guesses. About 4-6 minutes. The
+// detail budgets can be tuned from real numbers instead of guesses. About 4-5 minutes. The
 // results card is meant to be screenshotted and sent to whoever tunes the game.
 
 import type { BenchSettings, World } from "../world/world.ts";
@@ -61,15 +61,17 @@ export async function runSpeedTest(host: SpeedTestHost, progress: (msg: string) 
   // Version 2 (after the first iPad results: smooth until the tile memory filled up, then
   // slower whatever the setting): two tests with memory still free, then fill it, then compare
   // settings with memory full, including the old behaviour (pre-loading neighbours on).
+  // Version 3 (after the second iPad results: frame rate follows the number of tiles on screen,
+  // ~60 fps up to ~210): the game's automatic detail with the new tile limit, against fixed
+  // detail, with the tile memory full (a long flight).
+  const auto: BenchSettings = { ...normal, sse: 0 };
   const phases: Phase[] = [
-    { name: "Normal", set: normal, clouds: true },
-    { name: "Less detail (x1.5)", set: { ...normal, sse: base * 1.5 }, clouds: true },
-    { name: "FULL: normal", set: normal, clouds: true, full: true },
-    { name: "FULL: old pre-loading", set: { ...normal, siblings: true }, clouds: true, full: true },
+    { name: "Normal (fixed)", set: normal, clouds: true },
+    { name: "Automatic (tile limit)", set: auto, clouds: true },
+    { name: "FULL: fixed detail", set: normal, clouds: true, full: true },
+    { name: "FULL: automatic", set: auto, clouds: true, full: true },
     { name: "FULL: less detail (x1.5)", set: { ...normal, sse: base * 1.5 }, clouds: true, full: true },
-    { name: "FULL: resolution 80%", set: { ...normal, res: 0.8 }, clouds: true, full: true },
-    { name: "FULL: memory 200 MB", set: { ...normal, cacheMB: 200 }, clouds: true, full: true },
-    { name: "FULL: normal again", set: normal, clouds: true, full: true },
+    { name: "FULL: automatic again", set: auto, clouds: true, full: true },
   ];
   progress("Getting to Charlotte...");
   let t = 0;

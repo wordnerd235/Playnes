@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DetailGovernor, speedStep, steadyTileDetail } from "../src/world/governor.ts";
+import { DetailGovernor, speedStep, steadyTileDetail, TileLimiter } from "../src/world/governor.ts";
 
 /** Feed `seconds` of frames at a steady interval (with an optional pause every `pauseEvery` frames). */
 function run(g: DetailGovernor, t0: number, seconds: number, dt: number, pauseEvery = 0): number {
@@ -192,5 +192,35 @@ describe("top speed step", () => {
     let k = 1;
     for (const want of [1.2, 1.6, 2.3, 3.1, 4.06]) k = speedStep(k, want);
     expect(k).toBe(4);
+  });
+});
+
+describe("tile limit", () => {
+  const feed = (l: TileLimiter, t0: number, secs: number, tiles: number) => {
+    let t = t0;
+    for (let i = 0; i < secs * 60; i++) l.frame((t += 1000 / 60), tiles);
+    return t;
+  };
+  it("eases detail while too many tiles are on screen, within its limit", () => {
+    const l = new TileLimiter(230);
+    feed(l, 0, 3, 310);
+    expect(l.scale).toBeGreaterThan(1.2);
+    feed(l, 4000, 30, 400);
+    expect(l.scale).toBeLessThanOrEqual(2.2);
+  });
+  it("leaves detail alone near the budget and sharpens back when there's room", () => {
+    const l = new TileLimiter(230);
+    let t = feed(l, 0, 5, 320);
+    t = feed(l, t, 2, 220); // (the window straddling the change may ease once more)
+    const eased = l.scale;
+    t = feed(l, t, 10, 220); // inside the band: holds
+    expect(l.scale).toBe(eased);
+    feed(l, t, 60, 120);
+    expect(l.scale).toBe(1);
+  });
+  it("does nothing with no budget (computers)", () => {
+    const l = new TileLimiter(0);
+    feed(l, 0, 5, 900);
+    expect(l.scale).toBe(1);
   });
 });

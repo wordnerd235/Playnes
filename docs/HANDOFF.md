@@ -523,8 +523,16 @@ If the owner can supply any of those drawings, add them to tools/photofit/drawin
   iPad tile budget 300 -> 256 MB (+64 overflow). Speed test v2 fills the memory first and
   compares settings with it full, including the old pre-loading and a 200 MB budget.
 
+- iPad speed test 2 (version d426dfd): the frame rate follows the number of tiles on screen,
+  not memory: 158 tiles 60 fps, 193-210 56-58, 270 46-49, 309 41-45 (memory was already full
+  in the first, smooth, test). Pre-loading off helped a little (46 vs 41). The frame governor
+  never acted (it waits for 24 ms+ frames; these were 20-25 ms). New: TileLimiter
+  (governor.ts) eases detail when more than DetailBudget.maxTiles are drawn (tablet 230, phone
+  170, low quality 150, computers off) and sharpens back with room; overlay shows "tiles×".
+  Speed test v3 compares fixed detail with the automatic detail, memory full.
+
 Still to do:
-- iPad speed test v2 results (compare "FULL: normal" with "FULL: old pre-loading") from the owner, then tune the iPad budgets from them.
+- iPad speed test v3 results: "FULL: automatic" (the new tile limit) should stay near 55-60 fps. from the owner, then tune the iPad budgets from them.
 - Copy the test copy over to the main game (change .stable-ref) when the owner says so.
 - Housekeeping: split src/game/flight.ts, add a linter, shared helpers for the test scripts,
   trim the site.

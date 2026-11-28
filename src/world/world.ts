@@ -34,7 +34,7 @@ import { LandmarkMarkers } from "./landmarks.ts";
 import { PlaceLabels } from "./places.ts";
 import { ALL_AIRPORTS } from "../data/airports.ts";
 import { detailBudget, deviceClass } from "./device.ts";
-import { DetailGovernor, shareTextureCounts, speedStep, steadyTileDetail } from "./governor.ts";
+import { DetailGovernor, TileLimiter, shareTextureCounts, speedStep, steadyTileDetail } from "./governor.ts";
 import { TreeTrimmer, type PrunableTileset } from "./tilePruner.ts";
 import { degrade, FEATURE_NAMES, gfxOn, type GfxFeature } from "./safety.ts";
 
@@ -358,8 +358,19 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
   let govK = 1;
   let speedK = 1;
   let benchSse: number | null = null;
+  // Tile limit (iPads, phones): see TileLimiter.
+  let tileK = 1;
+  const limiter = new TileLimiter(b.maxTiles);
+  scene.postRender.addEventListener(() => {
+    const st = (tileset as unknown as { _statistics?: { selected?: number } })._statistics;
+    const k = limiter.frame(performance.now(), st?.selected ?? 0);
+    if (k !== null) {
+      tileK = k;
+      applyDetail();
+    }
+  });
   const applyDetail = () => {
-    const target = benchSse ?? Math.min(72, b.tilesSse * govK * speedK);
+    const target = benchSse ?? Math.min(72, b.tilesSse * govK * speedK * tileK);
     if (Math.abs(target - tileset.maximumScreenSpaceError) < target * 0.04) return;
     setSseKeepingMemoryRelief(tileset, target);
   };
@@ -560,7 +571,7 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       const mb = (b: number) => Math.round(b / 1048576);
       return [
         `tiles ${mb(tileset.totalMemoryUsageInBytes)}/${mb(tileset.cacheBytes)} MB  tree ${st.numberOfTilesTotal ?? "?"}${treeBaseline ? ` (start ${treeBaseline})` : ""}`,
-        `detail ${tileset.maximumScreenSpaceError.toFixed(0)}→${(t._memoryAdjustedScreenSpaceError ?? 0).toFixed(0)}  gov ${govK.toFixed(2)}  speed ${speedK}`,
+        `detail ${tileset.maximumScreenSpaceError.toFixed(0)}→${(t._memoryAdjustedScreenSpaceError ?? 0).toFixed(0)}  gov ${govK.toFixed(2)}  tiles×${tileK.toFixed(2)}  speed ${speedK}`,
         `loading ${st.numberOfPendingRequests ?? 0}+${st.numberOfTilesProcessing ?? 0}  fresh starts ${recycles}${recycling ? " (now)" : ""}  ${(travel / 1000).toFixed(0)} km`,
         `drawn ${st.selected ?? "?"} tiles  ${st.numberOfCommands ?? "?"} draws`,
         `trimmed ${trimmed}  trim ${trimMs.toFixed(0)} ms`,
@@ -594,13 +605,14 @@ async function createGoogleWorld(container: HTMLElement, key: string, q: "high" 
       applyDetail();
     },
     benchmark(o) {
-      benchSse = o ? o.sse : null;
+      // sse 0: the game's own automatic detail (the tile limit and governors).
+      benchSse = o && o.sse > 0 ? o.sse : null;
       benchSiblings = o?.siblings ?? null;
       tileset.cacheBytes = (o?.cacheMB ?? b.tilesCacheMB) * 1024 * 1024;
       applySiblings();
       widget.resolutionScale = o ? o.res : 1;
       scene.postProcessStages.fxaa.enabled = o ? o.fxaa : q !== "high";
-      if (o) {
+      if (o && o.sse > 0) {
         // Exactly this detail, without any leftover easing from before the test.
         tileset.maximumScreenSpaceError = o.sse;
         (tileset as unknown as { _memoryAdjustedScreenSpaceError: number })._memoryAdjustedScreenSpaceError = o.sse;

@@ -104,6 +104,45 @@ export function steadyTileDetail(tileset: SteadyTileset): void {
   };
 }
 
+/**
+ * Tile limit (iPads and phones): keeps the number of map tiles on screen near a budget by easing
+ * detail a step when there are too many and sharpening back when there's room. Measured on an
+ * iPad with the speed test: ~60 fps up to about 210 tiles, then slower in step with the count
+ * (46 fps at 270, 41 at 309) - frames of 20-25 ms that the frame-rate governor (which waits for
+ * 24 ms+) let pass. `budget` 0 = off. Feed it every frame; returns the new scale when it changes.
+ */
+export class TileLimiter {
+  scale = 1;
+  private sum = 0;
+  private n = 0;
+  private windowStart = -1;
+  private calm = 0;
+
+  constructor(private budget: number, private max = 2.2) {}
+
+  frame(now: number, tilesDrawn: number): number | null {
+    if (this.budget <= 0) return null;
+    if (this.windowStart < 0) this.windowStart = now;
+    this.sum += tilesDrawn;
+    this.n++;
+    if (now - this.windowStart < 1000) return null;
+    const avg = this.sum / this.n;
+    this.sum = this.n = 0;
+    this.windowStart = now;
+    const before = this.scale;
+    if (avg > this.budget * 1.08) {
+      this.scale = Math.min(this.max, this.scale * 1.1);
+      this.calm = 0;
+    } else if (avg < this.budget * 0.8) {
+      if (++this.calm >= 3) {
+        this.scale = Math.max(1, this.scale / 1.05);
+        this.calm = 0;
+      }
+    } else this.calm = 0;
+    return this.scale !== before ? this.scale : null;
+  }
+}
+
 const SPEED_STEPS = [1, 1.5, 2.2, 3, 4];
 /** Next speed-detail step: up once `want` reaches the next step, down once 20% below this one. */
 export function speedStep(current: number, want: number): number {
